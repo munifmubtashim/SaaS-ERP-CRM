@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sales / POS, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+.glass{background:var(--card);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);-webkit-backdrop-filter:blur(30px) saturate(190%);backdrop-filter:blur(30px) saturate(190%)}
+.num{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:0.5}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input::placeholder{color:var(--muted);opacity:1}
+.orb{position:absolute;border-radius:50%;filter:blur(75px);pointer-events:none}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);font-size:13px;font-weight:500;color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.btn-lg{min-height:44px;padding:0 18px}
+.seg-wrap{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--track)}
+.seg{border:0;background:transparent;color:var(--text2);min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap}
+.seg[aria-pressed="true"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn{min-height:32px;padding:0 12px;border:1px solid var(--rowBorder);font-size:12px}
+.chipbtn[aria-pressed="true"]{border-color:transparent}
+.card{display:flex;flex-direction:column;gap:16px;min-width:0}
+.h2{margin:0;font-size:19px;font-weight:600}
+.cap{margin:4px 0 0;font-size:13px;color:var(--text2);line-height:1.45}
+.cardhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.stat{display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--rowBorder)}
+.stat .k{font-size:13px;color:var(--text2)}
+.stat .v{font-weight:600;line-height:1.1}
+.stat .n{font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.c-pos{background:var(--posBg);color:var(--posText)}
+.c-neg{background:var(--negBg);color:var(--negText)}
+.c-warn{background:var(--warnBg);color:var(--warnText)}
+.c-acc{background:var(--accentSoft);color:var(--accentText)}
+.c-mut{background:var(--track);color:var(--text2)}
+.thead,.trow{display:grid;gap:12px;align-items:center;padding:12px 8px}
+.thead > *,.trow > *{min-width:0}
+.thead{padding-top:0;padding-bottom:8px;font-size:12px;font-weight:500;color:var(--muted)}
+.trow{width:100%;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text);border-radius:0}
+button.trow:hover{background:var(--navHover)}
+.trow[aria-current="true"]{background:var(--accentSoft)}
+.lrow{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;min-height:56px;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text)}
+.cell-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cell-main b{font-weight:600;font-size:14px}
+.cell-main span{font-size:12px;color:var(--muted)}
+.cell-end{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r{text-align:right}
+.t2{color:var(--text2)}
+.muted{color:var(--muted)}
+.pos{color:var(--posText)}
+.neg{color:var(--negText)}
+.warn{color:var(--warnText)}
+.empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:32px 12px;text-align:center;color:var(--text2);font-size:13px;line-height:1.45}
+.empty b{color:var(--text);font-size:14px}
+.err{font-size:12px;font-weight:500;color:var(--negText);line-height:1.45}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--text2)}
+.field input,.field select{min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;font-weight:400}
+.mini{width:140px;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;text-align:right}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.stack-s{display:flex;flex-direction:column;gap:4px}
+.divider{height:1px;background:var(--rowBorder);flex:0 0 auto}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px}
+.kv > span:first-child{color:var(--text2)}
+.kv > span:last-child{text-align:right}
+.label{font-size:12px;font-weight:500;color:var(--muted)}
+.big{font-size:26px;font-weight:600;line-height:1.1}
+.line{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--rowBorder)}
+.step{width:32px;height:32px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+.link{border:0;background:transparent;padding:0 4px;min-height:32px;font-size:13px;font-weight:600;color:var(--accentText);display:inline-flex;align-items:center;gap:4px}
+.bar{position:relative;height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar > span{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.tl-i{display:grid;grid-template-columns:20px 1fr;gap:10px}
+.tl-dot{width:12px;height:12px;border-radius:50%;margin:3px 0 0 4px;border:2px solid var(--muted);box-sizing:border-box}
+.toast{position:absolute;z-index:20;padding:12px 14px;border-radius:16px;background:var(--dotFill) !important;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.45;animation:ixPop 150ms ease-out}
+.toast .btn{min-height:32px}
+.foot{margin:0;font-size:12px;color:var(--muted)}
+button,.btn,.seg,.iconbtn,.pill,.trow,.lrow,.step,.nav a,.tab{transition:background-color 120ms ease-out,border-color 120ms ease-out,transform 120ms ease-out}
+.btn:hover,.pill:hover,.iconbtn:hover,.step:hover{border-color:var(--accent)}
+.btn-primary:hover{filter:brightness(1.08)}
+.seg[aria-pressed="false"]:hover{background:var(--navHover)}
+.btn:active,.iconbtn:active,.step:active,.seg:active{transform:scale(0.97)}
+@keyframes ixPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+
+@keyframes ixSk{from{background-position:100% 0}to{background-position:0 0}}
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,var(--track) 25%,var(--accentSoft) 37%,var(--track) 63%);background-size:400% 100%;animation:ixSk 1.4s ease infinite}
+@keyframes ixSpin{to{transform:rotate(360deg)}}
+.spin{animation:ixSpin 1s linear infinite;transform-origin:center}
+[aria-busy="true"]{cursor:progress}
+.skrow{display:flex;align-items:center;gap:12px;padding:12px 8px;border-top:1px solid var(--rowBorder)}
+.errbox{display:flex;flex-direction:column;align-items:flex-start;gap:12px;border-radius:28px;padding:24px}
+.errbox .h2{font-size:19px}
+.pvbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.pvbar .seg-wrap{padding:3px}
+.pvbar .seg{min-height:32px;font-size:12px}
+@media (prefers-reduced-motion: reduce){.sk{animation:none}.spin{animation-duration:2.5s}}
+
+.side{position:relative;z-index:3;flex:0 0 232px;width:232px;min-width:232px;max-width:232px;margin:16px 0 16px 16px;padding:16px 12px;border-radius:28px;display:flex;flex-direction:column;gap:16px;align-self:stretch;transition:width 240ms cubic-bezier(.32,.72,0,1),min-width 240ms cubic-bezier(.32,.72,0,1),max-width 240ms cubic-bezier(.32,.72,0,1),padding 240ms cubic-bezier(.32,.72,0,1);will-change:width}
+.sidehead{display:flex;align-items:center;gap:6px}
+.sidehead{justify-content:space-between}
+.sidehead .org{flex:0 0 auto;min-width:0;padding:0;min-height:40px}
+.sidetog{flex:0 0 auto;width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--rowBorder);color:var(--text2)}
+.sidetog:hover{background:var(--navHover);color:var(--text);border-color:var(--cardBorder)}
+.side.min{flex-basis:72px;width:72px;min-width:72px;max-width:72px;padding:16px 8px}
+.side.min .sidehead{flex-direction:column;gap:8px}
+.side.min .sidehead .org{flex:0 0 auto;padding:0;min-height:40px}
+.side .lbl,.side .orgtxt,.side .whotxt{white-space:nowrap;overflow:hidden;max-width:170px;opacity:1;transition:max-width 240ms cubic-bezier(.32,.72,0,1),opacity 160ms ease-out 80ms}
+.side .nav a svg{width:20px;height:20px;flex:0 0 auto}
+.navmoving .glass:not(.side){-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.navmoving main{pointer-events:none}
+.side .nav a{white-space:nowrap;overflow:hidden;transition:padding 240ms cubic-bezier(.32,.72,0,1),background-color 120ms ease-out}
+.side .bizbox{max-height:220px;overflow:hidden;opacity:1;transition:max-height 240ms cubic-bezier(.32,.72,0,1),opacity 160ms ease-out 80ms,padding 240ms cubic-bezier(.32,.72,0,1)}
+.side.min .lbl,.side.min .orgtxt,.side.min .whotxt{max-width:0;opacity:0;transition:max-width 240ms cubic-bezier(.32,.72,0,1),opacity 80ms ease-out}
+.side.min .bizbox{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0;transition:max-height 240ms cubic-bezier(.32,.72,0,1),opacity 80ms ease-out,padding 240ms cubic-bezier(.32,.72,0,1)}
+.side.min .nav a{padding:0 18px}
+.side.min .navlbl{height:1px;padding:0;margin:8px 10px;background:var(--rowBorder);font-size:0}
+.side.min .who{padding:10px 0 2px 10px}
+.org{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border-radius:12px}
+.logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--insight));color:var(--onAccent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;padding:0 12px;min-height:40px;border-radius:12px;font-size:14px;color:var(--text2)}
+.nav a:hover{background:var(--navHover)}
+.nav a[aria-current="page"]{background:var(--navActive);color:var(--text);font-weight:600}
+.navlbl{padding:12px 12px 4px;font-size:12px;font-weight:500;color:var(--muted)}
+.bizbox{padding:16px 12px 0;border-top:1px solid var(--rowBorder);display:flex;flex-direction:column;gap:10px;font-size:13px}
+.who{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 8px 2px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--accentSoft);color:var(--accentText);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:0 0 auto}
+.main{position:relative;z-index:1;flex:999 1 560px;min-width:0;padding:16px 24px 32px;display:flex;flex-direction:column;gap:24px}
+.phead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px}
+h1{margin:0;font-size:32px;font-weight:600;line-height:1.15}
+.sub{margin:6px 0 0;font-size:14px;color:var(--text2)}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;border-radius:999px;min-width:280px}
+.search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font:inherit;font-size:14px}
+.card{border-radius:28px;padding:20px;gap:20px}
+.stats{display:flex;flex-wrap:wrap;border-radius:28px;padding:20px 4px;row-gap:16px}
+.stat{flex:1 1 180px;padding:0 20px}
+.stat .v{font-size:26px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
+.row > *{min-width:0}
+.pw{display:flex;flex-direction:column;gap:20px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.toast{top:20px;right:24px;width:360px}
+</style>
+</helmet>
+<div id="top" style="{{rootStyle}}">
+<div aria-hidden="true" class="orb" style="left: -90px; top: 60px; width: 540px; height: 540px; background: var(--orbA)"></div>
+<div aria-hidden="true" class="orb" style="right: -110px; top: 140px; width: 500px; height: 500px; background: var(--orbB)"></div>
+<div aria-hidden="true" class="orb" style="left: 38%; top: 640px; width: 520px; height: 520px; background: var(--orbC)"></div>
+<div aria-hidden="true" class="orb" style="left: 4%; bottom: -120px; width: 460px; height: 460px; background: var(--orbD)"></div>
+<aside class="glass side {{sideCls}}">
+<div class="sidehead">
+<a class="org" href="{{homeHref}}" aria-label="Hossain Group, home" title="Hossain Group, home"><span class="num logo">HG</span></a>
+<button class="sidetog" aria-label="{{sideLabel}}" title="{{sideLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM9 5v14"/></svg></button>
+</div>
+<nav class="nav" aria-label="Main">
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="19">
+<sc-if value="{{n.isLabel}}" hint-placeholder-val="{{ false }}"><div class="navlbl">{{n.label}}</div></sc-if>
+<sc-if value="{{n.isItem}}" hint-placeholder-val="{{ true }}"><a href="{{n.href}}" aria-current="{{n.current}}" title="{{n.label}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"/></svg><span class="lbl">{{n.label}}</span></a></sc-if>
+</sc-for>
+</nav>
+<div class="bizbox">
+<div style="font-size: 12px; font-weight: 500; color: var(--muted)">Businesses</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--bizA)"></span>Hossain Motors</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--bizB)"></span>Hossain Spare Parts</div>
+<div style="display: flex; align-items: center; gap: 10px; color: var(--text2)"><span style="width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--muted); box-sizing: border-box"></span>Service Center, setting up</div>
+</div>
+<div class="who"><span class="num avatar">AR</span><span class="whotxt" style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-weight: 600; font-size: 13px">Arif Rahman</span><span style="font-size: 12px; color: var(--muted)">Sales manager, Mirpur-10</span></span></div>
+</aside>
+<main class="main">
+<header class="phead">
+<div><h1 class="num">Sales / POS</h1><p class="sub">Sell bikes and parts, take payments and look up invoices.</p></div>
+<div class="tools">
+<label class="glass search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.search}}"/></svg><input type="text" aria-label="Search items, invoices or customers" placeholder="Search items, invoices or customers" value="{{q}}" onChange="{{setQ}}"></label>
+<button class="iconbtn" aria-label="Refresh the figures" aria-busy="{{refreshBusy}}" onClick="{{refresh}}"><svg class="{{refreshSpin}}" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.refresh}}"/></svg></button>
+<button class="iconbtn" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"/></svg></button>
+<button class="iconbtn" aria-label="Notifications, 3 new" style="position: relative"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.bell}}"/></svg><span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--neg); border: 2px solid var(--dotFill)"></span></button>
+<span class="pill"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/></svg>Mirpur-10</span>
+</div>
+</header>
+<sc-if value="{{isOk}}" hint-placeholder-val="{{ true }}"><section class="glass stats" aria-label="Summary"><sc-for list="{{stats}}" as="s" hint-placeholder-count="4"><div class="stat" style="border-left-color: {{s.bc}}"><span class="k">{{s.k}}</span><span class="num v">{{s.v}}</span><span class="n">{{s.n}}</span></div></sc-for></section><div class="toolbar"><div class="seg-wrap" role="group" aria-label="Sales view"><sc-for list="{{views}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div><span class="t2" style="font-size: 13px">Hossain Motors, Mirpur-10, counter 1. Signed in as Arif Rahman.</span></div><sc-if value="{{isPos}}" hint-placeholder-val="{{ true }}"><div class="row"><section class="glass card"  aria-label="Products"><div class="cardhead"><div><h2 class="num h2">Products</h2><p class="cap">Stock at Mirpur-10. Each bike is sold against one chassis number.</p></div><div class="seg-wrap" role="group" aria-label="Category"><sc-for list="{{cats}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div><div><div class="thead" style="grid-template-columns: minmax(0, 1fr) 84px 104px 80px 76px"><span>Item</span><span>Category</span><span>Stock</span><span class="r">Price</span><span></span></div><sc-for list="{{products}}" as="p" hint-placeholder-count="8"><div class="trow" style="grid-template-columns: minmax(0, 1fr) 84px 104px 80px 76px"><span class="cell-main"><b class="ell">{{p.name}}</b><span>{{p.sub}}</span></span><span class="t2">{{p.cat}}</span><span class="{{p.stockCls}}" style="font-size: 12px">{{p.stockTxt}}</span><span class="num r" style="font-weight: 600">{{p.price}}</span><span class="r"><sc-if value="{{p.canAdd}}" hint-placeholder-val="{{ true }}"><button class="btn" aria-label="{{p.addLabel}}" onClick="{{p.add}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add</button></sc-if><sc-if value="{{p.cannot}}" hint-placeholder-val="{{ false }}"><span class="chip c-mut">None left</span></sc-if></span></div></sc-for><sc-if value="{{noProducts}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No items match your search</b><span>Try another name, or switch the category to All.</span></div></sc-if></div></section><section class="glass card" style="" aria-label="Current sale"><div class="cardhead"><div><h2 class="num h2">Current sale</h2><p class="cap">{{cartCount}}</p></div><sc-if value="{{hasCart}}" hint-placeholder-val="{{ true }}"><button class="btn" onClick="{{clearCart}}">Clear</button></sc-if></div><label class="field">Customer<select value="{{custVal}}" onChange="{{setCust}}"><option value="Walk-in customer">Walk-in customer</option><option value="Rahim Traders">Rahim Traders</option><option value="Karim Auto Centre">Karim Auto Centre</option><option value="Nasrin Enterprise">Nasrin Enterprise</option><option value="Sadia Rahman">Sadia Rahman</option><option value="Tanvir Ahmed">Tanvir Ahmed</option><option value="Mizanur Rahman">Mizanur Rahman</option></select></label><div><sc-for list="{{lines}}" as="l" hint-placeholder-count="2"><div class="line"><div class="kv"><b style="font-size: 14px; color: var(--text)">{{l.name}}</b><span class="num" style="font-weight: 600; color: var(--text)">{{l.amount}}</span></div><sc-if value="{{l.isPart}}" hint-placeholder-val="{{ true }}"><div style="display: flex; align-items: center; gap: 8px"><button class="step" aria-label="One fewer" onClick="{{l.dec}}">−</button><span class="num" style="min-width: 24px; text-align: center; font-weight: 600">{{l.qty}}</span><button class="step" aria-label="One more" onClick="{{l.inc}}">+</button><span class="muted" style="font-size: 12px">at {{l.unit}} each</span><span style="flex: 1"></span><button class="link" aria-label="{{l.removeLabel}}" onClick="{{l.remove}}">Remove</button></div></sc-if><sc-if value="{{l.isBike}}" hint-placeholder-val="{{ false }}"><div class="stack-s"><div style="display: flex; align-items: center; justify-content: space-between"><span class="label">Chassis number</span><button class="link" aria-label="{{l.removeLabel}}" onClick="{{l.remove}}">Remove</button></div><div class="chips"><sc-for list="{{l.chs}}" as="c" hint-placeholder-count="2"><button class="seg chipbtn num" aria-pressed="{{c.on}}" onClick="{{c.pick}}">{{c.label}}</button></sc-for></div><sc-if value="{{l.noCh}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">Pick a chassis number for this bike.</span></sc-if></div></sc-if></div></sc-for><sc-if value="{{cartEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No items yet</b><span>Add a bike or a part from the product list.</span></div></sc-if></div><div class="divider"></div><div class="stack"><div class="kv"><span>Subtotal</span><span class="num">{{subTxt}}</span></div><label class="kv" style="align-items: center"><span>Discount</span><input class="mini num" type="number" min="0" step="500" value="{{discVal}}" onChange="{{setDisc}}" aria-label="Discount in taka"></label><div class="kv"><span>Total</span><span class="num big">{{totalTxt}}</span></div></div><div class="stack-s" style="gap: 8px"><span class="label">Payment</span><div class="seg-wrap" role="group" aria-label="Payment method"><sc-for list="{{payMs}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div><div class="stack"><sc-if value="{{notDue}}" hint-placeholder-val="{{ true }}"><label class="kv" style="align-items: center"><span>Amount received</span><input class="mini num" type="number" min="0" step="100" value="{{recvVal}}" onChange="{{setRecv}}" aria-label="Amount received in taka"></label></sc-if><div class="kv"><span>{{balLabel}}</span><span class="num" style="font-weight: 600; color: {{balColor}}">{{balTxt}}</span></div></div><sc-if value="{{hasSaleErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">{{saleErrMsg}}</span></sc-if><button class="btn btn-primary btn-lg" style="width: 100%" onClick="{{complete}}">{{completeLabel}}</button><p class="cap" style="margin: 0">Prices include VAT. The invoice is numbered when you complete the sale.</p></section></div></sc-if><sc-if value="{{isInv}}" hint-placeholder-val="{{ false }}"><div class="row"><section class="glass card"  aria-label="Invoices"><div class="cardhead"><div><h2 class="num h2">Invoices</h2><p class="cap">{{invCaption}}</p></div><div class="seg-wrap" role="group" aria-label="Payment status"><sc-for list="{{invFilters}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div><div><div class="thead" style="grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 92px 92px 96px"><span>Invoice</span><span>Customer</span><span class="r">Total</span><span class="r">Paid</span><span>Status</span></div><sc-for list="{{invs}}" as="i" hint-placeholder-count="8"><button class="trow" aria-current="{{i.cur}}" onClick="{{i.open}}" style="grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 92px 92px 96px"><span class="cell-main"><b>{{i.no}}</b><span>{{i.when}}</span></span><span class="ell">{{i.cust}}</span><span class="num r" style="font-weight: 600">{{i.tot}}</span><span class="num r">{{i.paid}}</span><span><span class="{{i.sc}}">{{i.s}}</span></span></button></sc-for><sc-if value="{{invEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No invoices match</b><span>Clear the search or pick All.</span></div></sc-if></div></section><section class="glass card"  aria-label="Invoice details"><sc-if value="{{noSel}}" hint-placeholder-val="{{ true }}"><div class="empty" style="padding: 80px 12px"><b>Pick an invoice</b><span>Its items, payments and actions show here.</span></div></sc-if><sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}"><div class="cardhead"><div><h2 class="num h2">{{d.no}}</h2><p class="cap">{{d.when}}</p></div><span class="{{d.sc}}">{{d.s}}</span></div><div class="stack"><div class="kv"><span>Customer</span><span>{{d.cust}}</span></div><div class="kv"><span>Branch</span><span>Hossain Motors, Mirpur-10</span></div><div class="kv"><span>Sold by</span><span>{{d.by}}</span></div></div><div class="divider"></div><div class="stack"><span class="label">Items</span><sc-for list="{{d.lines}}" as="x" hint-placeholder-count="2"><div class="kv" style="align-items: flex-start"><span class="stack-s" style="gap: 2px"><span style="color: var(--text)">{{x.name}}</span><span class="muted" style="font-size: 12px">{{x.qty}}</span></span><span class="num">{{x.amt}}</span></div></sc-for><sc-if value="{{d.hasDisc}}" hint-placeholder-val="{{ false }}"><div class="kv"><span>Discount</span><span class="num">{{d.disc}}</span></div></sc-if></div><div class="divider"></div><div class="stack"><div class="kv"><span>Total</span><span class="num big">{{d.tot}}</span></div><div class="kv"><span>Paid</span><span class="num">{{d.paid}}</span></div><div class="kv"><span>Balance due</span><span class="num" style="font-weight: 600">{{d.bal}}</span></div></div><div class="stack"><span class="label">Payments</span><sc-for list="{{d.pays}}" as="p" hint-placeholder-count="1"><div class="kv"><span>{{p.when}}, {{p.m}}</span><span class="num">{{p.amt}}</span></div></sc-for><sc-if value="{{d.noPays}}" hint-placeholder-val="{{ false }}"><span class="t2" style="font-size: 13px">No payment received yet.</span></sc-if></div><sc-if value="{{d.canCollect}}" hint-placeholder-val="{{ false }}"><div class="divider"></div><div class="stack"><span class="label">Collect a payment</span><label class="field">Amount in taka<input class="num" type="number" min="0" value="{{colAmtVal}}" onChange="{{setColAmt}}"></label><div class="seg-wrap" role="group" aria-label="Payment method"><sc-for list="{{colMs}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div><sc-if value="{{hasColErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">{{colErr}}</span></sc-if><button class="btn btn-primary btn-lg" onClick="{{saveCol}}">Save payment</button></div></sc-if><div class="divider"></div><div style="display: flex; flex-wrap: wrap; gap: 8px"><button class="btn" onClick="{{printInv}}">Print invoice</button><button class="btn" onClick="{{startReturn}}">Start a return</button></div></sc-if></section></div></sc-if></sc-if><sc-if value="{{isLoad}}" hint-placeholder-val="{{ false }}"><div role="status" aria-live="polite" style="display: flex; flex-direction: column; gap: 24px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Loading the latest figures</span><section class="glass stats" aria-busy="true" aria-label="Loading summary"><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div></section><div class="row"><section class="glass card" aria-busy="true"><span class="sk" style="width: 160px; height: 22px"></span><div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div></div></section><section class="glass card" aria-busy="true"><span class="sk" style="width: 140px; height: 22px"></span><span class="sk" style="width: 100%; height: 14px"></span><span class="sk" style="width: 80%; height: 14px"></span><span class="sk" style="width: 100%; height: 40px"></span><span class="sk" style="width: 100%; height: 44px"></span></section></div></div></sc-if><sc-if value="{{isErr}}" hint-placeholder-val="{{ false }}"><section class="glass errbox" role="alert"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--negText)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><div><h2 class="num h2">We could not load these figures</h2><p class="cap">The connection to the server dropped. Nothing you entered has been changed. Check your connection, then try again.</p></div><button class="btn btn-primary btn-lg" onClick="{{retry}}">Try again</button></section></sc-if>
+<div class="pvbar" role="group" aria-label="Preview state"><span class="label">Preview state</span><div class="seg-wrap"><sc-for list="{{pvs}}" as="g" hint-placeholder-count="4"><button class="seg" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div>
+<p class="foot">Demo data. Every figure on this screen is illustrative.</p>
+</main>
+<sc-if value="{{showToast}}" hint-placeholder-val="{{ false }}"><div class="glass toast" role="status" aria-live="polite"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pos)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 auto"><path d="M5 12l5 5 9-10"/></svg><span style="flex: 1">{{toastMsg}}</span><button class="btn" onClick="{{dismissToast}}">Dismiss</button></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","default":"light","options":["light","dark"],"section":"Appearance"},"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+
+  fmt(n) { const neg = n < 0; const s = String(Math.round(Math.abs(n))), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return (neg ? '−' : '') + '৳' + (r ? r + ',' : '') + l; }
+  toast(msg) { this.setState({ toast: msg }); clearTimeout(this.__tt); this.__tt = setTimeout(() => this.setState({ toast: null }), 4000); }
+
+  componentDidMount() { this.ixMotion('first'); }
+  componentDidUpdate(pp, ps) {
+    const a = ps || {}, b = this.state || {};
+    if (a.view !== b.view || a.pv !== b.pv || a.refreshing !== b.refreshing) { if (!b.refreshing && b.pv !== 'loading') this.ixMotion(a.refreshing ? 'ready' : 'swap'); }
+    else if (a.sel !== b.sel || a.pmode !== b.pmode || a.uo !== b.uo) this.ixMotion('panel');
+    else if (a.cart && b.cart && b.cart.length > a.cart.length) this.ixMotion('cart');
+  }
+  ixLoad(cb) {
+    if (window.Motion) { cb(window.Motion); return; }
+    if (window.__ixFail) return;
+    if (window.__ixQ) { window.__ixQ.push(cb); return; }
+    window.__ixQ = [cb];
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/motion@latest/dist/motion.js';
+    s.onload = () => { const q = window.__ixQ || []; window.__ixQ = null; if (window.Motion) q.forEach((f) => f(window.Motion)); else window.__ixFail = true; };
+    s.onerror = () => { window.__ixQ = null; window.__ixFail = true; };
+    document.head.appendChild(s);
+  }
+  ixMotion(kind) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.ixLoad((M) => { requestAnimationFrame(() => { try {
+      const root = document.getElementById('top'); if (!root) return;
+      const q = (s) => Array.prototype.slice.call(root.querySelectorAll(s));
+      const first = kind === 'first';
+      if (kind === 'panel') {
+        const p = q('section.glass[aria-label$="details"]'); if (p.length) M.animate(p, { opacity: [0.4, 1], x: [14, 0] }, { duration: 0.24, ease: 'easeOut' });
+        return;
+      }
+      if (kind === 'cart') {
+        const l = q('.line'); if (l.length) M.animate(l[l.length - 1], { opacity: [0, 1], y: [-8, 0], backgroundColor: ['rgba(79,93,240,0.16)', 'rgba(79,93,240,0)'] }, { duration: 0.45, ease: 'easeOut' });
+        return;
+      }
+      const cards = q('.glass').filter((el) => !el.matches('.toast, nav, aside'));
+      if (cards.length) M.animate(cards, { opacity: [0, 1], y: [first ? 16 : 8, 0] }, { duration: first ? 0.45 : 0.25, delay: M.stagger(first ? 0.05 : 0.025), ease: 'easeOut' });
+      const rows = q('.trow, .lrow').slice(0, 14);
+      if (rows.length) M.animate(rows, { opacity: [0, 1], y: [6, 0] }, { duration: 0.28, delay: M.stagger(0.025, { startDelay: first ? 0.25 : 0.1 }), ease: 'easeOut' });
+      const fills = q('.bar > span, .stat .bar span');
+      fills.forEach((el) => { el.style.transformOrigin = '0 50%'; });
+      if (fills.length) M.animate(fills, { scaleX: [0, 1] }, { duration: 0.7, delay: first ? 0.35 : 0.15, ease: [0.2, 0.8, 0.2, 1] });
+      if (first || kind === 'ready') {
+        q('.stat .v').forEach((el) => {
+          const t = el.firstChild; if (!t || el.children.length || t.nodeType !== 3) return;
+          if (!/^৳[\d,]+$/.test(t.nodeValue)) return;
+          const to = Number(t.nodeValue.replace(/[^0-9]/g, '')); if (!to) return;
+          const fmt = (n) => { const s = String(n), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return '৳' + (r ? r + ',' : '') + l; };
+          M.animate(0, to, { duration: 0.9, ease: 'easeOut', onUpdate: (v) => { t.nodeValue = fmt(Math.round(v)); }, onComplete: () => { t.nodeValue = fmt(to); } });
+        });
+      }
+    } catch (e) {} }); });
+  }
+  refresh() {
+    if ((this.state || {}).refreshing) return;
+    this.setState({ refreshing: true });
+    clearTimeout(this.__rt);
+    this.__rt = setTimeout(() => { const t = this.now(); this.setState({ refreshing: false, upd: t }); this.toast('Figures updated at ' + t + '.'); }, 800);
+  }
+  componentWillUnmount() { clearTimeout(this.__tt); clearTimeout(this.__rt); }
+  now() { const D = new Date(), h = D.getHours(); return ((h + 11) % 12 + 1) + ':' + String(D.getMinutes()).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); }
+  bc(i) { return (this.__phone ? i % 2 === 0 : i === 0) ? 'transparent' : 'var(--rowBorder)'; }
+  base(pageDesk, pageTab) {
+    const st = this.state || {};
+    const dark = (st.theme || this.props.theme || 'light') === 'dark';
+    const phone = false;
+    this.__phone = phone;
+    const L = {
+      text: '#0E1836', text2: '#33405F', muted: '#3F4A6E',
+      card: 'linear-gradient(145deg, rgba(255,255,255,0.66), rgba(255,255,255,0.30))',
+      cardBorder: 'rgba(255,255,255,0.95)',
+      cardShadow: '0 0 0 1px rgba(40,56,130,0.07), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(255,255,255,0.35), 0 26px 50px -18px rgba(40,56,130,0.34)',
+      rowBorder: 'rgba(16,27,59,0.08)',
+      accent: '#4F5DF0', accentSoft: 'rgba(79,93,240,0.13)', accentText: '#2A35B5', onAccent: '#FFFFFF',
+      pos: '#12A57A', posText: '#055A3F', posBg: 'rgba(18,165,122,0.15)',
+      neg: '#E04466', negText: '#9E1E3B', negBg: 'rgba(224,68,102,0.13)',
+      warn: '#E89A1C', warnText: '#744205', warnBg: 'rgba(232,154,28,0.18)',
+      insight: '#12A9BF', bizA: '#3346B8', bizB: '#1FA391',
+      grid: 'rgba(16,27,59,0.10)', track: 'rgba(16,27,59,0.08)',
+      navActive: 'rgba(79,93,240,0.14)', navHover: 'rgba(16,27,59,0.05)',
+      chipBg: 'rgba(255,255,255,0.48)', dotFill: '#F4F6FA',
+      orbA: 'rgba(255,255,255,0.5)', orbB: 'rgba(197,113,119,0.18)', orbC: 'rgba(255,255,255,0.55)', orbD: 'rgba(255,255,255,0.4)',
+      icoInk: '#FFFFFF', c1: '#3346B8', c2: '#A61E4D', c3: '#1FA391'
+    };
+    const N = {
+      text: '#F2F5FF', text2: '#B7C1DE', muted: '#93A1C6',
+      card: 'linear-gradient(145deg, rgba(160,190,255,0.09), rgba(255,255,255,0.015) 55%, rgba(120,90,255,0.04))',
+      cardBorder: 'rgba(170,195,255,0.16)',
+      cardShadow: '0 28px 56px -20px rgba(0,0,0,0.95), 0 0 36px -14px rgba(80,130,255,0.35), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.03)',
+      rowBorder: 'rgba(255,255,255,0.09)',
+      accent: '#8C98FF', accentSoft: 'rgba(140,152,255,0.20)', accentText: '#B4BCFF', onAccent: '#0A1030',
+      pos: '#2FC99A', posText: '#57DDB1', posBg: 'rgba(47,201,154,0.14)',
+      neg: '#F0627C', negText: '#FF93A6', negBg: 'rgba(240,98,124,0.14)',
+      warn: '#F2AB44', warnText: '#FFC673', warnBg: 'rgba(242,171,68,0.14)',
+      insight: '#2CC4D8', bizA: '#7F92F7', bizB: '#2FB3A0',
+      grid: 'rgba(255,255,255,0.10)', track: 'rgba(255,255,255,0.10)',
+      navActive: 'rgba(140,152,255,0.22)', navHover: 'rgba(255,255,255,0.06)',
+      chipBg: 'rgba(255,255,255,0.04)', dotFill: '#0A0E1C',
+      orbA: 'rgba(59,130,246,0.16)', orbB: 'rgba(139,92,246,0.12)', orbC: 'rgba(34,211,238,0.05)', orbD: 'rgba(59,130,246,0.09)',
+      icoInk: '#0A1030', c1: '#7F92F7', c2: '#F26D55', c3: '#2FB3A0'
+    };
+    const V = dark ? N : L;
+    const aurora = dark
+      ? 'radial-gradient(900px 600px at 8% -4%, rgba(56,110,255,0.18), transparent 62%), radial-gradient(820px 580px at 100% 100%, rgba(124,82,255,0.14), transparent 62%), radial-gradient(600px 420px at 72% 28%, rgba(34,211,238,0.05), transparent 65%), linear-gradient(135deg, #000000 0%, #000000 55%, #02040E 100%)'
+      : 'linear-gradient(270deg, rgba(197,113,119,0.24) 0%, rgba(197,113,119,0.10) 28%, rgba(197,113,119,0) 55%), linear-gradient(180deg, #F7F8FC 0%, #EEF1F8 100%)';
+    const vars = Object.keys(V).map((k) => '--' + k + ':' + V[k]).join(';');
+    const rootStyle = vars + ';background:' + aurora + ';color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px;box-sizing:border-box;position:relative;overflow:hidden;'
+      + (phone ? 'width:390px;height:844px;display:flex;flex-direction:column' : 'min-height:1120px;display:flex;flex-wrap:wrap;align-items:stretch');
+    const I = {
+      home: 'M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5',
+      building: 'M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M8 8h3M8 12h3M8 16h3M2 21h20',
+      pin: 'M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+      cart: 'M3 4h2l2.4 11.2a1 1 0 001 .8h8.7a1 1 0 001-.76L20 8H6.2M9 20.5a.5.5 0 100-1 .5.5 0 000 1zM17 20.5a.5.5 0 100-1 .5.5 0 000 1z',
+      cal: 'M4 7a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4',
+      bag: 'M6 7h12l1 13H5zM9 7V6a3 3 0 016 0v1',
+      box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+      bike: 'M5.5 18a3 3 0 100-6 3 3 0 000 6zM18.5 18a3 3 0 100-6 3 3 0 000 6zM8.5 15l3-5h4.5l2.5 5M11.5 10L10 7H7.5M16 10l1-3h2',
+      wrench: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
+      users: 'M16 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+      book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 21V5M8 7h7M8 11h7',
+      chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+      shield: 'M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6zM9 12l2 2 4-4',
+      more: 'M5 12h.01M12 12h.01M19 12h.01',
+      search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3',
+      bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
+      sun: 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+      moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z',
+      check: 'M5 12l5 5 9-10',
+      refresh: 'M21 12a9 9 0 11-3-6.7M21 4v5h-5',
+      alert: 'M12 3l10 18H2zM12 10v5M12 18h.01'
+    };
+    const NAV = [['label', 'Overview'], ['item', 'Home', 'home'], ['label', 'Organization'], ['item', 'Businesses', 'building'], ['item', 'Branches', 'pin'], ['label', 'Operations'], ['item', 'Sales / POS', 'cart'], ['item', 'Booking & Preorder', 'cal'], ['item', 'Purchase', 'bag'], ['item', 'Inventory', 'box'], ['item', 'Products', 'bike'], ['item', 'Service & Warranty', 'wrench'], ['label', 'People'], ['item', 'Customers', 'users'], ['label', 'Finance'], ['item', 'Accounting', 'book'], ['item', 'Reports', 'chart'], ['label', 'Admin'], ['item', 'Users & Permissions', 'shield']];
+    const HREF = { 'Home': ['Main', 'DesktopDark'], 'Sales / POS': ['Sales', 'SalesDark'], 'Inventory': ['Inventory', 'InventoryDark'], 'Products': ['Bikes', 'BikesDark'] };
+    const PHREF = { 'Home': ['PhoneLight', 'PhoneDark'], 'Sales': ['SalesPhone', 'SalesPhoneDark'], 'Stock': ['InventoryPhone', 'InventoryPhoneDark'], 'Products': ['BikesPhone', 'BikesPhoneDark'] };
+    const hr = (m, k) => m[k] ? m[k][dark ? 1 : 0] + '.dc.html' : '#top';
+    const nav = NAV.map((r) => r[0] === 'label'
+      ? { isLabel: true, isItem: false, label: r[1], icon: '', href: '#top', current: 'false' }
+      : { isLabel: false, isItem: true, label: r[1], icon: I[r[2]], href: hr(HREF, r[1]), current: r[1] === pageDesk ? 'page' : 'false' });
+    const tabs = [['Home', 'home'], ['Sales', 'cart'], ['Stock', 'box'], ['Products', 'bike'], ['More', 'more']].map((t) => ({ label: t[0], icon: I[t[1]], href: hr(PHREF, t[0]), current: t[0] === pageTab ? 'page' : 'false' }));
+    let nc = st.nc;
+    if (nc === undefined) { nc = false; try { nc = window.localStorage.getItem('hg-nav-min') === '1'; } catch (e) {} }
+    const toggleSide = () => { const v = !nc; const rt = document.getElementById('top'); if (rt) { rt.classList.add('navmoving'); clearTimeout(window.__nm); window.__nm = setTimeout(() => rt.classList.remove('navmoving'), 340); } try { window.localStorage.setItem('hg-nav-min', v ? '1' : '0'); } catch (e) {} this.setState({ nc: v }); };
+    const pv = st.pv || 'data', busy = !!st.refreshing || pv === 'loading';
+    const pvs = [['data', 'Data'], ['loading', 'Loading'], ['empty', 'Empty'], ['error', 'Error']].map((x) => ({ label: x[1], on: pv === x[0] ? 'true' : 'false', st: '', go: () => this.setState({ pv: x[0], sel: null, pmode: 'info', formErr: null }) }));
+    return { st, dark, pv, out: {
+      sideCls: nc ? 'min' : '', sideOpen: nc ? 'false' : 'true', sideLabel: nc ? 'Expand the sidebar' : 'Collapse the sidebar', sideIcon: nc ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6', toggleSide,
+      isLoad: busy, isErr: !busy && pv === 'error', isOk: !busy && pv !== 'error', pvs,
+      refreshBusy: busy ? 'true' : 'false', refreshSpin: busy ? 'spin' : '', refresh: () => this.refresh(),
+      retry: () => this.setState({ pv: 'data' }),
+      rootStyle, nav, tabs, ic: I, homeHref: hr(HREF, 'Home'),
+      themeIcon: dark ? I.sun : I.moon,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      q: st.q || '', setQ: (e) => this.setState({ q: e.target.value, sel: null }),
+      showToast: !!st.toast, toastMsg: st.toast || '', dismissToast: () => this.setState({ toast: null })
+    } };
+  }
+
+  renderVals() {
+
+    const segs = (arr, cur, key, fill, keep) => arr.map((x) => { const v = Array.isArray(x) ? x[0] : x, l = Array.isArray(x) ? x[1] : x; return { label: l, on: cur === v ? 'true' : 'false', st: fill ? 'flex: 1 1 0; padding: 0 6px' : '', go: () => { const o = {}; o[key] = v; if (!keep) { o.sel = null; o.formErr = null; } this.setState(o); } }; });
+
+    const b = this.base('Sales / POS', 'Sales'), st = b.st, f = (n) => this.fmt(n), set = (o) => this.setState(o);
+    const P = [{"id": "fzs", "name": "Yamaha FZS V3", "sub": "Motorcycle", "cat": "Bikes", "price": 285000, "bike": true, "ch": ["FZ3-240457", "FZ3-240463", "FZ3-240471"], "stock": 3}, {"id": "hor", "name": "Honda Hornet 2.0", "sub": "Motorcycle", "cat": "Bikes", "price": 239900, "bike": true, "ch": ["HN2-240126", "HN2-240131"], "stock": 2}, {"id": "gix", "name": "Suzuki Gixxer SF", "sub": "Motorcycle", "cat": "Bikes", "price": 279950, "bike": true, "ch": ["GSF-240081", "GSF-240084"], "stock": 2}, {"id": "pul", "name": "Bajaj Pulsar N160", "sub": "Motorcycle", "cat": "Bikes", "price": 229500, "bike": true, "ch": ["PN1-240315", "PN1-240322", "PN1-240327"], "stock": 3}, {"id": "apa", "name": "TVS Apache RTR 160 4V", "sub": "Motorcycle", "cat": "Bikes", "price": 226000, "bike": true, "ch": [], "stock": 0}, {"id": "oil", "name": "Motul 3000 4T, 1 litre", "sub": "Engine oil", "cat": "Parts", "price": 950, "stock": 64}, {"id": "brk", "name": "Brake pad set, front", "sub": "Brakes", "cat": "Parts", "price": 1250, "stock": 38}, {"id": "chn", "name": "Chain and sprocket kit", "sub": "Drive", "cat": "Parts", "price": 3800, "stock": 12}, {"id": "bat", "name": "12V 5Ah battery", "sub": "Electrical", "cat": "Parts", "price": 3400, "stock": 9}, {"id": "tyr", "name": "Tyre 100/80-17", "sub": "Tyres", "cat": "Parts", "price": 4200, "stock": 16}, {"id": "hel", "name": "Full-face helmet", "sub": "Safety", "cat": "Accessories", "price": 4500, "stock": 22}, {"id": "cov", "name": "Bike cover", "sub": "Care", "cat": "Accessories", "price": 1200, "stock": 30}];
+    const INV0 = [{"no": "INV-261113-014", "day": "13 Nov", "time": "12:40 PM", "cust": "Rahim Traders", "by": "Arif", "lines": [["Yamaha FZS V3, FZ3-240402", 1, 285000], ["Full-face helmet", 2, 4500]], "pays": [["13 Nov, 12:42 PM", "Card", 294000]]}, {"no": "INV-261113-013", "day": "13 Nov", "time": "11:55 AM", "cust": "Walk-in customer", "by": "Nusrat", "lines": [["Motul 3000 4T, 1 litre", 4, 950], ["Brake pad set, front", 1, 1250]], "pays": [["13 Nov, 11:56 AM", "Cash", 5050]]}, {"no": "INV-261113-012", "day": "13 Nov", "time": "11:20 AM", "cust": "Karim Auto Centre", "by": "Arif", "lines": [["Honda Hornet 2.0, HN2-240118", 1, 239900], ["Honda Hornet 2.0, HN2-240121", 1, 239900]], "pays": [["13 Nov, 11:25 AM", "bKash", 200000]]}, {"no": "INV-261113-011", "day": "13 Nov", "time": "10:05 AM", "cust": "Sadia Rahman", "by": "Nusrat", "lines": [["Suzuki Gixxer SF, GSF-240077", 1, 279950]], "pays": []}, {"no": "INV-261112-048", "day": "12 Nov", "time": "6:30 PM", "cust": "Tanvir Ahmed", "by": "Arif", "lines": [["Bajaj Pulsar N160, PN1-240310", 1, 229500], ["Bike cover", 1, 1200]], "pays": [["12 Nov, 6:31 PM", "Cash", 230700]]}, {"no": "INV-261112-047", "day": "12 Nov", "time": "5:10 PM", "cust": "Nasrin Enterprise", "by": "Nusrat", "lines": [["Brake pad set, front", 10, 1250], ["Chain and sprocket kit", 3, 3800]], "pays": [["12 Nov, 5:15 PM", "Cash", 10000]]}, {"no": "INV-261112-046", "day": "12 Nov", "time": "3:45 PM", "cust": "Walk-in customer", "by": "Arif", "lines": [["Tyre 100/80-17", 2, 4200]], "pays": [["12 Nov, 3:46 PM", "Cash", 8400]]}, {"no": "INV-261112-045", "day": "12 Nov", "time": "1:20 PM", "cust": "Mizanur Rahman", "by": "Nusrat", "lines": [["Yamaha FZS V3, FZ3-240399", 1, 285000]], "pays": [["12 Nov, 1:25 PM", "Card", 150000]]}];
+    const byId = {}; P.forEach((p) => { byId[p.id] = p; });
+    const view = st.view || 'pos';
+    const q = (st.q || '').trim().toLowerCase();
+    const cat = st.cat || 'All';
+    const cart = st.cart || [{ key: 'c1', id: 'fzs', qty: 1, ch: 'FZ3-240457' }, { key: 'c2', id: 'hel', qty: 2, ch: null }];
+    const setCart = (c) => set({ cart: c, saleErr: null });
+    const repl = (l, patch) => cart.map((x) => x === l ? Object.assign({}, x, patch) : x);
+    const products = P.filter((p) => (cat === 'All' || p.cat === cat) && (!q || (p.name + ' ' + p.sub).toLowerCase().indexOf(q) >= 0)).map((p) => {
+      const inCart = cart.filter((l) => l.id === p.id).reduce((a, l) => a + l.qty, 0), left = p.stock - inCart;
+      return { name: p.name, sub: p.sub, cat: p.cat, price: f(p.price), stockTxt: p.stock === 0 ? 'Out of stock' : left + ' of ' + p.stock + ' left', stockCls: left <= 0 ? 'neg' : left <= 3 ? 'warn' : 't2',
+        canAdd: left > 0, cannot: left <= 0, addLabel: 'Add ' + p.name,
+        add: () => {
+          if (p.bike) { setCart(cart.concat([{ key: 'k' + Date.now(), id: p.id, qty: 1, ch: null }])); return; }
+          const ex = cart.find((l) => l.id === p.id);
+          setCart(ex ? repl(ex, { qty: ex.qty + 1 }) : cart.concat([{ key: 'k' + Date.now(), id: p.id, qty: 1, ch: null }]));
+        } };
+    });
+    const lines = cart.map((l) => {
+      const p = byId[l.id], others = cart.filter((x) => x !== l).map((x) => x.ch);
+      return { name: p.name, unit: f(p.price), qty: l.qty, amount: f(p.price * l.qty), isBike: !!p.bike, isPart: !p.bike,
+        chs: p.bike ? p.ch.filter((c) => others.indexOf(c) < 0).map((c) => ({ label: c, on: l.ch === c ? 'true' : 'false', pick: () => setCart(repl(l, { ch: c })) })) : [],
+        noCh: st.saleErr === 'ch' && !!p.bike && !l.ch,
+        inc: () => { if (l.qty < p.stock) setCart(repl(l, { qty: l.qty + 1 })); },
+        dec: () => setCart(repl(l, { qty: Math.max(1, l.qty - 1) })),
+        remove: () => setCart(cart.filter((x) => x !== l)), removeLabel: 'Remove ' + p.name };
+    });
+    const sub = cart.reduce((a, l) => a + byId[l.id].price * l.qty, 0);
+    const disc = Math.min(sub, Math.max(0, Number(st.disc == null ? 5000 : st.disc) || 0));
+    const total = sub - disc;
+    const pay = st.pay || 'Cash';
+    const recv = pay === 'Due' ? 0 : (st.recv == null || st.recv === '' ? total : Math.max(0, Number(st.recv) || 0));
+    const newInv = st.newInv || [];
+    const nItems = cart.reduce((a, l) => a + l.qty, 0);
+    const complete = () => {
+      if (!cart.length) { set({ saleErr: 'empty' }); return; }
+      if (cart.some((l) => byId[l.id].bike && !l.ch)) { set({ saleErr: 'ch' }); return; }
+      const no = 'INV-261113-' + String(15 + newInv.length).padStart(3, '0'), tm = this.now(), paid = Math.min(recv, total);
+      const inv = { no, day: '13 Nov', time: tm, cust: st.cust || 'Walk-in customer', by: 'Arif', disc, lines: cart.map((l) => [byId[l.id].name + (l.ch ? ', ' + l.ch : ''), l.qty, byId[l.id].price]), pays: paid > 0 ? [['13 Nov, ' + tm, pay, paid]] : [] };
+      set({ newInv: [inv].concat(newInv), cart: [], disc: 0, recv: null, pay: 'Cash', cust: 'Walk-in customer', saleErr: null });
+      this.toast('Invoice ' + no + ' saved. ' + f(paid) + ' received' + (total > paid ? ', ' + f(total - paid) + ' still due.' : '.'));
+    };
+    const extra = st.extra || {};
+    const SC = { 'Paid': 'chip c-pos', 'Partly paid': 'chip c-warn', 'Due': 'chip c-neg' };
+    const all = newInv.concat(INV0).map((v) => {
+      const tot = v.lines.reduce((a, x) => a + x[1] * x[2], 0) - (v.disc || 0), pays = v.pays.concat(extra[v.no] || []), paid = pays.reduce((a, x) => a + x[2], 0);
+      return Object.assign({}, v, { tot, pays, paid, s: paid >= tot ? 'Paid' : paid > 0 ? 'Partly paid' : 'Due' });
+    });
+    const inf = st.inf || 'All';
+    const shown = all.filter((v) => (inf === 'All' || v.s === inf) && (!q || (v.no + ' ' + v.cust).toLowerCase().indexOf(q) >= 0));
+    const invs = shown.map((v) => ({ no: v.no, when: v.day + ', ' + v.time, cust: v.cust, items: v.lines[0][0].split(',')[0] + (v.lines.length > 1 ? ' and ' + (v.lines.length - 1) + ' more' : ''), tot: f(v.tot), paid: f(v.paid), s: v.s, sc: SC[v.s], cur: st.sel === v.no ? 'true' : 'false', open: () => set({ sel: v.no, view: 'inv', colErr: null, colAmt: null }) }));
+    const dv = view === 'inv' ? all.find((v) => v.no === st.sel) : null;
+    const bal = dv ? dv.tot - dv.paid : 0;
+    const d = dv ? { no: dv.no, when: dv.day + ' 2026, ' + dv.time, cust: dv.cust, by: dv.by, s: dv.s, sc: SC[dv.s],
+      lines: dv.lines.map((x) => ({ name: x[0], qty: x[1] + ' × ' + f(x[2]), amt: f(x[1] * x[2]) })),
+      hasDisc: !!dv.disc, disc: '−' + f(dv.disc || 0), tot: f(dv.tot), paid: f(dv.paid), bal: f(bal),
+      pays: dv.pays.map((x) => ({ when: x[0], m: x[1], amt: f(x[2]) })), noPays: !dv.pays.length, canCollect: bal > 0 }
+      : { no: '', when: '', cust: '', by: '', s: '', sc: '', lines: [], hasDisc: false, disc: '', tot: '', paid: '', bal: '', pays: [], noPays: false, canCollect: false };
+    const colM = st.colM || 'Cash';
+    const saveCol = () => {
+      const a = Number(st.colAmt == null ? bal : st.colAmt);
+      if (!(a > 0)) { set({ colErr: 'Enter an amount above zero.' }); return; }
+      if (a > bal) { set({ colErr: 'That is more than the ' + f(bal) + ' still due.' }); return; }
+      const e = Object.assign({}, extra); e[dv.no] = (e[dv.no] || []).concat([['13 Nov, ' + this.now(), colM, a]]);
+      set({ extra: e, colAmt: null, colErr: null });
+      this.toast(f(a) + ' received for ' + dv.no + '.');
+    };
+    const today = all.filter((v) => v.day === '13 Nov');
+    const sT = today.reduce((a, v) => a + v.tot, 0), pT = today.reduce((a, v) => a + v.paid, 0);
+    const stats = [
+      { k: 'Sales today', v: f(sT), n: today.length + ' invoices at Mirpur-10' },
+      { k: 'Collected', v: f(pT), n: Math.round(pT / sT * 100) + '% of today’s sales' },
+      { k: 'Still due', v: f(sT - pT), n: today.filter((v) => v.s !== 'Paid').length + ' invoices not fully paid' },
+      { k: 'Average invoice', v: f(sT / Math.max(1, today.length)), n: 'Today, all payment types' }
+    ].map((s, i) => Object.assign(s, { bc: this.bc(i) }));
+    const errMsg = st.saleErr === 'empty' ? 'Add at least one item before completing the sale.' : st.saleErr === 'ch' ? 'Pick a chassis number for every bike in the sale.' : '';
+    const R = Object.assign(b.out, {
+      stats,
+      views: segs([['pos', 'Point of sale'], ['inv', 'Invoices']], view, 'view', this.__phone),
+      isPos: view === 'pos', isInv: view === 'inv', isInvList: view === 'inv' && !dv, isInvDetail: view === 'inv' && !!dv,
+      cats: segs(['All', 'Bikes', 'Parts', 'Accessories'], cat, 'cat', false, true),
+      products, noProducts: !products.length,
+      lines, cartEmpty: !cart.length, hasCart: cart.length > 0,
+      cartCount: cart.length ? nItems + (nItems === 1 ? ' item' : ' items') + ' for ' + (st.cust || 'Walk-in customer') : 'Nothing added yet',
+      clearCart: () => set({ cart: [], saleErr: null }),
+      custVal: st.cust || 'Walk-in customer', setCust: (e) => set({ cust: e.target.value }),
+      subTxt: f(sub), discVal: st.disc == null ? '5000' : String(st.disc), setDisc: (e) => set({ disc: e.target.value }),
+      totalTxt: f(total),
+      payMs: segs(['Cash', 'Card', 'bKash', 'Due'], pay, 'pay', true, true),
+      notDue: pay !== 'Due', recvVal: st.recv == null ? String(total) : st.recv, setRecv: (e) => set({ recv: e.target.value }),
+      balLabel: recv >= total ? 'Change to give' : 'Still due after this sale', balTxt: f(Math.abs(recv - total)), balColor: recv >= total ? 'var(--text)' : 'var(--negText)',
+      hasSaleErr: !!errMsg, saleErrMsg: errMsg, complete, completeLabel: cart.length ? 'Complete sale, ' + f(total) : 'Complete sale',
+      invFilters: segs(['All', 'Paid', 'Partly paid', 'Due'], inf, 'inf'),
+      invs, invEmpty: !invs.length, invCaption: 'Showing ' + invs.length + ' of ' + all.length + ' invoices, newest first.',
+      d, hasSel: !!dv, noSel: !dv,
+      colAmtVal: st.colAmt == null ? String(bal) : st.colAmt, setColAmt: (e) => set({ colAmt: e.target.value }),
+      colMs: segs(['Cash', 'Card', 'bKash'], colM, 'colM', true, true), saveCol, hasColErr: !!st.colErr, colErr: st.colErr || '',
+      printInv: () => this.toast((dv ? dv.no : 'Invoice') + ' sent to the counter printer. This is a demo, so nothing prints.'),
+      startReturn: () => this.toast('Returns open from this invoice in the full app. This demo stops here.'),
+      back: () => set({ sel: null })
+    });
+    if (st.pv === 'empty') { R.products = []; R.noProducts = true; R.invs = []; R.invEmpty = true; }
+    return R;
+
+  }
+}
+</script>
+</body>
+</html>

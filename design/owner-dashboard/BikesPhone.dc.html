@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Products, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+.glass{background:var(--card);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);-webkit-backdrop-filter:blur(30px) saturate(190%);backdrop-filter:blur(30px) saturate(190%)}
+.num{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:0.5}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input::placeholder{color:var(--muted);opacity:1}
+.orb{position:absolute;border-radius:50%;filter:blur(75px);pointer-events:none}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);font-size:13px;font-weight:500;color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.btn-lg{min-height:44px;padding:0 18px}
+.seg-wrap{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--track)}
+.seg{border:0;background:transparent;color:var(--text2);min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap}
+.seg[aria-pressed="true"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn{min-height:32px;padding:0 12px;border:1px solid var(--rowBorder);font-size:12px}
+.chipbtn[aria-pressed="true"]{border-color:transparent}
+.card{display:flex;flex-direction:column;gap:16px;min-width:0}
+.h2{margin:0;font-size:19px;font-weight:600}
+.cap{margin:4px 0 0;font-size:13px;color:var(--text2);line-height:1.45}
+.cardhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.stat{display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--rowBorder)}
+.stat .k{font-size:13px;color:var(--text2)}
+.stat .v{font-weight:600;line-height:1.1}
+.stat .n{font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.c-pos{background:var(--posBg);color:var(--posText)}
+.c-neg{background:var(--negBg);color:var(--negText)}
+.c-warn{background:var(--warnBg);color:var(--warnText)}
+.c-acc{background:var(--accentSoft);color:var(--accentText)}
+.c-mut{background:var(--track);color:var(--text2)}
+.thead,.trow{display:grid;gap:12px;align-items:center;padding:12px 8px}
+.thead > *,.trow > *{min-width:0}
+.thead{padding-top:0;padding-bottom:8px;font-size:12px;font-weight:500;color:var(--muted)}
+.trow{width:100%;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text);border-radius:0}
+button.trow:hover{background:var(--navHover)}
+.trow[aria-current="true"]{background:var(--accentSoft)}
+.lrow{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;min-height:56px;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text)}
+.cell-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cell-main b{font-weight:600;font-size:14px}
+.cell-main span{font-size:12px;color:var(--muted)}
+.cell-end{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r{text-align:right}
+.t2{color:var(--text2)}
+.muted{color:var(--muted)}
+.pos{color:var(--posText)}
+.neg{color:var(--negText)}
+.warn{color:var(--warnText)}
+.empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:32px 12px;text-align:center;color:var(--text2);font-size:13px;line-height:1.45}
+.empty b{color:var(--text);font-size:14px}
+.err{font-size:12px;font-weight:500;color:var(--negText);line-height:1.45}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--text2)}
+.field input,.field select{min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;font-weight:400}
+.mini{width:140px;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;text-align:right}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.stack-s{display:flex;flex-direction:column;gap:4px}
+.divider{height:1px;background:var(--rowBorder);flex:0 0 auto}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px}
+.kv > span:first-child{color:var(--text2)}
+.kv > span:last-child{text-align:right}
+.label{font-size:12px;font-weight:500;color:var(--muted)}
+.big{font-size:26px;font-weight:600;line-height:1.1}
+.line{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--rowBorder)}
+.step{width:32px;height:32px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+.link{border:0;background:transparent;padding:0 4px;min-height:32px;font-size:13px;font-weight:600;color:var(--accentText);display:inline-flex;align-items:center;gap:4px}
+.bar{position:relative;height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar > span{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.tl-i{display:grid;grid-template-columns:20px 1fr;gap:10px}
+.tl-dot{width:12px;height:12px;border-radius:50%;margin:3px 0 0 4px;border:2px solid var(--muted);box-sizing:border-box}
+.toast{position:absolute;z-index:20;padding:12px 14px;border-radius:16px;background:var(--dotFill) !important;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.45;animation:ixPop 150ms ease-out}
+.toast .btn{min-height:32px}
+.foot{margin:0;font-size:12px;color:var(--muted)}
+button,.btn,.seg,.iconbtn,.pill,.trow,.lrow,.step,.nav a,.tab{transition:background-color 120ms ease-out,border-color 120ms ease-out,transform 120ms ease-out}
+.btn:hover,.pill:hover,.iconbtn:hover,.step:hover{border-color:var(--accent)}
+.btn-primary:hover{filter:brightness(1.08)}
+.seg[aria-pressed="false"]:hover{background:var(--navHover)}
+.btn:active,.iconbtn:active,.step:active,.seg:active{transform:scale(0.97)}
+@keyframes ixPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+
+@keyframes ixSk{from{background-position:100% 0}to{background-position:0 0}}
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,var(--track) 25%,var(--accentSoft) 37%,var(--track) 63%);background-size:400% 100%;animation:ixSk 1.4s ease infinite}
+@keyframes ixSpin{to{transform:rotate(360deg)}}
+.spin{animation:ixSpin 1s linear infinite;transform-origin:center}
+[aria-busy="true"]{cursor:progress}
+.skrow{display:flex;align-items:center;gap:12px;padding:12px 8px;border-top:1px solid var(--rowBorder)}
+.errbox{display:flex;flex-direction:column;align-items:flex-start;gap:12px;border-radius:28px;padding:24px}
+.errbox .h2{font-size:19px}
+.pvbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.pvbar .seg-wrap{padding:3px}
+.pvbar .seg{min-height:32px;font-size:12px}
+@media (prefers-reduced-motion: reduce){.sk{animation:none}.spin{animation-duration:2.5s}}
+
+.phead{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 16px 8px}
+h1{margin:0;font-size:24px;font-weight:600;line-height:1.15}
+.kick{font-size:13px;color:var(--text2)}
+.iconbtn{border-radius:50%}
+.scroll{position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;padding:6px 16px 112px;display:flex;flex-direction:column;gap:24px}
+.scroll::-webkit-scrollbar{display:none}
+.search{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;border-radius:999px}
+.search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font:inherit;font-size:14px}
+.card{border-radius:24px;padding:16px;gap:14px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-radius:24px;padding:16px 0;row-gap:16px}
+.stat{padding:0 16px}
+.stat .v{font-size:19px}
+.seg{min-height:44px}
+.hscroll{display:flex;overflow-x:auto;margin:0 -4px;padding:0 4px}
+.hscroll::-webkit-scrollbar{display:none}
+.tabbar{z-index:2;position:absolute;left:12px;right:12px;bottom:12px;height:68px;border-radius:28px;padding:6px;display:flex;gap:4px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;border-radius:22px;font-size:12px;font-weight:500;color:var(--text2)}
+.tab[aria-current="page"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+.toast{top:12px;left:12px;right:12px}
+.fields{grid-template-columns:minmax(0,1fr)}
+.mini{width:128px}
+</style>
+</helmet>
+<div id="top" style="{{rootStyle}}">
+<div aria-hidden="true" class="orb" style="left: -80px; top: 150px; width: 300px; height: 300px; background: var(--orbA); filter: blur(50px)"></div>
+<div aria-hidden="true" class="orb" style="right: -90px; top: 430px; width: 280px; height: 280px; background: var(--orbB); filter: blur(55px)"></div>
+<div aria-hidden="true" class="orb" style="left: 30px; top: 640px; width: 300px; height: 300px; background: var(--orbC); filter: blur(55px)"></div>
+<div aria-hidden="true" class="orb" style="right: -60px; top: -40px; width: 240px; height: 240px; background: var(--orbD); filter: blur(55px)"></div>
+<header class="phead"><div style="display: flex; flex-direction: column; line-height: 1.2"><span class="kick">Hossain Motors</span><h1 class="num">Products</h1></div><div style="display: flex; gap: 8px"><button class="iconbtn" aria-label="Refresh the figures" aria-busy="{{refreshBusy}}" onClick="{{refresh}}"><svg class="{{refreshSpin}}" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.refresh}}"/></svg></button>
+<button class="iconbtn" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"/></svg></button>
+<button class="iconbtn" aria-label="Notifications, 3 new" style="position: relative"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.bell}}"/></svg><span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--neg); border: 2px solid var(--dotFill)"></span></button></div></header>
+<div class="scroll">
+<label class="glass search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.search}}"/></svg><input type="text" aria-label="Search chassis or customer" placeholder="Search chassis or customer" value="{{q}}" onChange="{{setQ}}"></label>
+<sc-if value="{{isOk}}" hint-placeholder-val="{{ true }}"><section class="glass stats" aria-label="Summary"><sc-for list="{{stats}}" as="s" hint-placeholder-count="4"><div class="stat" style="border-left-color: {{s.bc}}"><span class="k">{{s.k}}</span><span class="num v">{{s.v}}</span><span class="n">{{s.n}}</span></div></sc-for></section><div class="seg-wrap" role="group" aria-label="Units view"><sc-for list="{{views}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div><sc-if value="{{isUnitList}}" hint-placeholder-val="{{ true }}"><section class="glass card" aria-label="Units"><div><h2 class="num h2">Units</h2><p class="cap">{{listCap}}</p></div><div class="hscroll"><div class="seg-wrap" role="group" aria-label="Unit status"><sc-for list="{{ufs}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div><div><sc-for list="{{rows}}" as="r" hint-placeholder-count="6"><button class="lrow" onClick="{{r.open}}"><span class="cell-main"><b class="num">{{r.ch}}</b><span>{{r.model}}, {{r.color}}</span><span>{{r.br}}</span></span><span class="cell-end"><span class="{{r.sc}}">{{r.s}}</span><span class="{{r.ageCls}}" style="font-size: 12px">{{r.age}}</span></span></button></sc-for><sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No units match</b><span>Check the chassis number, or set the filter to All.</span></div></sc-if></div></section></sc-if><sc-if value="{{isUnitDetail}}" hint-placeholder-val="{{ false }}"><div class="stack" style="gap: 12px"><button class="link" style="align-self: flex-start; min-height: 44px" onClick="{{back}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>All units</button><section class="glass card" aria-label="Unit details"><sc-if value="{{isInfo}}" hint-placeholder-val="{{ true }}"><div class="pw"><div class="cardhead"><div><h2 class="num h2">{{d.ch}}</h2><p class="cap">{{d.model}}</p></div><span class="{{d.sc}}">{{d.s}}</span></div><div class="stack" style="gap: 0"><sc-for list="{{d.steps}}" as="s" hint-placeholder-count="5"><div class="tl-i" style="padding-bottom: 12px"><span class="tl-dot" style="{{s.dot}}"></span><span class="stack-s" style="gap: 2px"><span style="font-size: 13px; font-weight: 500; color: {{s.tc}}">{{s.t}}</span><sc-if value="{{s.hasN}}" hint-placeholder-val="{{ false }}"><span class="muted num" style="font-size: 12px">{{s.n}}</span></sc-if></span></div></sc-for></div><div class="divider"></div><div class="stack"><sc-for list="{{d.kv}}" as="x" hint-placeholder-count="6"><div class="kv"><span>{{x.k}}</span><span class="num">{{x.v}}</span></div></sc-for></div><sc-if value="{{d.hasCust}}" hint-placeholder-val="{{ false }}"><div class="divider"></div><div class="stack"><div class="kv"><span>Customer</span><span>{{d.cust}}</span></div><div class="kv"><span>Invoice</span><span class="num">{{d.inv}}</span></div><div class="kv"><span>Advance</span><span class="num">{{d.adv}}</span></div></div></sc-if><sc-if value="{{d.hasReg}}" hint-placeholder-val="{{ false }}"><div class="divider"></div><div class="stack"><span class="label">Registration</span><div class="chips"><sc-for list="{{d.reg}}" as="g" hint-placeholder-count="4"><span class="{{g.c}}">{{g.t}}</span></sc-for></div></div></sc-if><sc-if value="{{d.hasActs}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{d.acts}}" as="a" hint-placeholder-count="2"><button class="{{a.cls}}" onClick="{{a.go}}">{{a.label}}</button></sc-for></div></sc-if><sc-if value="{{d.noActs}}" hint-placeholder-val="{{ false }}"><p class="cap" style="margin: 0">Nothing left to do for this unit.</p></sc-if></div></sc-if><sc-if value="{{isRes}}" hint-placeholder-val="{{ false }}"><div class="pw"><div><h2 class="num h2">Reserve {{d.ch}}</h2><p class="cap">{{d.model}}. The unit leaves the sellable stock until you convert or release it.</p></div><label class="field">Customer name<input type="text" placeholder="Full name" value="{{rName}}" onChange="{{setRName}}"></label><label class="field">Advance received, in taka<input class="num" type="number" min="0" step="1000" placeholder="0" value="{{rAdv}}" onChange="{{setRAdv}}"></label><sc-if value="{{hasErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">{{formErr}}</span></sc-if><div style="display: flex; gap: 8px"><button class="btn btn-primary btn-lg" onClick="{{saveRes}}">Reserve unit</button><button class="btn btn-lg" onClick="{{cancelForm}}">Cancel</button></div></div></sc-if></section></div></sc-if><sc-if value="{{isModels}}" hint-placeholder-val="{{ false }}"><section class="glass card" aria-label="Models"><div><h2 class="num h2">Models</h2><p class="cap">Available, reserved and sold-not-delivered, all branches.</p></div><div><sc-for list="{{models}}" as="m" hint-placeholder-count="5"><div class="line"><div class="kv"><b style="color: var(--text); font-size: 14px">{{m.name}}</b><span class="num">{{m.price}}</span></div><span style="display: flex; gap: 2px; height: 10px"><span style="width: {{m.w1}}; border-radius: 999px 3px 3px 999px; background: var(--c1)"></span><span style="width: {{m.w2}}; border-radius: 3px; background: var(--c3)"></span><span style="width: {{m.w3}}; border-radius: 3px 999px 999px 3px; background: var(--warn)"></span></span><span class="t2" style="font-size: 12px">{{m.stock}} available, {{m.res}} reserved, {{m.sold}} sold</span></div></sc-for></div></section></sc-if><sc-if value="{{isReg}}" hint-placeholder-val="{{ false }}"><section class="glass card" aria-label="Registration"><div><h2 class="num h2">Registration</h2><p class="cap">Delivered units still with BRTA.</p></div><div><sc-for list="{{regs}}" as="g" hint-placeholder-count="4"><div class="line"><div class="kv"><b class="num" style="color: var(--text); font-size: 14px">{{g.ch}}</b><span class="t2">{{g.cust}}</span></div><div class="chips"><sc-for list="{{g.steps}}" as="x" hint-placeholder-count="4"><span class="{{x.c}}">{{x.t}}</span></sc-for></div><sc-if value="{{g.todo}}" hint-placeholder-val="{{ true }}"><button class="btn" style="align-self: flex-start; min-height: 44px" onClick="{{g.next}}">{{g.nextLabel}}</button></sc-if></div></sc-for><sc-if value="{{noRegs}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No delivered units match</b><span>Clear the search.</span></div></sc-if></div></section></sc-if></sc-if><sc-if value="{{isLoad}}" hint-placeholder-val="{{ false }}"><div role="status" aria-live="polite" style="display: flex; flex-direction: column; gap: 24px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Loading the latest figures</span><section class="glass stats" aria-busy="true"><div class="stat"><span class="sk" style="width: 70px; height: 13px"></span><span class="sk" style="width: 100px; height: 22px"></span></div><div class="stat"><span class="sk" style="width: 70px; height: 13px"></span><span class="sk" style="width: 100px; height: 22px"></span></div><div class="stat"><span class="sk" style="width: 70px; height: 13px"></span><span class="sk" style="width: 100px; height: 22px"></span></div><div class="stat"><span class="sk" style="width: 70px; height: 13px"></span><span class="sk" style="width: 100px; height: 22px"></span></div></section><section class="glass card" aria-busy="true"><span class="sk" style="width: 140px; height: 22px"></span><div><div class="skrow" style="padding: 14px 0"><span class="sk" style="width: 50%; height: 14px"></span><span class="sk" style="width: 22%; height: 14px; margin-left: auto"></span></div><div class="skrow" style="padding: 14px 0"><span class="sk" style="width: 50%; height: 14px"></span><span class="sk" style="width: 22%; height: 14px; margin-left: auto"></span></div><div class="skrow" style="padding: 14px 0"><span class="sk" style="width: 50%; height: 14px"></span><span class="sk" style="width: 22%; height: 14px; margin-left: auto"></span></div><div class="skrow" style="padding: 14px 0"><span class="sk" style="width: 50%; height: 14px"></span><span class="sk" style="width: 22%; height: 14px; margin-left: auto"></span></div><div class="skrow" style="padding: 14px 0"><span class="sk" style="width: 50%; height: 14px"></span><span class="sk" style="width: 22%; height: 14px; margin-left: auto"></span></div></div></section></div></sc-if><sc-if value="{{isErr}}" hint-placeholder-val="{{ false }}"><section class="glass errbox" role="alert"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--negText)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><div><h2 class="num h2">We could not load these figures</h2><p class="cap">The connection to the server dropped. Nothing you entered has been changed. Check your connection, then try again.</p></div><button class="btn btn-primary btn-lg" onClick="{{retry}}">Try again</button></section></sc-if>
+<div class="pvbar" role="group" aria-label="Preview state"><span class="label">Preview state</span><div class="seg-wrap"><sc-for list="{{pvs}}" as="g" hint-placeholder-count="4"><button class="seg" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div>
+<p class="foot">Demo data. Every figure on this screen is illustrative.</p>
+</div>
+<sc-if value="{{showToast}}" hint-placeholder-val="{{ false }}"><div class="glass toast" role="status" aria-live="polite"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pos)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 auto"><path d="M5 12l5 5 9-10"/></svg><span style="flex: 1">{{toastMsg}}</span><button class="btn" onClick="{{dismissToast}}">Dismiss</button></div></sc-if>
+<nav class="glass tabbar" aria-label="Main"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><a class="tab" href="{{t.href}}" aria-current="{{t.current}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"/></svg><span>{{t.label}}</span></a></sc-for></nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","default":"light","options":["light","dark"],"section":"Appearance"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+
+  fmt(n) { const neg = n < 0; const s = String(Math.round(Math.abs(n))), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return (neg ? '−' : '') + '৳' + (r ? r + ',' : '') + l; }
+  toast(msg) { this.setState({ toast: msg }); clearTimeout(this.__tt); this.__tt = setTimeout(() => this.setState({ toast: null }), 4000); }
+
+  componentDidMount() { this.ixMotion('first'); }
+  componentDidUpdate(pp, ps) {
+    const a = ps || {}, b = this.state || {};
+    if (a.view !== b.view || a.pv !== b.pv || a.refreshing !== b.refreshing) { if (!b.refreshing && b.pv !== 'loading') this.ixMotion(a.refreshing ? 'ready' : 'swap'); }
+    else if (a.sel !== b.sel || a.pmode !== b.pmode || a.uo !== b.uo) this.ixMotion('panel');
+    else if (a.cart && b.cart && b.cart.length > a.cart.length) this.ixMotion('cart');
+  }
+  ixLoad(cb) {
+    if (window.Motion) { cb(window.Motion); return; }
+    if (window.__ixFail) return;
+    if (window.__ixQ) { window.__ixQ.push(cb); return; }
+    window.__ixQ = [cb];
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/motion@latest/dist/motion.js';
+    s.onload = () => { const q = window.__ixQ || []; window.__ixQ = null; if (window.Motion) q.forEach((f) => f(window.Motion)); else window.__ixFail = true; };
+    s.onerror = () => { window.__ixQ = null; window.__ixFail = true; };
+    document.head.appendChild(s);
+  }
+  ixMotion(kind) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.ixLoad((M) => { requestAnimationFrame(() => { try {
+      const root = document.getElementById('top'); if (!root) return;
+      const q = (s) => Array.prototype.slice.call(root.querySelectorAll(s));
+      const first = kind === 'first';
+      if (kind === 'panel') {
+        const p = q('section.glass[aria-label$="details"]'); if (p.length) M.animate(p, { opacity: [0.4, 1], x: [14, 0] }, { duration: 0.24, ease: 'easeOut' });
+        return;
+      }
+      if (kind === 'cart') {
+        const l = q('.line'); if (l.length) M.animate(l[l.length - 1], { opacity: [0, 1], y: [-8, 0], backgroundColor: ['rgba(79,93,240,0.16)', 'rgba(79,93,240,0)'] }, { duration: 0.45, ease: 'easeOut' });
+        return;
+      }
+      const cards = q('.glass').filter((el) => !el.matches('.toast, nav, aside'));
+      if (cards.length) M.animate(cards, { opacity: [0, 1], y: [first ? 16 : 8, 0] }, { duration: first ? 0.45 : 0.25, delay: M.stagger(first ? 0.05 : 0.025), ease: 'easeOut' });
+      const rows = q('.trow, .lrow').slice(0, 14);
+      if (rows.length) M.animate(rows, { opacity: [0, 1], y: [6, 0] }, { duration: 0.28, delay: M.stagger(0.025, { startDelay: first ? 0.25 : 0.1 }), ease: 'easeOut' });
+      const fills = q('.bar > span, .stat .bar span');
+      fills.forEach((el) => { el.style.transformOrigin = '0 50%'; });
+      if (fills.length) M.animate(fills, { scaleX: [0, 1] }, { duration: 0.7, delay: first ? 0.35 : 0.15, ease: [0.2, 0.8, 0.2, 1] });
+      if (first || kind === 'ready') {
+        q('.stat .v').forEach((el) => {
+          const t = el.firstChild; if (!t || el.children.length || t.nodeType !== 3) return;
+          if (!/^৳[\d,]+$/.test(t.nodeValue)) return;
+          const to = Number(t.nodeValue.replace(/[^0-9]/g, '')); if (!to) return;
+          const fmt = (n) => { const s = String(n), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return '৳' + (r ? r + ',' : '') + l; };
+          M.animate(0, to, { duration: 0.9, ease: 'easeOut', onUpdate: (v) => { t.nodeValue = fmt(Math.round(v)); }, onComplete: () => { t.nodeValue = fmt(to); } });
+        });
+      }
+    } catch (e) {} }); });
+  }
+  refresh() {
+    if ((this.state || {}).refreshing) return;
+    this.setState({ refreshing: true });
+    clearTimeout(this.__rt);
+    this.__rt = setTimeout(() => { const t = this.now(); this.setState({ refreshing: false, upd: t }); this.toast('Figures updated at ' + t + '.'); }, 800);
+  }
+  componentWillUnmount() { clearTimeout(this.__tt); clearTimeout(this.__rt); }
+  now() { const D = new Date(), h = D.getHours(); return ((h + 11) % 12 + 1) + ':' + String(D.getMinutes()).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); }
+  bc(i) { return (this.__phone ? i % 2 === 0 : i === 0) ? 'transparent' : 'var(--rowBorder)'; }
+  base(pageDesk, pageTab) {
+    const st = this.state || {};
+    const dark = (st.theme || this.props.theme || 'light') === 'dark';
+    const phone = true;
+    this.__phone = phone;
+    const L = {
+      text: '#0E1836', text2: '#33405F', muted: '#3F4A6E',
+      card: 'linear-gradient(145deg, rgba(255,255,255,0.66), rgba(255,255,255,0.30))',
+      cardBorder: 'rgba(255,255,255,0.95)',
+      cardShadow: '0 0 0 1px rgba(40,56,130,0.07), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(255,255,255,0.35), 0 26px 50px -18px rgba(40,56,130,0.34)',
+      rowBorder: 'rgba(16,27,59,0.08)',
+      accent: '#4F5DF0', accentSoft: 'rgba(79,93,240,0.13)', accentText: '#2A35B5', onAccent: '#FFFFFF',
+      pos: '#12A57A', posText: '#055A3F', posBg: 'rgba(18,165,122,0.15)',
+      neg: '#E04466', negText: '#9E1E3B', negBg: 'rgba(224,68,102,0.13)',
+      warn: '#E89A1C', warnText: '#744205', warnBg: 'rgba(232,154,28,0.18)',
+      insight: '#12A9BF', bizA: '#3346B8', bizB: '#1FA391',
+      grid: 'rgba(16,27,59,0.10)', track: 'rgba(16,27,59,0.08)',
+      navActive: 'rgba(79,93,240,0.14)', navHover: 'rgba(16,27,59,0.05)',
+      chipBg: 'rgba(255,255,255,0.48)', dotFill: '#F4F6FA',
+      orbA: 'rgba(255,255,255,0.5)', orbB: 'rgba(197,113,119,0.18)', orbC: 'rgba(255,255,255,0.55)', orbD: 'rgba(255,255,255,0.4)',
+      icoInk: '#FFFFFF', c1: '#3346B8', c2: '#A61E4D', c3: '#1FA391'
+    };
+    const N = {
+      text: '#F2F5FF', text2: '#B7C1DE', muted: '#93A1C6',
+      card: 'linear-gradient(145deg, rgba(160,190,255,0.09), rgba(255,255,255,0.015) 55%, rgba(120,90,255,0.04))',
+      cardBorder: 'rgba(170,195,255,0.16)',
+      cardShadow: '0 28px 56px -20px rgba(0,0,0,0.95), 0 0 36px -14px rgba(80,130,255,0.35), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.03)',
+      rowBorder: 'rgba(255,255,255,0.09)',
+      accent: '#8C98FF', accentSoft: 'rgba(140,152,255,0.20)', accentText: '#B4BCFF', onAccent: '#0A1030',
+      pos: '#2FC99A', posText: '#57DDB1', posBg: 'rgba(47,201,154,0.14)',
+      neg: '#F0627C', negText: '#FF93A6', negBg: 'rgba(240,98,124,0.14)',
+      warn: '#F2AB44', warnText: '#FFC673', warnBg: 'rgba(242,171,68,0.14)',
+      insight: '#2CC4D8', bizA: '#7F92F7', bizB: '#2FB3A0',
+      grid: 'rgba(255,255,255,0.10)', track: 'rgba(255,255,255,0.10)',
+      navActive: 'rgba(140,152,255,0.22)', navHover: 'rgba(255,255,255,0.06)',
+      chipBg: 'rgba(255,255,255,0.04)', dotFill: '#0A0E1C',
+      orbA: 'rgba(59,130,246,0.16)', orbB: 'rgba(139,92,246,0.12)', orbC: 'rgba(34,211,238,0.05)', orbD: 'rgba(59,130,246,0.09)',
+      icoInk: '#0A1030', c1: '#7F92F7', c2: '#F26D55', c3: '#2FB3A0'
+    };
+    const V = dark ? N : L;
+    const aurora = dark
+      ? 'radial-gradient(900px 600px at 8% -4%, rgba(56,110,255,0.18), transparent 62%), radial-gradient(820px 580px at 100% 100%, rgba(124,82,255,0.14), transparent 62%), radial-gradient(600px 420px at 72% 28%, rgba(34,211,238,0.05), transparent 65%), linear-gradient(135deg, #000000 0%, #000000 55%, #02040E 100%)'
+      : 'linear-gradient(270deg, rgba(197,113,119,0.24) 0%, rgba(197,113,119,0.10) 28%, rgba(197,113,119,0) 55%), linear-gradient(180deg, #F7F8FC 0%, #EEF1F8 100%)';
+    const vars = Object.keys(V).map((k) => '--' + k + ':' + V[k]).join(';');
+    const rootStyle = vars + ';background:' + aurora + ';color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px;box-sizing:border-box;position:relative;overflow:hidden;'
+      + (phone ? 'width:390px;height:844px;display:flex;flex-direction:column' : 'min-height:844px;display:flex;flex-wrap:wrap;align-items:stretch');
+    const I = {
+      home: 'M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5',
+      building: 'M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M8 8h3M8 12h3M8 16h3M2 21h20',
+      pin: 'M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+      cart: 'M3 4h2l2.4 11.2a1 1 0 001 .8h8.7a1 1 0 001-.76L20 8H6.2M9 20.5a.5.5 0 100-1 .5.5 0 000 1zM17 20.5a.5.5 0 100-1 .5.5 0 000 1z',
+      cal: 'M4 7a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4',
+      bag: 'M6 7h12l1 13H5zM9 7V6a3 3 0 016 0v1',
+      box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+      bike: 'M5.5 18a3 3 0 100-6 3 3 0 000 6zM18.5 18a3 3 0 100-6 3 3 0 000 6zM8.5 15l3-5h4.5l2.5 5M11.5 10L10 7H7.5M16 10l1-3h2',
+      wrench: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
+      users: 'M16 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+      book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 21V5M8 7h7M8 11h7',
+      chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+      shield: 'M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6zM9 12l2 2 4-4',
+      more: 'M5 12h.01M12 12h.01M19 12h.01',
+      search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3',
+      bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
+      sun: 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+      moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z',
+      check: 'M5 12l5 5 9-10',
+      refresh: 'M21 12a9 9 0 11-3-6.7M21 4v5h-5',
+      alert: 'M12 3l10 18H2zM12 10v5M12 18h.01'
+    };
+    const NAV = [['label', 'Overview'], ['item', 'Home', 'home'], ['label', 'Organization'], ['item', 'Businesses', 'building'], ['item', 'Branches', 'pin'], ['label', 'Operations'], ['item', 'Sales / POS', 'cart'], ['item', 'Booking & Preorder', 'cal'], ['item', 'Purchase', 'bag'], ['item', 'Inventory', 'box'], ['item', 'Products', 'bike'], ['item', 'Service & Warranty', 'wrench'], ['label', 'People'], ['item', 'Customers', 'users'], ['label', 'Finance'], ['item', 'Accounting', 'book'], ['item', 'Reports', 'chart'], ['label', 'Admin'], ['item', 'Users & Permissions', 'shield']];
+    const HREF = { 'Home': ['Main', 'DesktopDark'], 'Sales / POS': ['Sales', 'SalesDark'], 'Inventory': ['Inventory', 'InventoryDark'], 'Products': ['Bikes', 'BikesDark'] };
+    const PHREF = { 'Home': ['PhoneLight', 'PhoneDark'], 'Sales': ['SalesPhone', 'SalesPhoneDark'], 'Stock': ['InventoryPhone', 'InventoryPhoneDark'], 'Products': ['BikesPhone', 'BikesPhoneDark'] };
+    const hr = (m, k) => m[k] ? m[k][dark ? 1 : 0] + '.dc.html' : '#top';
+    const nav = NAV.map((r) => r[0] === 'label'
+      ? { isLabel: true, isItem: false, label: r[1], icon: '', href: '#top', current: 'false' }
+      : { isLabel: false, isItem: true, label: r[1], icon: I[r[2]], href: hr(HREF, r[1]), current: r[1] === pageDesk ? 'page' : 'false' });
+    const tabs = [['Home', 'home'], ['Sales', 'cart'], ['Stock', 'box'], ['Products', 'bike'], ['More', 'more']].map((t) => ({ label: t[0], icon: I[t[1]], href: hr(PHREF, t[0]), current: t[0] === pageTab ? 'page' : 'false' }));
+    let nc = st.nc;
+    if (nc === undefined) { nc = false; try { nc = window.localStorage.getItem('hg-nav-min') === '1'; } catch (e) {} }
+    const toggleSide = () => { const v = !nc; const rt = document.getElementById('top'); if (rt) { rt.classList.add('navmoving'); clearTimeout(window.__nm); window.__nm = setTimeout(() => rt.classList.remove('navmoving'), 340); } try { window.localStorage.setItem('hg-nav-min', v ? '1' : '0'); } catch (e) {} this.setState({ nc: v }); };
+    const pv = st.pv || 'data', busy = !!st.refreshing || pv === 'loading';
+    const pvs = [['data', 'Data'], ['loading', 'Loading'], ['empty', 'Empty'], ['error', 'Error']].map((x) => ({ label: x[1], on: pv === x[0] ? 'true' : 'false', st: '', go: () => this.setState({ pv: x[0], sel: null, pmode: 'info', formErr: null }) }));
+    return { st, dark, pv, out: {
+      sideCls: nc ? 'min' : '', sideOpen: nc ? 'false' : 'true', sideLabel: nc ? 'Expand the sidebar' : 'Collapse the sidebar', sideIcon: nc ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6', toggleSide,
+      isLoad: busy, isErr: !busy && pv === 'error', isOk: !busy && pv !== 'error', pvs,
+      refreshBusy: busy ? 'true' : 'false', refreshSpin: busy ? 'spin' : '', refresh: () => this.refresh(),
+      retry: () => this.setState({ pv: 'data' }),
+      rootStyle, nav, tabs, ic: I, homeHref: hr(HREF, 'Home'),
+      themeIcon: dark ? I.sun : I.moon,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      q: st.q || '', setQ: (e) => this.setState({ q: e.target.value, sel: null }),
+      showToast: !!st.toast, toastMsg: st.toast || '', dismissToast: () => this.setState({ toast: null })
+    } };
+  }
+
+  renderVals() {
+
+    const segs = (arr, cur, key, fill, keep) => arr.map((x) => { const v = Array.isArray(x) ? x[0] : x, l = Array.isArray(x) ? x[1] : x; return { label: l, on: cur === v ? 'true' : 'false', st: fill ? 'flex: 1 1 0; padding: 0 6px' : '', go: () => { const o = {}; o[key] = v; if (!keep) { o.sel = null; o.formErr = null; } this.setState(o); } }; });
+
+    const b = this.base('Products', 'Products'), st = b.st, f = (n) => this.fmt(n), set = (o) => this.setState(o);
+    const BR = [["m", "Mirpur-10"], ["u", "Uttara"], ["n", "Narayanganj"]], U0 = [{"ch": "FZ3-240457", "en": "E3T1-551204", "model": "Yamaha FZS V3", "color": "Racing blue", "br": "m", "st": "stock", "recv": "2 Nov 2026", "age": 11, "po": "PO-2610-118"}, {"ch": "FZ3-240463", "en": "E3T1-551219", "model": "Yamaha FZS V3", "color": "Matte black", "br": "m", "st": "stock", "recv": "2 Nov 2026", "age": 11, "po": "PO-2610-118"}, {"ch": "FZ3-240488", "en": "E3T1-551236", "model": "Yamaha FZS V3", "color": "Racing blue", "br": "u", "st": "reserved", "recv": "2 Nov 2026", "age": 11, "po": "PO-2610-118", "cust": "Imran Hossain", "adv": 20000}, {"ch": "HN2-240118", "en": "KC48E-108842", "model": "Honda Hornet 2.0", "color": "Pearl red", "br": "m", "st": "sold", "recv": "19 Oct 2026", "age": 25, "po": "PO-2610-097", "cust": "Karim Auto Centre", "inv": "INV-261113-012"}, {"ch": "HN2-240121", "en": "KC48E-108851", "model": "Honda Hornet 2.0", "color": "Matte grey", "br": "m", "st": "sold", "recv": "19 Oct 2026", "age": 25, "po": "PO-2610-097", "cust": "Karim Auto Centre", "inv": "INV-261113-012"}, {"ch": "GSF-240077", "en": "BG42-310577", "model": "Suzuki Gixxer SF", "color": "Metallic blue", "br": "m", "st": "sold", "recv": "24 Oct 2026", "age": 20, "po": "PO-2610-104", "cust": "Sadia Rahman", "inv": "INV-261113-011"}, {"ch": "FZ3-240402", "en": "E3T1-550961", "model": "Yamaha FZS V3", "color": "Racing blue", "br": "m", "st": "delivered", "recv": "20 Oct 2026", "age": 24, "po": "PO-2610-099", "cust": "Rahim Traders", "inv": "INV-261113-014", "reg": 0}, {"ch": "PN1-240310", "en": "JLZC-871204", "model": "Bajaj Pulsar N160", "color": "Racing red", "br": "m", "st": "delivered", "recv": "15 Oct 2026", "age": 28, "po": "PO-2610-090", "cust": "Tanvir Ahmed", "inv": "INV-261112-048", "reg": 1}, {"ch": "FZ3-240399", "en": "E3T1-550948", "model": "Yamaha FZS V3", "color": "Dark knight", "br": "m", "st": "delivered", "recv": "20 Oct 2026", "age": 23, "po": "PO-2610-099", "cust": "Mizanur Rahman", "inv": "INV-261112-045", "reg": 2}, {"ch": "PN1-240296", "en": "JLZC-871160", "model": "Bajaj Pulsar N160", "color": "Pearl white", "br": "n", "st": "delivered", "recv": "8 Oct 2026", "age": 30, "po": "PO-2610-081", "cust": "Jahid Hasan", "inv": "INV-261104-022", "reg": 3}, {"ch": "GSF-240052", "en": "BG42-310412", "model": "Suzuki Gixxer SF", "color": "Black", "br": "u", "st": "reserved", "recv": "24 Oct 2026", "age": 20, "po": "PO-2610-104", "cust": "Farhana Akter", "adv": 50000}, {"ch": "HN2-230601", "en": "KC48E-097315", "model": "Honda Hornet 2.0", "color": "Sports red", "br": "u", "st": "stock", "recv": "9 Aug 2026", "age": 96, "po": "PO-2608-044"}, {"ch": "PN1-230884", "en": "JLZC-842210", "model": "Bajaj Pulsar N160", "color": "Black", "br": "n", "st": "stock", "recv": "1 Aug 2026", "age": 104, "po": "PO-2608-031"}, {"ch": "APC-230912", "en": "AE4V-221903", "model": "TVS Apache RTR 160 4V", "color": "Pearl white", "br": "n", "st": "stock", "recv": "7 Jul 2026", "age": 129, "po": "PO-2607-012"}], MD = [["Yamaha FZS V3", "Hossain Motors", 285000, 18, 5, 2], ["Honda Hornet 2.0", "Hossain Motors", 239900, 12, 3, 2], ["Suzuki Gixxer SF", "Hossain Motors", 279950, 10, 3, 1], ["Bajaj Pulsar N160", "Hossain Motors", 229500, 11, 2, 1], ["TVS Apache RTR 160 4V", "Hossain Motors", 226000, 7, 1, 1]];
+    const BN = {}; BR.forEach((x) => { BN[x[0]] = x[1]; });
+    const uo = st.uo || {};
+    const units = U0.map((u) => Object.assign({}, u, uo[u.ch] || {}));
+    const SL = { stock: 'In stock', reserved: 'Reserved', sold: 'Sold, not delivered', delivered: 'Delivered' };
+    const SCL = { stock: 'chip c-pos', reserved: 'chip c-acc', sold: 'chip c-warn', delivered: 'chip c-mut' };
+    const REG = ['Papers sent to BRTA', 'BRTA fee paid', 'Registered', 'Number plate fitted'];
+    const view = st.view || 'units';
+    const q = (st.q || '').trim().toLowerCase();
+    const uf = st.uf || 'all';
+    const patch = (u, p, msg) => { const o = Object.assign({}, uo); o[u.ch] = Object.assign({}, o[u.ch] || {}, p); set({ uo: o, pmode: 'info', formErr: null }); if (msg) this.toast(msg); };
+    const list = units.filter((u) => (uf === 'all' || u.st === uf || (uf === 'old' && u.st === 'stock' && u.age >= 90)) && (!q || (u.ch + ' ' + u.en + ' ' + u.model + ' ' + (u.cust || '')).toLowerCase().indexOf(q) >= 0));
+    const rows = list.map((u) => ({ ch: u.ch, en: u.en, model: u.model, color: u.color, br: BN[u.br], s: SL[u.st], sc: SCL[u.st], age: u.age + ' days', ageCls: u.st === 'stock' && u.age >= 90 ? 'num r neg' : 'num r t2', cust: u.cust || '–', cur: st.sel === u.ch ? 'true' : 'false', open: () => set({ sel: u.ch, pmode: 'info', formErr: null }) }));
+    const base = { stock: 58, reserved: 14, sold: 7 };
+    U0.forEach((u0) => { const u = units.find((x) => x.ch === u0.ch); if (u.st !== u0.st) { if (base[u0.st] != null) base[u0.st]--; if (base[u.st] != null) base[u.st]++; } });
+    const old = 15 - U0.filter((u0) => u0.st === 'stock' && u0.age >= 90 && units.find((x) => x.ch === u0.ch).st !== 'stock').length;
+    const stats = [
+      { k: 'Available to sell', v: String(base.stock), n: old + ' have been in stock 90 days or more' },
+      { k: 'Reserved', v: String(base.reserved), n: 'Advance paid, waiting for the sale' },
+      { k: 'Sold, not delivered', v: String(base.sold), n: 'Hand over and start registration' },
+      { k: 'Registration pending', v: String(units.filter((u) => u.st === 'delivered' && (u.reg || 0) < 4).length), n: 'Delivered units still with BRTA' }
+    ].map((s, i) => Object.assign(s, { bc: this.bc(i) }));
+    const sel = view === 'units' && st.sel ? units.find((u) => u.ch === st.sel) : null;
+    const pmode = st.pmode || 'info';
+    let d = { ch: '', model: '', s: '', sc: '', steps: [], kv: [], acts: [], hasCust: false, cust: '', inv: '', adv: '', reg: [], hasReg: false, hasActs: false, noActs: false };
+    if (sel) {
+      const idx = { stock: 1, reserved: 2, sold: 3, delivered: 4 }[sel.st] + ((sel.reg || 0) >= 3 ? 1 : 0);
+      const steps = [['Received from supplier', sel.recv + ', ' + sel.po, 0], ['In stock at ' + BN[sel.br], '', 1]];
+      if (sel.st === 'reserved' || sel.adv) steps.push(['Reserved for ' + (sel.cust || 'a customer'), sel.adv ? f(sel.adv) + ' advance paid' : '', 2]);
+      steps.push(['Sold', sel.inv || '', 3], ['Delivered to the customer', '', 4], ['Registered with BRTA', '', 5]);
+      const acts = [];
+      if (sel.st === 'stock') acts.push({ label: 'Reserve for a customer', cls: 'btn btn-primary', go: () => set({ pmode: 'reserve', formErr: null }) });
+      if (sel.st === 'reserved') {
+        acts.push({ label: 'Convert to sale', cls: 'btn btn-primary', go: () => patch(sel, { st: 'sold', inv: 'INV-261113-0' + (20 + Object.keys(uo).length) }, sel.model + ' ' + sel.ch + ' sold to ' + sel.cust + '. Invoice created.') });
+        acts.push({ label: 'Release reservation', cls: 'btn', go: () => patch(sel, { st: 'stock', cust: null, adv: null }, 'Reservation released. ' + sel.ch + ' is available again. Refund the advance from Accounting.') });
+      }
+      if (sel.st === 'sold') acts.push({ label: 'Mark delivered', cls: 'btn btn-primary', go: () => patch(sel, { st: 'delivered', reg: 0 }, sel.ch + ' handed over to ' + sel.cust + '. Registration started.') });
+      if (sel.st === 'delivered' && (sel.reg || 0) < 4) acts.push({ label: 'Next step: ' + REG[sel.reg || 0], cls: 'btn btn-primary', go: () => patch(sel, { reg: (sel.reg || 0) + 1 }, REG[sel.reg || 0] + ' for ' + sel.ch + '.') });
+      d = { ch: sel.ch, model: sel.model + ', ' + sel.color, s: SL[sel.st], sc: SCL[sel.st],
+        steps: steps.map((s, i) => ({ t: s[0], n: s[1], hasN: !!s[1], dot: s[2] <= idx ? 'background: var(--pos); border-color: var(--pos)' : '', tc: s[2] <= idx ? 'var(--text)' : 'var(--muted)' })),
+        kv: [['Chassis number', sel.ch], ['Engine number', sel.en], ['Branch', BN[sel.br]], ['Received', sel.recv], ['Days in stock', sel.st === 'stock' || sel.st === 'reserved' ? String(sel.age) : '–'], ['Supplier order', sel.po]].map((x) => ({ k: x[0], v: x[1] })),
+        hasCust: !!sel.cust, cust: sel.cust || '', inv: sel.inv || 'No invoice yet', adv: sel.adv ? f(sel.adv) : '–',
+        hasReg: sel.st === 'delivered', reg: REG.map((r, i) => ({ t: r, c: i < (sel.reg || 0) ? 'chip c-pos' : 'chip c-mut' })),
+        acts, hasActs: acts.length > 0, noActs: !acts.length };
+    }
+    const fv = (k, dflt) => st[k] == null ? dflt : st[k];
+    const saveRes = () => {
+      const nm = String(fv('rName', '')).trim(), adv = Number(fv('rAdv', ''));
+      if (!nm) { set({ formErr: 'Enter the customer’s name.' }); return; }
+      if (!(adv > 0)) { set({ formErr: 'Enter the advance in taka. It must be above zero.' }); return; }
+      patch(sel, { st: 'reserved', cust: nm, adv }, sel.ch + ' reserved for ' + nm + ' with ' + f(adv) + ' advance.');
+      set({ rName: null, rAdv: null });
+    };
+    const models = MD.map((m) => { const t = m[3] + m[4] + m[5]; return { name: m[0], biz: m[1], price: f(m[2]), stock: String(m[3]), res: String(m[4]), sold: String(m[5]), w1: (m[3] / t * 100).toFixed(1) + '%', w2: (m[4] / t * 100).toFixed(1) + '%', w3: (m[5] / t * 100).toFixed(1) + '%' }; });
+    const regs = units.filter((u) => u.st === 'delivered' && (!q || (u.ch + ' ' + u.cust).toLowerCase().indexOf(q) >= 0)).map((u) => ({ ch: u.ch, model: u.model, cust: u.cust, steps: REG.map((r, i) => ({ t: r, c: i < (u.reg || 0) ? 'chip c-pos' : 'chip c-mut' })), done: (u.reg || 0) >= 4, todo: (u.reg || 0) < 4, nextLabel: (u.reg || 0) < 4 ? 'Mark: ' + REG[u.reg || 0] : '', next: () => patch(u, { reg: (u.reg || 0) + 1 }, REG[u.reg || 0] + ' for ' + u.ch + '.') }));
+    const R = Object.assign(b.out, {
+      stats,
+      views: segs([['units', 'Units'], ['models', 'Models'], ['reg', 'Registration']], view, 'view', this.__phone),
+      isUnits: view === 'units', isModels: view === 'models', isReg: view === 'reg',
+      isUnitList: view === 'units' && !sel, isUnitDetail: view === 'units' && !!sel,
+      ufs: segs([['all', 'All'], ['stock', 'In stock'], ['reserved', 'Reserved'], ['sold', 'Not delivered'], ['old', '90+ days']], uf, 'uf'),
+      rows, noRows: !rows.length, listCap: 'Showing ' + rows.length + ' units. Search by chassis, engine number, model or customer.',
+      d, hasSel: !!sel, noSel: !sel, isInfo: !!sel && pmode === 'info', isRes: !!sel && pmode === 'reserve',
+      rName: fv('rName', ''), setRName: (e) => set({ rName: e.target.value }), rAdv: fv('rAdv', ''), setRAdv: (e) => set({ rAdv: e.target.value }), saveRes,
+      cancelForm: () => set({ pmode: 'info', formErr: null }), hasErr: !!st.formErr, formErr: st.formErr || '',
+      models, regs, noRegs: !regs.length,
+      back: () => set({ sel: null, pmode: 'info' })
+    });
+    if (st.pv === 'empty') { R.rows = []; R.noRows = true; R.regs = []; R.noRegs = true; }
+    return R;
+
+  }
+}
+</script>
+</body>
+</html>

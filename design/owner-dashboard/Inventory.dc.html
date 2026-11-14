@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inventory, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+.glass{background:var(--card);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);-webkit-backdrop-filter:blur(30px) saturate(190%);backdrop-filter:blur(30px) saturate(190%)}
+.num{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:0.5}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input::placeholder{color:var(--muted);opacity:1}
+.orb{position:absolute;border-radius:50%;filter:blur(75px);pointer-events:none}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);font-size:13px;font-weight:500;color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--onAccent);border-color:transparent}
+.btn-lg{min-height:44px;padding:0 18px}
+.seg-wrap{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--track)}
+.seg{border:0;background:transparent;color:var(--text2);min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap}
+.seg[aria-pressed="true"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn{min-height:32px;padding:0 12px;border:1px solid var(--rowBorder);font-size:12px}
+.chipbtn[aria-pressed="true"]{border-color:transparent}
+.card{display:flex;flex-direction:column;gap:16px;min-width:0}
+.h2{margin:0;font-size:19px;font-weight:600}
+.cap{margin:4px 0 0;font-size:13px;color:var(--text2);line-height:1.45}
+.cardhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.stat{display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--rowBorder)}
+.stat .k{font-size:13px;color:var(--text2)}
+.stat .v{font-weight:600;line-height:1.1}
+.stat .n{font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.c-pos{background:var(--posBg);color:var(--posText)}
+.c-neg{background:var(--negBg);color:var(--negText)}
+.c-warn{background:var(--warnBg);color:var(--warnText)}
+.c-acc{background:var(--accentSoft);color:var(--accentText)}
+.c-mut{background:var(--track);color:var(--text2)}
+.thead,.trow{display:grid;gap:12px;align-items:center;padding:12px 8px}
+.thead > *,.trow > *{min-width:0}
+.thead{padding-top:0;padding-bottom:8px;font-size:12px;font-weight:500;color:var(--muted)}
+.trow{width:100%;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text);border-radius:0}
+button.trow:hover{background:var(--navHover)}
+.trow[aria-current="true"]{background:var(--accentSoft)}
+.lrow{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;min-height:56px;border:0;border-top:1px solid var(--rowBorder);background:transparent;text-align:left;font-size:13px;color:var(--text)}
+.cell-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cell-main b{font-weight:600;font-size:14px}
+.cell-main span{font-size:12px;color:var(--muted)}
+.cell-end{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r{text-align:right}
+.t2{color:var(--text2)}
+.muted{color:var(--muted)}
+.pos{color:var(--posText)}
+.neg{color:var(--negText)}
+.warn{color:var(--warnText)}
+.empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:32px 12px;text-align:center;color:var(--text2);font-size:13px;line-height:1.45}
+.empty b{color:var(--text);font-size:14px}
+.err{font-size:12px;font-weight:500;color:var(--negText);line-height:1.45}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:var(--text2)}
+.field input,.field select{min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;font-weight:400}
+.mini{width:140px;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--rowBorder);background:var(--chipBg);color:var(--text);font:inherit;font-size:14px;text-align:right}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.stack-s{display:flex;flex-direction:column;gap:4px}
+.divider{height:1px;background:var(--rowBorder);flex:0 0 auto}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px}
+.kv > span:first-child{color:var(--text2)}
+.kv > span:last-child{text-align:right}
+.label{font-size:12px;font-weight:500;color:var(--muted)}
+.big{font-size:26px;font-weight:600;line-height:1.1}
+.line{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--rowBorder)}
+.step{width:32px;height:32px;border-radius:8px;border:1px solid var(--cardBorder);background:var(--chipBg);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+.link{border:0;background:transparent;padding:0 4px;min-height:32px;font-size:13px;font-weight:600;color:var(--accentText);display:inline-flex;align-items:center;gap:4px}
+.bar{position:relative;height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+.bar > span{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.tl-i{display:grid;grid-template-columns:20px 1fr;gap:10px}
+.tl-dot{width:12px;height:12px;border-radius:50%;margin:3px 0 0 4px;border:2px solid var(--muted);box-sizing:border-box}
+.toast{position:absolute;z-index:20;padding:12px 14px;border-radius:16px;background:var(--dotFill) !important;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.45;animation:ixPop 150ms ease-out}
+.toast .btn{min-height:32px}
+.foot{margin:0;font-size:12px;color:var(--muted)}
+button,.btn,.seg,.iconbtn,.pill,.trow,.lrow,.step,.nav a,.tab{transition:background-color 120ms ease-out,border-color 120ms ease-out,transform 120ms ease-out}
+.btn:hover,.pill:hover,.iconbtn:hover,.step:hover{border-color:var(--accent)}
+.btn-primary:hover{filter:brightness(1.08)}
+.seg[aria-pressed="false"]:hover{background:var(--navHover)}
+.btn:active,.iconbtn:active,.step:active,.seg:active{transform:scale(0.97)}
+@keyframes ixPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+
+@keyframes ixSk{from{background-position:100% 0}to{background-position:0 0}}
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,var(--track) 25%,var(--accentSoft) 37%,var(--track) 63%);background-size:400% 100%;animation:ixSk 1.4s ease infinite}
+@keyframes ixSpin{to{transform:rotate(360deg)}}
+.spin{animation:ixSpin 1s linear infinite;transform-origin:center}
+[aria-busy="true"]{cursor:progress}
+.skrow{display:flex;align-items:center;gap:12px;padding:12px 8px;border-top:1px solid var(--rowBorder)}
+.errbox{display:flex;flex-direction:column;align-items:flex-start;gap:12px;border-radius:28px;padding:24px}
+.errbox .h2{font-size:19px}
+.pvbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.pvbar .seg-wrap{padding:3px}
+.pvbar .seg{min-height:32px;font-size:12px}
+@media (prefers-reduced-motion: reduce){.sk{animation:none}.spin{animation-duration:2.5s}}
+
+.side{position:relative;z-index:3;flex:0 0 232px;width:232px;min-width:232px;max-width:232px;margin:16px 0 16px 16px;padding:16px 12px;border-radius:28px;display:flex;flex-direction:column;gap:16px;align-self:stretch;transition:width 240ms cubic-bezier(.32,.72,0,1),min-width 240ms cubic-bezier(.32,.72,0,1),max-width 240ms cubic-bezier(.32,.72,0,1),padding 240ms cubic-bezier(.32,.72,0,1);will-change:width}
+.sidehead{display:flex;align-items:center;gap:6px}
+.sidehead{justify-content:space-between}
+.sidehead .org{flex:0 0 auto;min-width:0;padding:0;min-height:40px}
+.sidetog{flex:0 0 auto;width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--rowBorder);color:var(--text2)}
+.sidetog:hover{background:var(--navHover);color:var(--text);border-color:var(--cardBorder)}
+.side.min{flex-basis:72px;width:72px;min-width:72px;max-width:72px;padding:16px 8px}
+.side.min .sidehead{flex-direction:column;gap:8px}
+.side.min .sidehead .org{flex:0 0 auto;padding:0;min-height:40px}
+.side .lbl,.side .orgtxt,.side .whotxt{white-space:nowrap;overflow:hidden;max-width:170px;opacity:1;transition:max-width 240ms cubic-bezier(.32,.72,0,1),opacity 160ms ease-out 80ms}
+.side .nav a svg{width:20px;height:20px;flex:0 0 auto}
+.navmoving .glass:not(.side){-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.navmoving main{pointer-events:none}
+.side .nav a{white-space:nowrap;overflow:hidden;transition:padding 240ms cubic-bezier(.32,.72,0,1),background-color 120ms ease-out}
+.side .bizbox{max-height:220px;overflow:hidden;opacity:1;transition:max-height 240ms cubic-bezier(.32,.72,0,1),opacity 160ms ease-out 80ms,padding 240ms cubic-bezier(.32,.72,0,1)}
+.side.min .lbl,.side.min .orgtxt,.side.min .whotxt{max-width:0;opacity:0;transition:max-width 240ms cubic-bezier(.32,.72,0,1),opacity 80ms ease-out}
+.side.min .bizbox{max-height:0;opacity:0;padding-top:0;padding-bottom:0;border-top-width:0;transition:max-height 240ms cubic-bezier(.32,.72,0,1),opacity 80ms ease-out,padding 240ms cubic-bezier(.32,.72,0,1)}
+.side.min .nav a{padding:0 18px}
+.side.min .navlbl{height:1px;padding:0;margin:8px 10px;background:var(--rowBorder);font-size:0}
+.side.min .who{padding:10px 0 2px 10px}
+.org{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border-radius:12px}
+.logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--insight));color:var(--onAccent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;padding:0 12px;min-height:40px;border-radius:12px;font-size:14px;color:var(--text2)}
+.nav a:hover{background:var(--navHover)}
+.nav a[aria-current="page"]{background:var(--navActive);color:var(--text);font-weight:600}
+.navlbl{padding:12px 12px 4px;font-size:12px;font-weight:500;color:var(--muted)}
+.bizbox{padding:16px 12px 0;border-top:1px solid var(--rowBorder);display:flex;flex-direction:column;gap:10px;font-size:13px}
+.who{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 8px 2px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--accentSoft);color:var(--accentText);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:0 0 auto}
+.main{position:relative;z-index:1;flex:999 1 560px;min-width:0;padding:16px 24px 32px;display:flex;flex-direction:column;gap:24px}
+.phead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px}
+h1{margin:0;font-size:32px;font-weight:600;line-height:1.15}
+.sub{margin:6px 0 0;font-size:14px;color:var(--text2)}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;border-radius:999px;min-width:280px}
+.search input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);font:inherit;font-size:14px}
+.card{border-radius:28px;padding:20px;gap:20px}
+.stats{display:flex;flex-wrap:wrap;border-radius:28px;padding:20px 4px;row-gap:16px}
+.stat{flex:1 1 180px;padding:0 20px}
+.stat .v{font-size:26px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
+.row > *{min-width:0}
+.pw{display:flex;flex-direction:column;gap:20px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.toast{top:20px;right:24px;width:360px}
+</style>
+</helmet>
+<div id="top" style="{{rootStyle}}">
+<div aria-hidden="true" class="orb" style="left: -90px; top: 60px; width: 540px; height: 540px; background: var(--orbA)"></div>
+<div aria-hidden="true" class="orb" style="right: -110px; top: 140px; width: 500px; height: 500px; background: var(--orbB)"></div>
+<div aria-hidden="true" class="orb" style="left: 38%; top: 640px; width: 520px; height: 520px; background: var(--orbC)"></div>
+<div aria-hidden="true" class="orb" style="left: 4%; bottom: -120px; width: 460px; height: 460px; background: var(--orbD)"></div>
+<aside class="glass side {{sideCls}}">
+<div class="sidehead">
+<a class="org" href="{{homeHref}}" aria-label="Hossain Group, home" title="Hossain Group, home"><span class="num logo">HG</span></a>
+<button class="sidetog" aria-label="{{sideLabel}}" title="{{sideLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM9 5v14"/></svg></button>
+</div>
+<nav class="nav" aria-label="Main">
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="19">
+<sc-if value="{{n.isLabel}}" hint-placeholder-val="{{ false }}"><div class="navlbl">{{n.label}}</div></sc-if>
+<sc-if value="{{n.isItem}}" hint-placeholder-val="{{ true }}"><a href="{{n.href}}" aria-current="{{n.current}}" title="{{n.label}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.icon}}"/></svg><span class="lbl">{{n.label}}</span></a></sc-if>
+</sc-for>
+</nav>
+<div class="bizbox">
+<div style="font-size: 12px; font-weight: 500; color: var(--muted)">Businesses</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--bizA)"></span>Hossain Motors</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 50%; background: var(--bizB)"></span>Hossain Spare Parts</div>
+<div style="display: flex; align-items: center; gap: 10px; color: var(--text2)"><span style="width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--muted); box-sizing: border-box"></span>Service Center, setting up</div>
+</div>
+<div class="who"><span class="num avatar">AR</span><span class="whotxt" style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-weight: 600; font-size: 13px">Arif Rahman</span><span style="font-size: 12px; color: var(--muted)">Store manager</span></span></div>
+</aside>
+<main class="main">
+<header class="phead">
+<div><h1 class="num">Inventory</h1><p class="sub">Parts and accessories across all four branches. Count, adjust and move stock.</p></div>
+<div class="tools">
+<label class="glass search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.search}}"/></svg><input type="text" aria-label="Search items, SKUs or references" placeholder="Search items, SKUs or references" value="{{q}}" onChange="{{setQ}}"></label>
+<button class="iconbtn" aria-label="Refresh the figures" aria-busy="{{refreshBusy}}" onClick="{{refresh}}"><svg class="{{refreshSpin}}" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.refresh}}"/></svg></button>
+<button class="iconbtn" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"/></svg></button>
+<button class="iconbtn" aria-label="Notifications, 3 new" style="position: relative"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ic.bell}}"/></svg><span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--neg); border: 2px solid var(--dotFill)"></span></button>
+
+</div>
+</header>
+<sc-if value="{{isOk}}" hint-placeholder-val="{{ true }}"><section class="glass stats" aria-label="Summary"><sc-for list="{{stats}}" as="s" hint-placeholder-count="4"><div class="stat" style="border-left-color: {{s.bc}}"><span class="k">{{s.k}}</span><span class="num v">{{s.v}}</span><span class="n">{{s.n}}</span></div></sc-for></section><div class="toolbar"><div class="seg-wrap" role="group" aria-label="Inventory view"><sc-for list="{{views}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div><select class="pill" style="padding-right: 10px" aria-label="Branch" value="{{brVal}}" onChange="{{setBr}}"><option value="all">All branches</option><option value="m">Mirpur-10</option><option value="u">Uttara</option><option value="n">Narayanganj</option><option value="a">Agrabad</option></select></div><sc-if value="{{isStock}}" hint-placeholder-val="{{ true }}"><div class="row"><section class="glass card"  aria-label="Stock list"><div class="cardhead"><div><h2 class="num h2">Stock</h2><p class="cap">{{listCap}}</p></div><div class="seg-wrap" role="group" aria-label="Stock status"><sc-for list="{{sfs}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div><div><div class="thead" style="grid-template-columns: minmax(0, 1fr) 96px 72px 100px 92px"><span>Item</span><span>Category</span><span class="r">On hand</span><span class="r">Value at cost</span><span>Status</span></div><sc-for list="{{rows}}" as="r" hint-placeholder-count="8"><button class="trow" aria-current="{{r.cur}}" onClick="{{r.open}}" style="grid-template-columns: minmax(0, 1fr) 96px 72px 100px 92px"><span class="cell-main"><b class="ell">{{r.name}}</b><span>{{r.sku}}</span></span><span class="t2">{{r.cat}}</span><span class="num r" style="font-weight: 600">{{r.oh}}</span><span class="num r">{{r.value}}</span><span><span class="{{r.sc}}">{{r.s}}</span></span></button></sc-for><sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No items match</b><span>Clear the search or set the status filter to All.</span></div></sc-if></div></section><section class="glass card"  aria-label="Item details"><sc-if value="{{noSel}}" hint-placeholder-val="{{ true }}"><div class="empty" style="padding: 80px 12px"><b>Pick an item</b><span>See stock by branch, adjust counts or move stock between branches.</span></div></sc-if><sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}"><sc-if value="{{isInfo}}" hint-placeholder-val="{{ true }}"><div class="pw"><div class="cardhead"><div><h2 class="num h2">{{d.name}}</h2><p class="cap">{{d.sku}}</p></div><span class="{{d.sc}}">{{d.s}}</span></div><div class="stack"><span class="label">On hand by branch</span><sc-for list="{{d.brs}}" as="x" hint-placeholder-count="4"><div class="stack-s"><div class="kv"><span>{{x.name}}</span><span><span class="muted" style="font-size: 12px; margin-right: 8px">{{x.note}}</span><span class="num" style="font-weight: 600">{{x.n}}</span></span></div><div class="bar" role="img" aria-label="{{x.name}}: {{x.n}} on hand"><span style="width: {{x.w}}; background: {{x.col}}"></span></div></div></sc-for></div><div class="divider"></div><div class="stack"><div class="kv"><span>Total on hand</span><span class="num">{{d.tot}}</span></div><div class="kv"><span>Reserved for orders</span><span class="num">{{d.res}}</span></div><div class="kv"><span>Reorder at, all branches</span><span class="num">{{d.reorder}}</span></div><div class="kv"><span>Unit cost</span><span class="num">{{d.cost}}</span></div><div class="kv"><span>Value at cost</span><span class="num" style="font-weight: 600">{{d.value}}</span></div></div><div class="divider"></div><div class="stack"><span class="label">Latest movements</span><sc-for list="{{d.moves}}" as="m" hint-placeholder-count="3"><div class="kv" style="align-items: flex-start"><span class="stack-s" style="gap: 2px"><span style="color: var(--text)">{{m.type}}, {{m.br}}</span><span class="muted" style="font-size: 12px">{{m.when}}, {{m.ref}}</span></span><span class="{{m.qc}}" style="font-weight: 600">{{m.qty}}</span></div></sc-for></div><div style="display: flex; flex-wrap: wrap; gap: 8px"><button class="btn btn-primary" onClick="{{openAdj}}">Adjust stock</button><button class="btn" onClick="{{openTr}}">Transfer to a branch</button></div></div></sc-if><sc-if value="{{isAdj}}" hint-placeholder-val="{{ false }}"><div class="pw"><div><h2 class="num h2">Adjust stock</h2><p class="cap">{{d.name}}. Every change is logged with a reason.</p></div><div class="fields"><label class="field">Branch<select value="{{aBr}}" onChange="{{setABr}}"><option value="m">Mirpur-10</option><option value="u">Uttara</option><option value="n">Narayanganj</option><option value="a">Agrabad</option></select></label><label class="field">Reason<select value="{{aWhy}}" onChange="{{setAWhy}}"><option value="Count correction">Count correction</option><option value="Damaged">Damaged</option><option value="Found in store">Found in store</option><option value="Returned by customer">Returned by customer</option><option value="Returned to supplier">Returned to supplier</option></select></label></div><div class="seg-wrap" role="group" aria-label="Direction"><sc-for list="{{aDirs}}" as="g" hint-placeholder-count="3"><button class="seg" style="{{g.st}}" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div><label class="field">Quantity<input class="num" type="number" min="1" step="1" placeholder="0" value="{{aQty}}" onChange="{{setAQty}}"></label><sc-if value="{{hasErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">{{formErr}}</span></sc-if><div style="display: flex; gap: 8px"><button class="btn btn-primary btn-lg" onClick="{{saveAdj}}">Save adjustment</button><button class="btn btn-lg" onClick="{{cancelForm}}">Cancel</button></div></div></sc-if><sc-if value="{{isTrForm}}" hint-placeholder-val="{{ false }}"><div class="pw"><div><h2 class="num h2">Transfer to a branch</h2><p class="cap">{{d.name}}. Stock leaves the sending branch now and arrives when the other branch marks it received.</p></div><div class="fields"><label class="field">From<select value="{{tFrom}}" onChange="{{setTFrom}}"><option value="m">Mirpur-10</option><option value="u">Uttara</option><option value="n">Narayanganj</option><option value="a">Agrabad</option></select></label><label class="field">To<select value="{{tTo}}" onChange="{{setTTo}}"><option value="m">Mirpur-10</option><option value="u">Uttara</option><option value="n">Narayanganj</option><option value="a">Agrabad</option></select></label></div><label class="field">Quantity<input class="num" type="number" min="1" step="1" placeholder="0" value="{{tQty}}" onChange="{{setTQty}}"></label><sc-if value="{{hasErr}}" hint-placeholder-val="{{ false }}"><span class="err" role="alert">{{formErr}}</span></sc-if><div style="display: flex; gap: 8px"><button class="btn btn-primary btn-lg" onClick="{{saveTr}}">Create transfer</button><button class="btn btn-lg" onClick="{{cancelForm}}">Cancel</button></div></div></sc-if></sc-if></section></div></sc-if><sc-if value="{{isMoves}}" hint-placeholder-val="{{ false }}"><section class="glass card" aria-label="Stock movements"><div><h2 class="num h2">Movements</h2><p class="cap">Every sale, delivery, transfer and adjustment, newest first.</p></div><div><div class="thead" style="grid-template-columns: 150px minmax(0, 1.6fr) 110px 130px 70px minmax(0, 1fr) 80px"><span>When</span><span>Item</span><span>Branch</span><span>Type</span><span class="r">Qty</span><span>Reference</span><span>By</span></div><sc-for list="{{moves}}" as="m" hint-placeholder-count="8"><div class="trow" style="grid-template-columns: 150px minmax(0, 1.6fr) 110px 130px 70px minmax(0, 1fr) 80px"><span class="t2">{{m.when}}</span><span class="ell" style="font-weight: 500">{{m.item}}</span><span class="t2">{{m.br}}</span><span><span class="{{m.tc}}">{{m.type}}</span></span><span class="{{m.qc}}" style="font-weight: 600">{{m.qty}}</span><span class="num t2">{{m.ref}}</span><span class="t2">{{m.by}}</span></div></sc-for><sc-if value="{{noMoves}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No movements match</b><span>Pick All branches or clear the search.</span></div></sc-if></div></section></sc-if><sc-if value="{{isTr}}" hint-placeholder-val="{{ false }}"><section class="glass card" aria-label="Transfers"><div><h2 class="num h2">Transfers between branches</h2><p class="cap">To start a transfer, open an item on the Stock tab.</p></div><div><div class="thead" style="grid-template-columns: 130px 90px minmax(0, 1.4fr) minmax(0, 1.4fr) 60px 110px 140px"><span>Transfer</span><span>Date</span><span>Route</span><span>Item</span><span class="r">Qty</span><span>Status</span><span></span></div><sc-for list="{{transfers}}" as="t" hint-placeholder-count="4"><div class="trow" style="grid-template-columns: 130px 90px minmax(0, 1.4fr) minmax(0, 1.4fr) 60px 110px 140px"><span class="num" style="font-weight: 600">{{t.no}}</span><span class="t2">{{t.day}}</span><span>{{t.route}}</span><span class="ell t2">{{t.item}}</span><span class="num r" style="font-weight: 600">{{t.qty}}</span><span><span class="{{t.sc}}">{{t.status}}</span></span><span class="r"><sc-if value="{{t.canRecv}}" hint-placeholder-val="{{ false }}"><button class="btn" aria-label="{{t.recvLabel}}" onClick="{{t.recv}}">Mark received</button></sc-if></span></div></sc-for><sc-if value="{{noTr}}" hint-placeholder-val="{{ false }}"><div class="empty"><b>No transfers match</b><span>Pick All branches or clear the search.</span></div></sc-if></div></section></sc-if></sc-if><sc-if value="{{isLoad}}" hint-placeholder-val="{{ false }}"><div role="status" aria-live="polite" style="display: flex; flex-direction: column; gap: 24px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Loading the latest figures</span><section class="glass stats" aria-busy="true" aria-label="Loading summary"><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div><div class="stat"><span class="sk" style="width: 90px; height: 14px"></span><span class="sk" style="width: 150px; height: 28px"></span><span class="sk" style="width: 120px; height: 12px"></span></div></section><div class="row"><section class="glass card" aria-busy="true"><span class="sk" style="width: 160px; height: 22px"></span><div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div><div class="skrow"><span class="sk" style="width: 34%; height: 14px"></span><span class="sk" style="width: 18%; height: 14px"></span><span class="sk" style="width: 14%; height: 14px; margin-left: auto"></span><span class="sk" style="width: 10%; height: 24px; border-radius: 999px"></span></div></div></section><section class="glass card" aria-busy="true"><span class="sk" style="width: 140px; height: 22px"></span><span class="sk" style="width: 100%; height: 14px"></span><span class="sk" style="width: 80%; height: 14px"></span><span class="sk" style="width: 100%; height: 40px"></span><span class="sk" style="width: 100%; height: 44px"></span></section></div></div></sc-if><sc-if value="{{isErr}}" hint-placeholder-val="{{ false }}"><section class="glass errbox" role="alert"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--negText)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><div><h2 class="num h2">We could not load these figures</h2><p class="cap">The connection to the server dropped. Nothing you entered has been changed. Check your connection, then try again.</p></div><button class="btn btn-primary btn-lg" onClick="{{retry}}">Try again</button></section></sc-if>
+<div class="pvbar" role="group" aria-label="Preview state"><span class="label">Preview state</span><div class="seg-wrap"><sc-for list="{{pvs}}" as="g" hint-placeholder-count="4"><button class="seg" aria-pressed="{{g.on}}" onClick="{{g.go}}">{{g.label}}</button></sc-for></div></div>
+<p class="foot">Demo data. Every figure on this screen is illustrative.</p>
+</main>
+<sc-if value="{{showToast}}" hint-placeholder-val="{{ false }}"><div class="glass toast" role="status" aria-live="polite"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pos)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 auto"><path d="M5 12l5 5 9-10"/></svg><span style="flex: 1">{{toastMsg}}</span><button class="btn" onClick="{{dismissToast}}">Dismiss</button></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","default":"light","options":["light","dark"],"section":"Appearance"},"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+
+  fmt(n) { const neg = n < 0; const s = String(Math.round(Math.abs(n))), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return (neg ? '−' : '') + '৳' + (r ? r + ',' : '') + l; }
+  toast(msg) { this.setState({ toast: msg }); clearTimeout(this.__tt); this.__tt = setTimeout(() => this.setState({ toast: null }), 4000); }
+
+  componentDidMount() { this.ixMotion('first'); }
+  componentDidUpdate(pp, ps) {
+    const a = ps || {}, b = this.state || {};
+    if (a.view !== b.view || a.pv !== b.pv || a.refreshing !== b.refreshing) { if (!b.refreshing && b.pv !== 'loading') this.ixMotion(a.refreshing ? 'ready' : 'swap'); }
+    else if (a.sel !== b.sel || a.pmode !== b.pmode || a.uo !== b.uo) this.ixMotion('panel');
+    else if (a.cart && b.cart && b.cart.length > a.cart.length) this.ixMotion('cart');
+  }
+  ixLoad(cb) {
+    if (window.Motion) { cb(window.Motion); return; }
+    if (window.__ixFail) return;
+    if (window.__ixQ) { window.__ixQ.push(cb); return; }
+    window.__ixQ = [cb];
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/motion@latest/dist/motion.js';
+    s.onload = () => { const q = window.__ixQ || []; window.__ixQ = null; if (window.Motion) q.forEach((f) => f(window.Motion)); else window.__ixFail = true; };
+    s.onerror = () => { window.__ixQ = null; window.__ixFail = true; };
+    document.head.appendChild(s);
+  }
+  ixMotion(kind) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.ixLoad((M) => { requestAnimationFrame(() => { try {
+      const root = document.getElementById('top'); if (!root) return;
+      const q = (s) => Array.prototype.slice.call(root.querySelectorAll(s));
+      const first = kind === 'first';
+      if (kind === 'panel') {
+        const p = q('section.glass[aria-label$="details"]'); if (p.length) M.animate(p, { opacity: [0.4, 1], x: [14, 0] }, { duration: 0.24, ease: 'easeOut' });
+        return;
+      }
+      if (kind === 'cart') {
+        const l = q('.line'); if (l.length) M.animate(l[l.length - 1], { opacity: [0, 1], y: [-8, 0], backgroundColor: ['rgba(79,93,240,0.16)', 'rgba(79,93,240,0)'] }, { duration: 0.45, ease: 'easeOut' });
+        return;
+      }
+      const cards = q('.glass').filter((el) => !el.matches('.toast, nav, aside'));
+      if (cards.length) M.animate(cards, { opacity: [0, 1], y: [first ? 16 : 8, 0] }, { duration: first ? 0.45 : 0.25, delay: M.stagger(first ? 0.05 : 0.025), ease: 'easeOut' });
+      const rows = q('.trow, .lrow').slice(0, 14);
+      if (rows.length) M.animate(rows, { opacity: [0, 1], y: [6, 0] }, { duration: 0.28, delay: M.stagger(0.025, { startDelay: first ? 0.25 : 0.1 }), ease: 'easeOut' });
+      const fills = q('.bar > span, .stat .bar span');
+      fills.forEach((el) => { el.style.transformOrigin = '0 50%'; });
+      if (fills.length) M.animate(fills, { scaleX: [0, 1] }, { duration: 0.7, delay: first ? 0.35 : 0.15, ease: [0.2, 0.8, 0.2, 1] });
+      if (first || kind === 'ready') {
+        q('.stat .v').forEach((el) => {
+          const t = el.firstChild; if (!t || el.children.length || t.nodeType !== 3) return;
+          if (!/^৳[\d,]+$/.test(t.nodeValue)) return;
+          const to = Number(t.nodeValue.replace(/[^0-9]/g, '')); if (!to) return;
+          const fmt = (n) => { const s = String(n), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return '৳' + (r ? r + ',' : '') + l; };
+          M.animate(0, to, { duration: 0.9, ease: 'easeOut', onUpdate: (v) => { t.nodeValue = fmt(Math.round(v)); }, onComplete: () => { t.nodeValue = fmt(to); } });
+        });
+      }
+    } catch (e) {} }); });
+  }
+  refresh() {
+    if ((this.state || {}).refreshing) return;
+    this.setState({ refreshing: true });
+    clearTimeout(this.__rt);
+    this.__rt = setTimeout(() => { const t = this.now(); this.setState({ refreshing: false, upd: t }); this.toast('Figures updated at ' + t + '.'); }, 800);
+  }
+  componentWillUnmount() { clearTimeout(this.__tt); clearTimeout(this.__rt); }
+  now() { const D = new Date(), h = D.getHours(); return ((h + 11) % 12 + 1) + ':' + String(D.getMinutes()).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); }
+  bc(i) { return (this.__phone ? i % 2 === 0 : i === 0) ? 'transparent' : 'var(--rowBorder)'; }
+  base(pageDesk, pageTab) {
+    const st = this.state || {};
+    const dark = (st.theme || this.props.theme || 'light') === 'dark';
+    const phone = false;
+    this.__phone = phone;
+    const L = {
+      text: '#0E1836', text2: '#33405F', muted: '#3F4A6E',
+      card: 'linear-gradient(145deg, rgba(255,255,255,0.66), rgba(255,255,255,0.30))',
+      cardBorder: 'rgba(255,255,255,0.95)',
+      cardShadow: '0 0 0 1px rgba(40,56,130,0.07), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(255,255,255,0.35), 0 26px 50px -18px rgba(40,56,130,0.34)',
+      rowBorder: 'rgba(16,27,59,0.08)',
+      accent: '#4F5DF0', accentSoft: 'rgba(79,93,240,0.13)', accentText: '#2A35B5', onAccent: '#FFFFFF',
+      pos: '#12A57A', posText: '#055A3F', posBg: 'rgba(18,165,122,0.15)',
+      neg: '#E04466', negText: '#9E1E3B', negBg: 'rgba(224,68,102,0.13)',
+      warn: '#E89A1C', warnText: '#744205', warnBg: 'rgba(232,154,28,0.18)',
+      insight: '#12A9BF', bizA: '#3346B8', bizB: '#1FA391',
+      grid: 'rgba(16,27,59,0.10)', track: 'rgba(16,27,59,0.08)',
+      navActive: 'rgba(79,93,240,0.14)', navHover: 'rgba(16,27,59,0.05)',
+      chipBg: 'rgba(255,255,255,0.48)', dotFill: '#F4F6FA',
+      orbA: 'rgba(255,255,255,0.5)', orbB: 'rgba(197,113,119,0.18)', orbC: 'rgba(255,255,255,0.55)', orbD: 'rgba(255,255,255,0.4)',
+      icoInk: '#FFFFFF', c1: '#3346B8', c2: '#A61E4D', c3: '#1FA391'
+    };
+    const N = {
+      text: '#F2F5FF', text2: '#B7C1DE', muted: '#93A1C6',
+      card: 'linear-gradient(145deg, rgba(160,190,255,0.09), rgba(255,255,255,0.015) 55%, rgba(120,90,255,0.04))',
+      cardBorder: 'rgba(170,195,255,0.16)',
+      cardShadow: '0 28px 56px -20px rgba(0,0,0,0.95), 0 0 36px -14px rgba(80,130,255,0.35), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.03)',
+      rowBorder: 'rgba(255,255,255,0.09)',
+      accent: '#8C98FF', accentSoft: 'rgba(140,152,255,0.20)', accentText: '#B4BCFF', onAccent: '#0A1030',
+      pos: '#2FC99A', posText: '#57DDB1', posBg: 'rgba(47,201,154,0.14)',
+      neg: '#F0627C', negText: '#FF93A6', negBg: 'rgba(240,98,124,0.14)',
+      warn: '#F2AB44', warnText: '#FFC673', warnBg: 'rgba(242,171,68,0.14)',
+      insight: '#2CC4D8', bizA: '#7F92F7', bizB: '#2FB3A0',
+      grid: 'rgba(255,255,255,0.10)', track: 'rgba(255,255,255,0.10)',
+      navActive: 'rgba(140,152,255,0.22)', navHover: 'rgba(255,255,255,0.06)',
+      chipBg: 'rgba(255,255,255,0.04)', dotFill: '#0A0E1C',
+      orbA: 'rgba(59,130,246,0.16)', orbB: 'rgba(139,92,246,0.12)', orbC: 'rgba(34,211,238,0.05)', orbD: 'rgba(59,130,246,0.09)',
+      icoInk: '#0A1030', c1: '#7F92F7', c2: '#F26D55', c3: '#2FB3A0'
+    };
+    const V = dark ? N : L;
+    const aurora = dark
+      ? 'radial-gradient(900px 600px at 8% -4%, rgba(56,110,255,0.18), transparent 62%), radial-gradient(820px 580px at 100% 100%, rgba(124,82,255,0.14), transparent 62%), radial-gradient(600px 420px at 72% 28%, rgba(34,211,238,0.05), transparent 65%), linear-gradient(135deg, #000000 0%, #000000 55%, #02040E 100%)'
+      : 'linear-gradient(270deg, rgba(197,113,119,0.24) 0%, rgba(197,113,119,0.10) 28%, rgba(197,113,119,0) 55%), linear-gradient(180deg, #F7F8FC 0%, #EEF1F8 100%)';
+    const vars = Object.keys(V).map((k) => '--' + k + ':' + V[k]).join(';');
+    const rootStyle = vars + ';background:' + aurora + ';color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px;box-sizing:border-box;position:relative;overflow:hidden;'
+      + (phone ? 'width:390px;height:844px;display:flex;flex-direction:column' : 'min-height:1180px;display:flex;flex-wrap:wrap;align-items:stretch');
+    const I = {
+      home: 'M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5',
+      building: 'M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M8 8h3M8 12h3M8 16h3M2 21h20',
+      pin: 'M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+      cart: 'M3 4h2l2.4 11.2a1 1 0 001 .8h8.7a1 1 0 001-.76L20 8H6.2M9 20.5a.5.5 0 100-1 .5.5 0 000 1zM17 20.5a.5.5 0 100-1 .5.5 0 000 1z',
+      cal: 'M4 7a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4',
+      bag: 'M6 7h12l1 13H5zM9 7V6a3 3 0 016 0v1',
+      box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+      bike: 'M5.5 18a3 3 0 100-6 3 3 0 000 6zM18.5 18a3 3 0 100-6 3 3 0 000 6zM8.5 15l3-5h4.5l2.5 5M11.5 10L10 7H7.5M16 10l1-3h2',
+      wrench: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
+      users: 'M16 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+      book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 21V5M8 7h7M8 11h7',
+      chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+      shield: 'M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6zM9 12l2 2 4-4',
+      more: 'M5 12h.01M12 12h.01M19 12h.01',
+      search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3',
+      bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
+      sun: 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+      moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z',
+      check: 'M5 12l5 5 9-10',
+      refresh: 'M21 12a9 9 0 11-3-6.7M21 4v5h-5',
+      alert: 'M12 3l10 18H2zM12 10v5M12 18h.01'
+    };
+    const NAV = [['label', 'Overview'], ['item', 'Home', 'home'], ['label', 'Organization'], ['item', 'Businesses', 'building'], ['item', 'Branches', 'pin'], ['label', 'Operations'], ['item', 'Sales / POS', 'cart'], ['item', 'Booking & Preorder', 'cal'], ['item', 'Purchase', 'bag'], ['item', 'Inventory', 'box'], ['item', 'Products', 'bike'], ['item', 'Service & Warranty', 'wrench'], ['label', 'People'], ['item', 'Customers', 'users'], ['label', 'Finance'], ['item', 'Accounting', 'book'], ['item', 'Reports', 'chart'], ['label', 'Admin'], ['item', 'Users & Permissions', 'shield']];
+    const HREF = { 'Home': ['Main', 'DesktopDark'], 'Sales / POS': ['Sales', 'SalesDark'], 'Inventory': ['Inventory', 'InventoryDark'], 'Products': ['Bikes', 'BikesDark'] };
+    const PHREF = { 'Home': ['PhoneLight', 'PhoneDark'], 'Sales': ['SalesPhone', 'SalesPhoneDark'], 'Stock': ['InventoryPhone', 'InventoryPhoneDark'], 'Products': ['BikesPhone', 'BikesPhoneDark'] };
+    const hr = (m, k) => m[k] ? m[k][dark ? 1 : 0] + '.dc.html' : '#top';
+    const nav = NAV.map((r) => r[0] === 'label'
+      ? { isLabel: true, isItem: false, label: r[1], icon: '', href: '#top', current: 'false' }
+      : { isLabel: false, isItem: true, label: r[1], icon: I[r[2]], href: hr(HREF, r[1]), current: r[1] === pageDesk ? 'page' : 'false' });
+    const tabs = [['Home', 'home'], ['Sales', 'cart'], ['Stock', 'box'], ['Products', 'bike'], ['More', 'more']].map((t) => ({ label: t[0], icon: I[t[1]], href: hr(PHREF, t[0]), current: t[0] === pageTab ? 'page' : 'false' }));
+    let nc = st.nc;
+    if (nc === undefined) { nc = false; try { nc = window.localStorage.getItem('hg-nav-min') === '1'; } catch (e) {} }
+    const toggleSide = () => { const v = !nc; const rt = document.getElementById('top'); if (rt) { rt.classList.add('navmoving'); clearTimeout(window.__nm); window.__nm = setTimeout(() => rt.classList.remove('navmoving'), 340); } try { window.localStorage.setItem('hg-nav-min', v ? '1' : '0'); } catch (e) {} this.setState({ nc: v }); };
+    const pv = st.pv || 'data', busy = !!st.refreshing || pv === 'loading';
+    const pvs = [['data', 'Data'], ['loading', 'Loading'], ['empty', 'Empty'], ['error', 'Error']].map((x) => ({ label: x[1], on: pv === x[0] ? 'true' : 'false', st: '', go: () => this.setState({ pv: x[0], sel: null, pmode: 'info', formErr: null }) }));
+    return { st, dark, pv, out: {
+      sideCls: nc ? 'min' : '', sideOpen: nc ? 'false' : 'true', sideLabel: nc ? 'Expand the sidebar' : 'Collapse the sidebar', sideIcon: nc ? 'M9 18l6-6-6-6' : 'M15 18l-6-6 6-6', toggleSide,
+      isLoad: busy, isErr: !busy && pv === 'error', isOk: !busy && pv !== 'error', pvs,
+      refreshBusy: busy ? 'true' : 'false', refreshSpin: busy ? 'spin' : '', refresh: () => this.refresh(),
+      retry: () => this.setState({ pv: 'data' }),
+      rootStyle, nav, tabs, ic: I, homeHref: hr(HREF, 'Home'),
+      themeIcon: dark ? I.sun : I.moon,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      q: st.q || '', setQ: (e) => this.setState({ q: e.target.value, sel: null }),
+      showToast: !!st.toast, toastMsg: st.toast || '', dismissToast: () => this.setState({ toast: null })
+    } };
+  }
+
+  renderVals() {
+
+    const segs = (arr, cur, key, fill, keep) => arr.map((x) => { const v = Array.isArray(x) ? x[0] : x, l = Array.isArray(x) ? x[1] : x; return { label: l, on: cur === v ? 'true' : 'false', st: fill ? 'flex: 1 1 0; padding: 0 6px' : '', go: () => { const o = {}; o[key] = v; if (!keep) { o.sel = null; o.formErr = null; } this.setState(o); } }; });
+
+    const b = this.base('Inventory', 'Stock'), st = b.st, f = (n) => this.fmt(n), set = (o) => this.setState(o);
+    const BR = [["m", "Mirpur-10"], ["u", "Uttara"], ["n", "Narayanganj"], ["a", "Agrabad"]], IT0 = [{"id": "oil", "name": "Motul 3000 4T, 1 litre", "sku": "PRT-OIL-0101", "cat": "Parts", "cost": 780, "reorder": 40, "oh": {"m": 64, "u": 22, "n": 18, "a": 30}, "res": 6}, {"id": "brk", "name": "Brake pad set, front", "sku": "PRT-BRK-0214", "cat": "Parts", "cost": 900, "reorder": 20, "oh": {"m": 30, "u": 6, "n": 4, "a": 4}, "res": 2}, {"id": "chn", "name": "Chain and sprocket kit", "sku": "PRT-CHN-0330", "cat": "Parts", "cost": 2900, "reorder": 10, "oh": {"m": 12, "u": 3, "n": 0, "a": 5}, "res": 1}, {"id": "bat", "name": "12V 5Ah battery", "sku": "PRT-BAT-0412", "cat": "Parts", "cost": 2600, "reorder": 8, "oh": {"m": 9, "u": 2, "n": 1, "a": 0}, "res": 0}, {"id": "tyr", "name": "Tyre 100/80-17", "sku": "PRT-TYR-0520", "cat": "Parts", "cost": 3300, "reorder": 12, "oh": {"m": 16, "u": 20, "n": 4, "a": 10}, "res": 4}, {"id": "spk", "name": "Spark plug", "sku": "PRT-SPK-0601", "cat": "Parts", "cost": 240, "reorder": 50, "oh": {"m": 120, "u": 40, "n": 25, "a": 60}, "res": 0}, {"id": "cbl", "name": "Clutch cable", "sku": "PRT-CBL-0705", "cat": "Parts", "cost": 310, "reorder": 15, "oh": {"m": 0, "u": 0, "n": 0, "a": 0}, "res": 0}, {"id": "flt", "name": "Air filter", "sku": "PRT-FLT-0808", "cat": "Parts", "cost": 540, "reorder": 15, "oh": {"m": 18, "u": 11, "n": 6, "a": 9}, "res": 0}, {"id": "hel", "name": "Full-face helmet", "sku": "ACC-HEL-0102", "cat": "Accessories", "cost": 3400, "reorder": 10, "oh": {"m": 22, "u": 9, "n": 3, "a": 1}, "res": 2}, {"id": "cov", "name": "Bike cover", "sku": "ACC-COV-0210", "cat": "Accessories", "cost": 850, "reorder": 10, "oh": {"m": 30, "u": 4, "n": 2, "a": 3}, "res": 0}, {"id": "mir", "name": "Side mirror pair", "sku": "ACC-MIR-0315", "cat": "Accessories", "cost": 620, "reorder": 12, "oh": {"m": 7, "u": 2, "n": 1, "a": 0}, "res": 0}], MV0 = [["13 Nov, 12:42 PM", "hel", "m", "Sale", -2, "INV-261113-014", "Arif"], ["13 Nov, 11:56 AM", "oil", "m", "Sale", -4, "INV-261113-013", "Nusrat"], ["13 Nov, 11:56 AM", "brk", "m", "Sale", -1, "INV-261113-013", "Nusrat"], ["13 Nov, 10:30 AM", "tyr", "u", "Received", 12, "PO-2611-031", "Rakib"], ["13 Nov, 9:40 AM", "oil", "n", "Transfer in", 10, "TR-2611-008", "Shuvo"], ["13 Nov, 9:15 AM", "oil", "m", "Transfer out", -10, "TR-2611-008", "Shuvo"], ["13 Nov, 9:10 AM", "brk", "m", "Transfer out", -8, "TR-2611-009", "Shuvo"], ["12 Nov, 6:31 PM", "cov", "m", "Sale", -1, "INV-261112-048", "Arif"], ["12 Nov, 5:15 PM", "brk", "m", "Sale", -10, "INV-261112-047", "Nusrat"], ["12 Nov, 5:15 PM", "chn", "m", "Sale", -3, "INV-261112-047", "Nusrat"], ["12 Nov, 4:00 PM", "cbl", "a", "Count correction", -2, "ADJ-2611-004", "Rakib"], ["11 Nov, 3:20 PM", "hel", "m", "Transfer out", -5, "TR-2611-006", "Shuvo"]], TR0 = [{"no": "TR-2611-009", "from": "m", "to": "a", "item": "brk", "qty": 8, "status": "In transit", "day": "13 Nov"}, {"no": "TR-2611-008", "from": "m", "to": "n", "item": "oil", "qty": 10, "status": "Received", "day": "13 Nov"}, {"no": "TR-2611-007", "from": "u", "to": "n", "item": "tyr", "qty": 4, "status": "Received", "day": "12 Nov"}, {"no": "TR-2611-006", "from": "m", "to": "a", "item": "hel", "qty": 5, "status": "In transit", "day": "11 Nov"}];
+    const BN = {}; BR.forEach((x) => { BN[x[0]] = x[1]; });
+    const adj = st.adj || {};
+    const items = IT0.map((it) => { const oh = {}; BR.forEach((x) => { oh[x[0]] = it.oh[x[0]] + ((adj[it.id] || {})[x[0]] || 0); }); return Object.assign({}, it, { oh, tot: BR.reduce((a, x) => a + oh[x[0]], 0) }); });
+    const byId = {}; items.forEach((it) => { byId[it.id] = it; });
+    const br = st.br || 'all';
+    const qty = (it) => br === 'all' ? it.tot : it.oh[br];
+    const lim = (it) => br === 'all' ? it.reorder : Math.ceil(it.reorder / 4);
+    const status = (it, all) => { const qn = all ? it.tot : qty(it), lm = all ? it.reorder : lim(it), av = qn - (all || br === 'all' ? it.res : 0); return qn <= 0 ? 'Out of stock' : av <= lm ? 'Low' : 'In stock'; };
+    const SC = { 'In stock': 'chip c-pos', 'Low': 'chip c-warn', 'Out of stock': 'chip c-neg' };
+    const view = st.view || 'stock';
+    const q = (st.q || '').trim().toLowerCase();
+    const sf = st.sf || 'All';
+    const list = items.filter((it) => (!q || (it.name + ' ' + it.sku).toLowerCase().indexOf(q) >= 0) && (sf === 'All' || status(it) === sf));
+    const rows = list.map((it) => ({ name: it.name, sku: it.sku, cat: it.cat, oh: String(qty(it)), res: br === 'all' ? String(it.res) : '–', reorder: String(lim(it)), value: f(qty(it) * it.cost), s: status(it), sc: SC[status(it)], cur: st.sel === it.id ? 'true' : 'false', open: () => set({ sel: it.id, pmode: 'info', formErr: null }) }));
+    const mv = (st.mv || []).concat(MV0);
+    const TYC = { 'Sale': 'chip c-acc', 'Received': 'chip c-pos', 'Transfer in': 'chip c-pos', 'Transfer out': 'chip c-mut', 'Count correction': 'chip c-warn', 'Damaged': 'chip c-neg', 'Found in store': 'chip c-pos', 'Returned by customer': 'chip c-pos', 'Returned to supplier': 'chip c-mut' };
+    const mvRow = (m) => ({ when: m[0], item: byId[m[1]].name, br: BN[m[2]], type: m[3], tc: TYC[m[3]] || 'chip c-mut', qty: (m[4] > 0 ? '+' : '−') + Math.abs(m[4]), qc: m[4] > 0 ? 'num r pos' : 'num r neg', ref: m[5], by: m[6] });
+    const moves = mv.filter((m) => (br === 'all' || m[2] === br) && (!q || (byId[m[1]].name + ' ' + m[5]).toLowerCase().indexOf(q) >= 0)).map(mvRow);
+    const trStat = st.trStat || {};
+    const trs = (st.tr || []).concat(TR0).map((t) => Object.assign({}, t, { status: trStat[t.no] || t.status }));
+    const receive = (t) => {
+      const a = JSON.parse(JSON.stringify(adj)); a[t.item] = a[t.item] || {}; a[t.item][t.to] = (a[t.item][t.to] || 0) + t.qty;
+      const s2 = Object.assign({}, trStat); s2[t.no] = 'Received';
+      set({ adj: a, trStat: s2, mv: [['13 Nov, ' + this.now(), t.item, t.to, 'Transfer in', t.qty, t.no, 'Arif']].concat(st.mv || []) });
+      this.toast(t.qty + ' × ' + byId[t.item].name + ' received at ' + BN[t.to] + '.');
+    };
+    const transfers = trs.filter((t) => (br === 'all' || t.from === br || t.to === br) && (!q || (byId[t.item].name + ' ' + t.no).toLowerCase().indexOf(q) >= 0)).map((t) => ({ no: t.no, day: t.day, route: BN[t.from] + ' to ' + BN[t.to], item: byId[t.item].name, qty: String(t.qty), status: t.status, sc: t.status === 'Received' ? 'chip c-pos' : 'chip c-warn', canRecv: t.status === 'In transit', recvLabel: 'Mark ' + t.no + ' received', recv: () => receive(t) }));
+    const sel = view === 'stock' && st.sel ? byId[st.sel] : null;
+    const pmode = st.pmode || 'info';
+    const maxB = sel ? Math.max.apply(null, BR.map((x) => sel.oh[x[0]]).concat([1])) : 1;
+    const d = sel ? { name: sel.name, sku: sel.sku + ', ' + sel.cat, s: status(sel, true), sc: SC[status(sel, true)],
+      brs: BR.map((x) => { const n = sel.oh[x[0]], lm = Math.ceil(sel.reorder / 4); return { name: x[1], n: String(n), w: Math.round(n / maxB * 100) + '%', col: n <= 0 ? 'var(--neg)' : n <= lm ? 'var(--warn)' : 'var(--c1)', note: n <= 0 ? 'Out of stock' : n <= lm ? 'Low' : '' }; }),
+      tot: String(sel.tot), res: String(sel.res), reorder: String(sel.reorder), cost: f(sel.cost), value: f(sel.tot * sel.cost),
+      moves: mv.filter((m) => m[1] === sel.id).slice(0, 4).map(mvRow) }
+      : { name: '', sku: '', s: '', sc: '', brs: [], tot: '', res: '', reorder: '', cost: '', value: '', moves: [] };
+    const fv = (k, dflt) => st[k] == null ? dflt : st[k];
+    const saveAdj = () => {
+      const n = parseInt(fv('aQty', ''), 10), at = fv('aBr', 'm'), dir = fv('aDir', 'add'), why = fv('aWhy', 'Count correction');
+      if (!(n > 0)) { set({ formErr: 'Enter a whole number above zero.' }); return; }
+      if (dir === 'remove' && n > sel.oh[at]) { set({ formErr: 'Only ' + sel.oh[at] + ' at ' + BN[at] + '. You can’t remove more than that.' }); return; }
+      const a = JSON.parse(JSON.stringify(adj)); a[sel.id] = a[sel.id] || {}; const dl = dir === 'add' ? n : -n; a[sel.id][at] = (a[sel.id][at] || 0) + dl;
+      const ref = 'ADJ-2611-' + String(5 + (st.mv || []).filter((m) => m[5].indexOf('ADJ') === 0).length).padStart(3, '0');
+      set({ adj: a, pmode: 'info', formErr: null, aQty: null, mv: [['13 Nov, ' + this.now(), sel.id, at, why, dl, ref, 'Arif']].concat(st.mv || []) });
+      this.toast('Stock updated: ' + (dl > 0 ? '+' : '−') + n + ' ' + sel.name + ' at ' + BN[at] + '.');
+    };
+    const saveTr = () => {
+      const n = parseInt(fv('tQty', ''), 10), fr = fv('tFrom', 'm'), to = fv('tTo', 'a');
+      if (fr === to) { set({ formErr: 'Pick two different branches.' }); return; }
+      if (!(n > 0)) { set({ formErr: 'Enter a whole number above zero.' }); return; }
+      if (n > sel.oh[fr]) { set({ formErr: 'Only ' + sel.oh[fr] + ' at ' + BN[fr] + ' to send.' }); return; }
+      const no = 'TR-2611-' + String(10 + (st.tr || []).length).padStart(3, '0');
+      const a = JSON.parse(JSON.stringify(adj)); a[sel.id] = a[sel.id] || {}; a[sel.id][fr] = (a[sel.id][fr] || 0) - n;
+      set({ adj: a, pmode: 'info', formErr: null, tQty: null, tr: [{ no, from: fr, to, item: sel.id, qty: n, status: 'In transit', day: '13 Nov' }].concat(st.tr || []), mv: [['13 Nov, ' + this.now(), sel.id, fr, 'Transfer out', -n, no, 'Arif']].concat(st.mv || []) });
+      this.toast(no + ' created: ' + n + ' × ' + sel.name + ' on the way to ' + BN[to] + '.');
+    };
+    const val = items.reduce((a, it) => a + it.tot * it.cost, 0);
+    const low = items.filter((it) => status(it, true) === 'Low').length, out = items.filter((it) => status(it, true) === 'Out of stock').length;
+    const transit = trs.filter((t) => t.status === 'In transit');
+    const stats = [
+      { k: 'Stock value at cost', v: f(val), n: 'Parts and accessories, 4 branches' },
+      { k: 'Items tracked', v: String(items.length), n: 'Serial-tracked items are counted in Products' },
+      { k: 'Low or out of stock', v: String(low + out), n: low + ' low, ' + out + ' out of stock' },
+      { k: 'In transit', v: String(transit.length), n: transit.reduce((a, t) => a + t.qty, 0) + ' units between branches' }
+    ].map((s, i) => Object.assign(s, { bc: this.bc(i) }));
+    const R = Object.assign(b.out, {
+      stats,
+      views: segs([['stock', 'Stock'], ['moves', 'Movements'], ['transfers', 'Transfers']], view, 'view', this.__phone),
+      isStock: view === 'stock', isMoves: view === 'moves', isTr: view === 'transfers',
+      isStockList: view === 'stock' && !sel, isStockDetail: view === 'stock' && !!sel,
+      brVal: br, setBr: (e) => set({ br: e.target.value, sel: null }),
+      sfs: segs(['All', 'Low', 'Out of stock'], sf, 'sf'),
+      rows, noRows: !rows.length, listCap: 'Showing ' + rows.length + ' of ' + items.length + ' items' + (br === 'all' ? ' across all branches.' : ' at ' + BN[br] + '.'),
+      moves, noMoves: !moves.length, transfers, noTr: !transfers.length,
+      d, hasSel: !!sel, noSel: !sel, isInfo: !!sel && pmode === 'info', isAdj: !!sel && pmode === 'adjust', isTrForm: !!sel && pmode === 'transfer',
+      openAdj: () => set({ pmode: 'adjust', formErr: null }), openTr: () => set({ pmode: 'transfer', formErr: null }), cancelForm: () => set({ pmode: 'info', formErr: null }),
+      aBr: fv('aBr', 'm'), setABr: (e) => set({ aBr: e.target.value }), aDirs: segs([['add', 'Add stock'], ['remove', 'Remove stock']], fv('aDir', 'add'), 'aDir', true, true),
+      aQty: fv('aQty', ''), setAQty: (e) => set({ aQty: e.target.value }), aWhy: fv('aWhy', 'Count correction'), setAWhy: (e) => set({ aWhy: e.target.value }), saveAdj,
+      tFrom: fv('tFrom', 'm'), setTFrom: (e) => set({ tFrom: e.target.value }), tTo: fv('tTo', 'a'), setTTo: (e) => set({ tTo: e.target.value }), tQty: fv('tQty', ''), setTQty: (e) => set({ tQty: e.target.value }), saveTr,
+      hasErr: !!st.formErr, formErr: st.formErr || '',
+      back: () => set({ sel: null, pmode: 'info' })
+    });
+    if (st.pv === 'empty') { R.rows = []; R.noRows = true; R.moves = []; R.noMoves = true; R.transfers = []; R.noTr = true; }
+    return R;
+
+  }
+}
+</script>
+</body>
+</html>
