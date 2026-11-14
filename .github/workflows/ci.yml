@@ -1,0 +1,117 @@
+# CI for every push and pull request (roadmap 9.2). Job names are the required status checks in
+# branch protection, so renaming a job means updating the protection rule on main too.
+name: CI
+
+on:
+  push:
+    branches: [main, 'dev-*', 'feat/**', 'hotfix/**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  PRISMA_HIDE_UPDATE_MESSAGE: '1'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run format:check
+      # Includes the layer rules: api -> businessLogic -> dal, shared and frontend import only shared.
+      - run: npm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.16-alpine
+        env:
+          POSTGRES_USER: erp_owner
+          POSTGRES_PASSWORD: erp_owner_ci
+          POSTGRES_DB: erp
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U erp_owner -d erp"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      # Same split as local: migrations as the owner, the app as a NOSUPERUSER NOBYPASSRLS role.
+      MIGRATION_DATABASE_URL: postgresql://erp_owner:erp_owner_ci@localhost:5432/erp
+      DATABASE_URL: postgresql://erp_app:erp_app_ci@localhost:5432/erp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Create the application role (same script docker compose runs)
+        env:
+          PGHOST: localhost
+          PGPASSWORD: erp_owner_ci
+          POSTGRES_USER: erp_owner
+          POSTGRES_DB: erp
+          APP_DB_USER: erp_app
+          APP_DB_PASSWORD: erp_app_ci
+        run: sh docker/postgres/init/01-app-role.sh
+      - name: Apply migrations to an empty database
+        run: npm run db:migrate:deploy
+      - name: Migration check (schema files match the migrations)
+        run: npm run db:migrate:check
+      - name: Unit tests
+        run: npm test
+      - name: Integration tests (real Postgres, through every layer)
+        run: npm run test:integration
+      - name: Tenant-isolation suite
+        run: npm run test:isolation
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # Fails on high or critical advisories. Moderate ones are reviewed by hand (docs/adr/0002).
+      - run: npm audit --audit-level=high
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (pinned)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
+      - name: Scan the full git history
+        run: ./gitleaks git --redact --verbose --exit-code 1 .

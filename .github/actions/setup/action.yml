@@ -1,0 +1,13 @@
+name: Setup
+description: Install Node and dependencies (npm ci with the npm cache).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        # Roadmap 4.1: Node 22 LTS. Keep in step with "engines" in package.json.
+        node-version: '22'
+        cache: npm
+    - name: Install dependencies
+      shell: bash
+      run: npm ci --no-audit --no-fund
