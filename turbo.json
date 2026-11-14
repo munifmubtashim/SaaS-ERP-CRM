@@ -9,25 +9,25 @@
       "outputs": ["generated/**"]
     },
     "build": {
-      "dependsOn": ["^generate", "generate", "^build"],
+      "dependsOn": ["@erp/dal#generate", "^build"],
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["^generate", "generate"]
+      "dependsOn": ["@erp/dal#generate"]
     },
     "lint": {
-      "dependsOn": ["^generate", "generate"]
+      "dependsOn": ["@erp/dal#generate"]
     },
     "test": {
-      "dependsOn": ["^generate", "generate"],
+      "dependsOn": ["@erp/dal#generate"],
       "outputs": []
     },
     "test:integration": {
-      "dependsOn": ["^generate", "generate"],
+      "dependsOn": ["@erp/dal#generate"],
       "cache": false
     },
     "dev": {
-      "dependsOn": ["^generate", "generate"],
+      "dependsOn": ["@erp/dal#generate"],
       "cache": false,
       "persistent": true
     }

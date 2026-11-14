@@ -1,25 +1,8 @@
 import { createBrowserRouter } from 'react-router';
-import { HealthPanel } from '../features/health';
-import { useI18n } from '../i18n';
 import { AppShell, NAV } from './AppShell';
+import { HomePage } from './HomePage';
+import { NotBuiltPage } from './NotBuiltPage';
 import { RouteError } from './RouteError';
-
-function HomePage() {
-  const { t } = useI18n();
-  return (
-    <>
-      <h1 className="mb-1 text-2xl font-semibold">{t('home.title')}</h1>
-      <p className="text-muted">{t('home.subtitle')}</p>
-      <HealthPanel />
-    </>
-  );
-}
-
-/** Placeholder for modules whose feature folder is still a stub. Replaced module by module. */
-function NotBuiltPage() {
-  const { t } = useI18n();
-  return <p className="text-muted">{t('page.notBuilt')}</p>;
-}
 
 export const router = createBrowserRouter([
   {

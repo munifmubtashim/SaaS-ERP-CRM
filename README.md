@@ -82,5 +82,8 @@ naming pattern and rules: [CLAUDE.md](CLAUDE.md) and [ADR 0003](docs/adr/0003-re
 
 - **Port 5433, 6379, 9000 or 8025 in use:** change the port in `.env` (and the matching URL), then `npm run docker:up`.
 - **`Invalid environment` on `npm run dev`:** `.env` is missing or incomplete; compare it with `.env.example`.
+- **Colima: `erp_app` password authentication fails on a new database.** Colima only shares your home folder with
+  its VM, so a clone outside `~` mounts an empty `docker/postgres/init`. Keep the repo under your home folder, then
+  `docker compose down -v && npm run docker:up`.
 - **Prisma client errors after pulling:** `npm run db:generate`.
 - **Start the database from scratch:** `docker compose down -v` (deletes local data), then `npm run docker:up` and `npm run db:migrate:deploy`.

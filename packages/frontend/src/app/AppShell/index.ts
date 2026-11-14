@@ -1,1 +1,2 @@
-export { AppShell, NAV } from './AppShell';
+export { AppShell } from './AppShell';
+export { NAV } from './nav';

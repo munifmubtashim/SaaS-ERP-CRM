@@ -15,7 +15,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code",
     "db:studio": "prisma studio",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json",
     "test:integration": "vitest run"
   },

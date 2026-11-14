@@ -1,19 +1,8 @@
 import { NavLink, Outlet } from 'react-router';
 import { useEffect } from 'react';
-import { LOCALES, useI18n, type MessageKey } from '../../i18n';
+import { LOCALES, useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
-
-/** Navigation from the approved design. Each item opens its module's feature folder. */
-export const NAV: { to: string; key: MessageKey }[] = [
-  { to: '/', key: 'shell.nav.home' },
-  { to: '/businesses', key: 'shell.nav.businesses' },
-  { to: '/sales', key: 'shell.nav.sales' },
-  { to: '/inventory', key: 'shell.nav.inventory' },
-  { to: '/customers', key: 'shell.nav.customers' },
-  { to: '/accounting', key: 'shell.nav.accounting' },
-  { to: '/reports', key: 'shell.nav.reports' },
-  { to: '/users', key: 'shell.nav.users' },
-];
+import { NAV } from './nav';
 
 const segment =
   'min-h-10 rounded-full px-4 text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
