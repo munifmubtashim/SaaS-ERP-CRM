@@ -1,0 +1,18 @@
+{
+  "name": "@erp/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Types, Zod schemas and helpers used by both backend and frontend. Imports nothing from the other packages.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}
