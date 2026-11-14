@@ -1,0 +1,32 @@
+{
+  "name": "@erp/dal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Data access layer: Prisma client, schema (one file per module), migrations, raw SQL, DTOs and Query classes. Database access only.",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:new": "prisma migrate dev --create-only --name",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:check": "prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code",
+    "db:studio": "prisma studio",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:integration": "vitest run"
+  },
+  "dependencies": {
+    "@erp/shared": "*",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "dotenv": "18.0.10",
+    "prisma": "7.10.1"
+  }
+}

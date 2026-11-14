@@ -1,0 +1,15 @@
+// Entry file of the multi-file Prisma schema. Holds only the generator and the datasource.
+// Models live in one file per module, next to this one. Each file is owned by one developer
+// (see .github/CODEOWNERS). Rules: snake_case singular table names via @@map, UUID v7 ids,
+// money as Decimal @db.Decimal(18,2), quantities @db.Decimal(18,3), timestamps in UTC.
+// RLS policies, triggers and group views are raw SQL inside migrations: Prisma does not model them.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

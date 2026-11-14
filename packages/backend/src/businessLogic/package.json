@@ -1,0 +1,19 @@
+{
+  "name": "@erp/business-logic",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Business rules (<Module>Manager). No Express, no SQL: Managers call dal Queries and return shared types.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@erp/dal": "*",
+    "@erp/shared": "*"
+  }
+}

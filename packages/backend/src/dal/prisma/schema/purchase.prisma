@@ -1,0 +1,3 @@
+// Purchase module: purchase orders, receipts, supplier bills (roadmap 5.7)
+// Owner: Farhan. Changes by the other developer need the owner's review (CODEOWNERS).
+// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.

@@ -1,0 +1,37 @@
+{
+  "name": "@erp/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HTTP layer only (Express): middleware, routes, controllers. Calls Managers from @erp/business-logic; never dal or SQL.",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../../../.env server.ts",
+    "build": "tsup",
+    "start": "node --env-file-if-exists=../../../../.env dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:isolation": "vitest run --project isolation"
+  },
+  "dependencies": {
+    "@erp/business-logic": "*",
+    "@erp/shared": "*",
+    "express": "5.3.0",
+    "helmet": "8.3.0",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/supertest": "7.2.1",
+    "pino-pretty": "13.2.0",
+    "supertest": "7.3.2",
+    "tsup": "9.0.0",
+    "tsx": "4.23.15"
+  }
+}
