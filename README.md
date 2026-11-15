@@ -19,6 +19,17 @@ purchasing, accounting) plus industry packs. First customer: a motorcycle dealer
 On macOS without Docker Desktop: `brew install colima docker docker-compose && colima start`, then link the
 compose plugin once: `mkdir -p ~/.docker/cli-plugins && ln -sf "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose`.
 
+### Windows (WSL2)
+
+_Tested by Farhan on Windows with WSL2, 15 Nov 2026._
+
+- Work inside WSL2 Ubuntu, with the repo under your Linux home folder (`~/...`), not under `/mnt/c`.
+- Docker Desktop can freeze a machine with 8 GB of RAM. The tested alternative is Docker Engine inside
+  Ubuntu: `sudo apt install docker.io docker-compose-v2`, and keep Docker Desktop closed.
+  `docker-compose.yml` works unchanged.
+- After every restart, run `sudo service docker start` before `npm run docker:up`.
+- Install Node inside Ubuntu with [nvm](https://github.com/nvm-sh/nvm); the Windows Node is not used there.
+
 ## Developer setup (Claude Code tools, once per machine)
 
 Each developer runs this on their own machine. It writes to your **user** Claude Code config
@@ -98,5 +109,7 @@ naming pattern and rules: [CLAUDE.md](CLAUDE.md) and [ADR 0003](docs/adr/0003-re
 - **Colima: `erp_app` password authentication fails on a new database.** Colima only shares your home folder with
   its VM, so a clone outside `~` mounts an empty `docker/postgres/init`. Keep the repo under your home folder, then
   `docker compose down -v && npm run docker:up`.
+- **WSL2: `Cannot connect to the Docker daemon` on `npm run docker:up`:** Docker Engine does not start by itself
+  after a restart; run `sudo service docker start` first (tested by Farhan on Windows with WSL2, 15 Nov 2026).
 - **Prisma client errors after pulling:** `npm run db:generate`.
 - **Start the database from scratch:** `docker compose down -v` (deletes local data), then `npm run docker:up` and `npm run db:migrate:deploy`.
