@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                                                                           |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status   | **Proposed**, to be confirmed by Munif and Farhan before Phase 1 starts                                                                                         |
+| Status   | **Partly accepted**: rows 1, 2, 7, 11 and 13 accepted (see Decision); all other rows Proposed, to be confirmed by Munif and Farhan before Phase 1 starts        |
 | Date     | 2026-11-14                                                                                                                                                      |
 | Deciders | Munif, Farhan                                                                                                                                                   |
 | Sources  | `docs/reference/ERP_Acceptance_Specification_v2.docx` (spec, v2.0, 14 Nov 2026); `docs/reference/ERP_CRM_Roadmap_Draft_v2.pdf` (roadmap, Draft v2, 14 Nov 2026) |
@@ -44,8 +44,16 @@ business owner (spec section 19.2).
 
 ## Decision
 
-_(Fill in after Munif and Farhan review each row. Change Status to Accepted, and update the roadmap or
-CLAUDE.md for any row that changes what we build.)_
+Rows not listed here stay **Proposed**. Update the roadmap or CLAUDE.md for any row that changes what we build.
+
+| #   | Decision                                                                                                                                                                                                              | Status                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1   | Add a `legal_entity` level: Organization > Legal entity > Business > Branch. A business belongs to one legal entity.                                                                                                  | Accepted by Munif, 15 Nov 2026; Farhan confirms in PR #1 review |
+| 2   | National ID is stored on Party (optional), encrypted at rest, visible only to permitted roles, every view logged. The vehicle pack only adds "required for a vehicle sale". Duplicate detection checks phone and NID. | Accepted by Munif, 15 Nov 2026; Farhan confirms in PR #1 review |
+| 7   | Service job statuses are the spec's five: Received, In progress, Awaiting parts, Ready, Delivered.                                                                                                                    | Accepted by Munif, 15 Nov 2026; Farhan confirms in PR #1 review |
+| 11  | Purchase orders get the Approved status now; the approval workflow stays Important (later).                                                                                                                           | Accepted by Munif, 15 Nov 2026; Farhan confirms in PR #1 review |
+| 13  | Negative stock is always blocked. No setting.                                                                                                                                                                         | Accepted by Munif, 15 Nov 2026; Farhan confirms in PR #1 review |
+| 15  | No decision yet: waiting for the owner's answer on instalments.                                                                                                                                                       | Proposed                                                        |
 
 ## Consequences
 

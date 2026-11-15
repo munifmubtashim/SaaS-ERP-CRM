@@ -194,7 +194,8 @@ without a case in `api/test/isolation/cases.ts` fails CI; a public route must be
 
 ## Tenancy rules (roadmap 4.2)
 
-- Organization → Business → Branch. Books are per business. (Legal-entity level: pending ADR 0001.)
+- Organization → Legal entity → Business → Branch; a business belongs to one legal entity. Books are per business (ADR 0001).
+- National ID: stored on Party only, encrypted at rest, role-restricted, every view logged, never logged in plain text.
 - Every business-owned row has `business_id`; PostgreSQL **RLS is enabled and FORCED** on every tenant table.
 - **Every request runs in one transaction** that starts with `SET LOCAL app.organization_id = ...` and
   `SET LOCAL app.business_ids = ...`. **Never plain `SET`**: it leaks to the next request on a pooled
