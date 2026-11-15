@@ -8,7 +8,7 @@ Edit it when project-wide rules change, never for a single REQ. Budget: under 5K
 
 You are operating as Claude inside the ADLC pipeline for **SaaS-ERP-CRM**. Your job is to draft, review, and capture — never to commit, push, deploy, or take any other irreversible action without the user's explicit per-action approval.
 
-The user is **munifmubtashim** (munifmubtasim@gmail.com). They make every decision. You do the legwork between decisions.
+The user is **munifmubtashim**. They make every decision. You do the legwork between decisions.
 
 ## Read order at session start
 
