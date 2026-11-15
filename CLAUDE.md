@@ -248,5 +248,4 @@ without a case in `api/test/isolation/cases.ts` fails CI; a public route must be
   - before every Bash command: block force-push, pushes to `main`, reading `.env` or `data/real/`, and production commands.
 - Skills (slash commands): `/new-module <Name>`, `/add-migration <name>`, `/review-money-paths`.
 - Parallel sessions: use a git worktree per task branch, so two sessions never share a working folder.
-- Munif also uses the ADLC toolkit (`.adlc/` vault). It is optional; the rules in this file apply either way,
-  and `docs/adr/` is the shared home for decisions.
+- The ADLC vault (`.adlc/`) and any extra skills are personal and gitignored; `docs/adr/` is the shared home for decisions.
