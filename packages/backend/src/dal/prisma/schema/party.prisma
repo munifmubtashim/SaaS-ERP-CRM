@@ -1,0 +1,3 @@
+// Party module: customers, suppliers, contacts, dues (roadmap 5.3)
+// Owner: Farhan. Changes by the other developer need the owner's review (CODEOWNERS).
+// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.

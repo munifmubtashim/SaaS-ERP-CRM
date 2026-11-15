@@ -1,0 +1,3 @@
+// Report module: reports, owner dashboard, snapshots, notifications (roadmap 5.13)
+// Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
+// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.

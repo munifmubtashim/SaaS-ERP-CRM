@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["*.ts", "config", "middleware", "routes", "controllers", "types", "test"],
+  "exclude": ["dist"]
+}

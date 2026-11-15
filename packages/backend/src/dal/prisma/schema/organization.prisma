@@ -1,0 +1,3 @@
+// Organization module: organizations, businesses, branches, roles, scopes, audit log (roadmap 4.2, 5.1, 5.2)
+// Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
+// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.

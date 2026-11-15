@@ -1,0 +1,7 @@
+{
+  // Shared settings for the three backend layers (api, businessLogic, dal). Each layer extends this.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  }
+}

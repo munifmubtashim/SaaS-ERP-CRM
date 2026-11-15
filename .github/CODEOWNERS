@@ -1,0 +1,189 @@
+# Module ownership (roadmap 2.2 and 8.4). Later lines win over earlier ones.
+#
+# Each module has ONE owner. When the other developer changes a module, GitHub asks the owner to
+# review. Shared code lists BOTH of you, so whoever did not write the PR reviews it.
+# "Require review from Code Owners" is deliberately OFF in branch protection: with one owner per
+# module, an owner's own PR could never get a code-owner approval. "1 approving review" (the author
+# cannot approve) already makes the other developer review every PR. See docs/adr/0002.
+#
+# Munif:  Auth, Organization, Product, Inventory, Accounting, Vehicle, Report
+# Farhan: Party, Sales, Purchase, Service, Crm
+
+# Default: everything not listed below is shared, both review.
+*  @munifmubtashim @farhansadik10-ai
+
+# ---- Munif's modules: every layer ------------------------------------------
+/packages/backend/src/api/routes/AuthRoutes.ts                @munifmubtashim
+/packages/backend/src/api/controllers/AuthController.ts       @munifmubtashim
+/packages/backend/src/businessLogic/src/AuthManager.ts        @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IAuthQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IAuthManager.ts @munifmubtashim
+/packages/backend/src/dal/query/AuthQuery.ts                  @munifmubtashim
+/packages/backend/src/dal/dto/AuthDTO.ts                      @munifmubtashim
+/packages/shared/src/types/auth.types.ts                      @munifmubtashim
+/packages/shared/src/schemas/auth.schema.ts                   @munifmubtashim
+/packages/frontend/src/features/auth/                         @munifmubtashim
+/packages/frontend/src/services/authService.ts                @munifmubtashim
+
+/packages/backend/src/api/routes/OrganizationRoutes.ts        @munifmubtashim
+/packages/backend/src/api/controllers/OrganizationController.ts @munifmubtashim
+/packages/backend/src/businessLogic/src/OrganizationManager.ts @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IOrganizationQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IOrganizationManager.ts @munifmubtashim
+/packages/backend/src/dal/query/OrganizationQuery.ts          @munifmubtashim
+/packages/backend/src/dal/dto/OrganizationDTO.ts              @munifmubtashim
+/packages/shared/src/types/organization.types.ts              @munifmubtashim
+/packages/shared/src/schemas/organization.schema.ts           @munifmubtashim
+/packages/frontend/src/features/organization/                 @munifmubtashim
+/packages/frontend/src/services/organizationService.ts        @munifmubtashim
+
+/packages/backend/src/api/routes/ProductRoutes.ts             @munifmubtashim
+/packages/backend/src/api/controllers/ProductController.ts    @munifmubtashim
+/packages/backend/src/businessLogic/src/ProductManager.ts     @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IProductQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IProductManager.ts @munifmubtashim
+/packages/backend/src/dal/query/ProductQuery.ts               @munifmubtashim
+/packages/backend/src/dal/dto/ProductDTO.ts                   @munifmubtashim
+/packages/shared/src/types/product.types.ts                   @munifmubtashim
+/packages/shared/src/schemas/product.schema.ts                @munifmubtashim
+/packages/frontend/src/features/product/                      @munifmubtashim
+/packages/frontend/src/services/productService.ts             @munifmubtashim
+
+/packages/backend/src/api/routes/InventoryRoutes.ts           @munifmubtashim
+/packages/backend/src/api/controllers/InventoryController.ts  @munifmubtashim
+/packages/backend/src/businessLogic/src/InventoryManager.ts   @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IInventoryQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IInventoryManager.ts @munifmubtashim
+/packages/backend/src/dal/query/InventoryQuery.ts             @munifmubtashim
+/packages/backend/src/dal/dto/InventoryDTO.ts                 @munifmubtashim
+/packages/shared/src/types/inventory.types.ts                 @munifmubtashim
+/packages/shared/src/schemas/inventory.schema.ts              @munifmubtashim
+/packages/frontend/src/features/inventory/                    @munifmubtashim
+/packages/frontend/src/services/inventoryService.ts           @munifmubtashim
+
+/packages/backend/src/api/routes/AccountingRoutes.ts          @munifmubtashim
+/packages/backend/src/api/controllers/AccountingController.ts @munifmubtashim
+/packages/backend/src/businessLogic/src/AccountingManager.ts  @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IAccountingQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IAccountingManager.ts @munifmubtashim
+/packages/backend/src/dal/query/AccountingQuery.ts            @munifmubtashim
+/packages/backend/src/dal/dto/AccountingDTO.ts                @munifmubtashim
+/packages/shared/src/types/accounting.types.ts                @munifmubtashim
+/packages/shared/src/schemas/accounting.schema.ts             @munifmubtashim
+/packages/frontend/src/features/accounting/                   @munifmubtashim
+/packages/frontend/src/services/accountingService.ts          @munifmubtashim
+
+/packages/backend/src/api/routes/VehicleRoutes.ts             @munifmubtashim
+/packages/backend/src/api/controllers/VehicleController.ts    @munifmubtashim
+/packages/backend/src/businessLogic/src/VehicleManager.ts     @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IVehicleQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IVehicleManager.ts @munifmubtashim
+/packages/backend/src/dal/query/VehicleQuery.ts               @munifmubtashim
+/packages/backend/src/dal/dto/VehicleDTO.ts                   @munifmubtashim
+/packages/shared/src/types/vehicle.types.ts                   @munifmubtashim
+/packages/shared/src/schemas/vehicle.schema.ts                @munifmubtashim
+/packages/frontend/src/features/vehicle/                      @munifmubtashim
+/packages/frontend/src/services/vehicleService.ts             @munifmubtashim
+
+/packages/backend/src/api/routes/ReportRoutes.ts              @munifmubtashim
+/packages/backend/src/api/controllers/ReportController.ts     @munifmubtashim
+/packages/backend/src/businessLogic/src/ReportManager.ts      @munifmubtashim
+/packages/backend/src/businessLogic/src/contracts/IReportQuery.ts @munifmubtashim
+/packages/backend/src/api/controllers/contracts/IReportManager.ts @munifmubtashim
+/packages/backend/src/dal/query/ReportQuery.ts                @munifmubtashim
+/packages/backend/src/dal/dto/ReportDTO.ts                    @munifmubtashim
+/packages/shared/src/types/report.types.ts                    @munifmubtashim
+/packages/shared/src/schemas/report.schema.ts                 @munifmubtashim
+/packages/frontend/src/features/report/                       @munifmubtashim
+/packages/frontend/src/services/reportService.ts              @munifmubtashim
+
+# ---- Farhan's modules: every layer -----------------------------------------
+/packages/backend/src/api/routes/PartyRoutes.ts               @farhansadik10-ai
+/packages/backend/src/api/controllers/PartyController.ts      @farhansadik10-ai
+/packages/backend/src/businessLogic/src/PartyManager.ts       @farhansadik10-ai
+/packages/backend/src/businessLogic/src/contracts/IPartyQuery.ts @farhansadik10-ai
+/packages/backend/src/api/controllers/contracts/IPartyManager.ts @farhansadik10-ai
+/packages/backend/src/dal/query/PartyQuery.ts                 @farhansadik10-ai
+/packages/backend/src/dal/dto/PartyDTO.ts                     @farhansadik10-ai
+/packages/shared/src/types/party.types.ts                     @farhansadik10-ai
+/packages/shared/src/schemas/party.schema.ts                  @farhansadik10-ai
+/packages/frontend/src/features/party/                        @farhansadik10-ai
+/packages/frontend/src/services/partyService.ts               @farhansadik10-ai
+
+/packages/backend/src/api/routes/SalesRoutes.ts               @farhansadik10-ai
+/packages/backend/src/api/controllers/SalesController.ts      @farhansadik10-ai
+/packages/backend/src/businessLogic/src/SalesManager.ts       @farhansadik10-ai
+/packages/backend/src/businessLogic/src/contracts/ISalesQuery.ts @farhansadik10-ai
+/packages/backend/src/api/controllers/contracts/ISalesManager.ts @farhansadik10-ai
+/packages/backend/src/dal/query/SalesQuery.ts                 @farhansadik10-ai
+/packages/backend/src/dal/dto/SalesDTO.ts                     @farhansadik10-ai
+/packages/shared/src/types/sales.types.ts                     @farhansadik10-ai
+/packages/shared/src/schemas/sales.schema.ts                  @farhansadik10-ai
+/packages/frontend/src/features/sales/                        @farhansadik10-ai
+/packages/frontend/src/services/salesService.ts               @farhansadik10-ai
+
+/packages/backend/src/api/routes/PurchaseRoutes.ts            @farhansadik10-ai
+/packages/backend/src/api/controllers/PurchaseController.ts   @farhansadik10-ai
+/packages/backend/src/businessLogic/src/PurchaseManager.ts    @farhansadik10-ai
+/packages/backend/src/businessLogic/src/contracts/IPurchaseQuery.ts @farhansadik10-ai
+/packages/backend/src/api/controllers/contracts/IPurchaseManager.ts @farhansadik10-ai
+/packages/backend/src/dal/query/PurchaseQuery.ts              @farhansadik10-ai
+/packages/backend/src/dal/dto/PurchaseDTO.ts                  @farhansadik10-ai
+/packages/shared/src/types/purchase.types.ts                  @farhansadik10-ai
+/packages/shared/src/schemas/purchase.schema.ts               @farhansadik10-ai
+/packages/frontend/src/features/purchase/                     @farhansadik10-ai
+/packages/frontend/src/services/purchaseService.ts            @farhansadik10-ai
+
+/packages/backend/src/api/routes/ServiceRoutes.ts             @farhansadik10-ai
+/packages/backend/src/api/controllers/ServiceController.ts    @farhansadik10-ai
+/packages/backend/src/businessLogic/src/ServiceManager.ts     @farhansadik10-ai
+/packages/backend/src/businessLogic/src/contracts/IServiceQuery.ts @farhansadik10-ai
+/packages/backend/src/api/controllers/contracts/IServiceManager.ts @farhansadik10-ai
+/packages/backend/src/dal/query/ServiceQuery.ts               @farhansadik10-ai
+/packages/backend/src/dal/dto/ServiceDTO.ts                   @farhansadik10-ai
+/packages/shared/src/types/service.types.ts                   @farhansadik10-ai
+/packages/shared/src/schemas/service.schema.ts                @farhansadik10-ai
+/packages/frontend/src/features/service/                      @farhansadik10-ai
+/packages/frontend/src/services/serviceService.ts             @farhansadik10-ai
+
+/packages/backend/src/api/routes/CrmRoutes.ts                 @farhansadik10-ai
+/packages/backend/src/api/controllers/CrmController.ts        @farhansadik10-ai
+/packages/backend/src/businessLogic/src/CrmManager.ts         @farhansadik10-ai
+/packages/backend/src/businessLogic/src/contracts/ICrmQuery.ts @farhansadik10-ai
+/packages/backend/src/api/controllers/contracts/ICrmManager.ts @farhansadik10-ai
+/packages/backend/src/dal/query/CrmQuery.ts                   @farhansadik10-ai
+/packages/backend/src/dal/dto/CrmDTO.ts                       @farhansadik10-ai
+/packages/shared/src/types/crm.types.ts                       @farhansadik10-ai
+/packages/shared/src/schemas/crm.schema.ts                    @farhansadik10-ai
+/packages/frontend/src/features/crm/                          @farhansadik10-ai
+/packages/frontend/src/services/crmService.ts                 @farhansadik10-ai
+
+# ---- Per-module Prisma schema files: owner only ----------------------------
+/packages/backend/src/dal/prisma/schema/auth.prisma           @munifmubtashim
+/packages/backend/src/dal/prisma/schema/organization.prisma   @munifmubtashim
+/packages/backend/src/dal/prisma/schema/product.prisma        @munifmubtashim
+/packages/backend/src/dal/prisma/schema/inventory.prisma      @munifmubtashim
+/packages/backend/src/dal/prisma/schema/accounting.prisma     @munifmubtashim
+/packages/backend/src/dal/prisma/schema/vehicle.prisma        @munifmubtashim
+/packages/backend/src/dal/prisma/schema/report.prisma         @munifmubtashim
+/packages/backend/src/dal/prisma/schema/party.prisma          @farhansadik10-ai
+/packages/backend/src/dal/prisma/schema/sales.prisma          @farhansadik10-ai
+/packages/backend/src/dal/prisma/schema/purchase.prisma       @farhansadik10-ai
+/packages/backend/src/dal/prisma/schema/service.prisma        @farhansadik10-ai
+/packages/backend/src/dal/prisma/schema/crm.prisma            @farhansadik10-ai
+
+# ---- Always both reviewers (listed last so nothing above overrides them) ----
+# shared, dal/prisma (entry file, migrations, seeds), app.ts and every index.ts.
+/packages/shared/src/index.ts                                 @munifmubtashim @farhansadik10-ai
+/packages/shared/src/utils/                                   @munifmubtashim @farhansadik10-ai
+/packages/shared/src/schemas/error.schema.ts                  @munifmubtashim @farhansadik10-ai
+/packages/shared/src/types/tenant.types.ts                    @munifmubtashim @farhansadik10-ai
+/packages/backend/src/dal/prisma/schema/main.prisma           @munifmubtashim @farhansadik10-ai
+/packages/backend/src/dal/prisma/migrations/                  @munifmubtashim @farhansadik10-ai
+/packages/backend/src/dal/prisma/seeds/                       @munifmubtashim @farhansadik10-ai
+/packages/backend/src/businessLogic/src/Base*.ts               @munifmubtashim @farhansadik10-ai
+/packages/backend/src/api/controllers/BaseController.ts       @munifmubtashim @farhansadik10-ai
+/packages/backend/src/dal/query/BaseQuery.ts                  @munifmubtashim @farhansadik10-ai
+/packages/backend/src/dal/dto/BaseDTO.ts                      @munifmubtashim @farhansadik10-ai
+/packages/backend/src/api/app.ts                              @munifmubtashim @farhansadik10-ai
+**/index.ts                                                   @munifmubtashim @farhansadik10-ai

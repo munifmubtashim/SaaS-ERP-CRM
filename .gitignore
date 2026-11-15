@@ -147,3 +147,38 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Personal tooling: each developer keeps their own; never shared through the repo.
+.adlc/
+.agents/
+skills-lock.json
+AGENTS.md
+.codex/
+.vscode/
+.claude/skills/data-visualization
+.claude/skills/design-system
+.claude/skills/frontend-design
+.claude/skills/impeccable
+.claude/skills/ui-ux-pro-max
+
+# ---------------------------------------------------------------------------
+# Project rules (see CLAUDE.md "Never do")
+# ---------------------------------------------------------------------------
+# Secrets: only .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# Real customer data never enters git. Put exports here; nothing in it is tracked.
+data/real/
+
+# Personal Claude Code preferences
+CLAUDE.local.md
+**/CLAUDE.local.md
+.claude/settings.local.json
+
+# Generated Prisma client
+packages/backend/src/dal/generated/
+
+# OS noise
+.DS_Store

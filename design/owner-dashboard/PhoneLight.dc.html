@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Owner Dashboard, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.glass{background:var(--card);border:1px solid var(--cardBorder);box-shadow:var(--cardShadow);-webkit-backdrop-filter:blur(30px) saturate(190%);backdrop-filter:blur(30px) saturate(190%)}
+.num{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:14px;background:var(--chipBg);border:1px solid var(--cardBorder);font-size:13px;font-weight:500;color:var(--text);white-space:nowrap}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:var(--chipBg);border:1px solid var(--cardBorder);color:var(--text)}
+.btn-primary{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border-radius:14px;border:0;background:var(--accent);color:var(--onAccent);font-size:14px;font-weight:600}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;border-radius:18px;font-size:12px;font-weight:500;color:var(--text2)}
+.tab[aria-current="page"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+.scroll::-webkit-scrollbar{display:none}
+.scroll[style*="overflow-y"]{gap:24px !important}
+.scroll > div[style*="gap: 14px"],.scroll > * > div[style*="gap: 14px"]{gap:24px !important}
+article.glass{border-radius:24px !important;padding:16px !important}
+.btn,.btn-primary,.sk{border-radius:8px !important}
+.tab{border-radius:22px !important}
+article.glass div[style*="border: 1px solid var(--rowBorder)"]{background:transparent !important;border:0 !important;border-radius:0 !important;padding:0 !important}
+article.glass div[style*="grid-template-columns"]{gap:16px 20px !important}
+article.glass > span[style*="border-radius: 12px"],section[style*="grid-template-columns"] article.glass > span:first-child > span:first-child{border-radius:8px !important}
+@keyframes ixSk{from{background-position:100% 0}to{background-position:0 0}}
+.sk{display:block;border-radius:8px;background:linear-gradient(90deg,var(--track) 25%,var(--accentSoft) 37%,var(--track) 63%);background-size:400% 100%;animation:ixSk 1.4s ease infinite}
+@media (prefers-reduced-motion: reduce){.sk{animation:none}}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:14px;border:1px solid var(--cardBorder);background:var(--chipBg);font-size:13px;font-weight:600;color:var(--text)}
+button,.pill,.iconbtn,.btn-primary,.seg,.tab{transition:background-color 120ms ease-out,border-color 120ms ease-out,transform 120ms ease-out,filter 120ms ease-out}
+button:active,.pill:active,.iconbtn:active,.tab:active{transform:scale(0.97)}
+.btn-primary:active{filter:brightness(0.94)}
+[aria-busy="true"]{cursor:progress}
+@keyframes ixPop{from{opacity:0;transform:translateY(-6px) scale(0.98)}to{opacity:1;transform:none}}
+@keyframes ixSpin{to{transform:rotate(360deg)}}
+.menu,.toast{animation:ixPop 150ms ease-out}
+.spin{animation:ixSpin 1s linear infinite;transform-origin:center}
+@media (prefers-reduced-motion: reduce){button,.pill,.iconbtn,.btn-primary,.seg,.tab{transition:none}.menu,.toast{animation:none}.spin{animation-duration:2.5s}button:active,.pill:active,.iconbtn:active,.tab:active{transform:none}}
+.seg{border:0;background:transparent;color:var(--text2);min-height:44px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:500}
+.seg[aria-pressed="true"]{background:var(--accentSoft);color:var(--accentText);font-weight:600}
+</style>
+</helmet>
+<div id="top" style="{{rootStyle}}">
+<div aria-hidden="true" style="position: absolute; left: -80px; top: 150px; width: 300px; height: 300px; border-radius: 50%; background: var(--orbA); filter: blur(50px); pointer-events: none"></div>
+<div aria-hidden="true" style="position: absolute; right: -90px; top: 430px; width: 280px; height: 280px; border-radius: 50%; background: var(--orbB); filter: blur(55px); pointer-events: none"></div>
+<div aria-hidden="true" style="position: absolute; left: 30px; top: 640px; width: 300px; height: 300px; border-radius: 50%; background: var(--orbC); filter: blur(55px); pointer-events: none"></div>
+<div aria-hidden="true" style="position: absolute; right: -60px; top: -40px; width: 240px; height: 240px; border-radius: 50%; background: var(--orbD); filter: blur(55px); pointer-events: none"></div>
+
+<header style="position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 16px 8px">
+<div style="display: flex; flex-direction: column; line-height: 1.2">
+<span style="font-size: 13px; color: var(--text2)">Good morning</span>
+<span class="num" style="font-size: 24px; font-weight: 600">M. Hossain</span>
+<button aria-busy="{{refreshBusy}}" aria-label="Refresh the figures" onClick="{{refresh}}" style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: transparent; font-size: 12px; color: var(--muted); text-align: left"><svg class="{{refreshSpin}}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--pos)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg><span aria-live="polite">{{updatedText}} Bank feed 9:00 AM.</span></button>
+</div>
+<div style="display: flex; gap: 8px">
+<button class="iconbtn" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{themeIcon}}"/></svg></button>
+<button class="iconbtn" aria-label="Notifications, 3 new" style="position: relative"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iBell}}"/></svg><span style="position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--neg); border: 2px solid var(--dotFill)"></span></button>
+</div>
+</header>
+
+<div class="scroll" style="position: relative; z-index: 1; flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 6px 16px 112px; display: flex; flex-direction: column; gap: 14px">
+
+<div class="scroll" style="display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px">
+<button class="pill">1 to 11 November</button>
+<button class="pill">All businesses</button>
+<button class="pill">All branches</button>
+<span style="display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 14px; background: var(--warnBg); color: var(--warnText); font-size: 12px; font-weight: 600; white-space: nowrap">Demo data</span>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px">
+<div role="group" aria-label="View as" style="flex: 1; min-width: 0; display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--track)">
+<button class="seg" style="flex: 1; padding: 0 4px" aria-pressed="{{ownerPressed}}" onClick="{{setOwner}}">Owner</button>
+<button class="seg" style="flex: 1; padding: 0 4px" aria-pressed="{{managerPressed}}" onClick="{{setManager}}">Manager</button>
+<button class="seg" style="flex: 1; padding: 0 4px" aria-pressed="{{accountantPressed}}" onClick="{{setAccountant}}">Accountant</button>
+</div>
+<button class="iconbtn" aria-label="Export this view" aria-haspopup="true" aria-expanded="{{exportExpanded}}" onClick="{{toggleExport}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>
+</div>
+
+<sc-if value="{{showExport}}" hint-placeholder-val="{{ false }}">
+<div role="menu" class="glass menu" style="border-radius: 22px; padding: 8px; display: flex; flex-direction: column; gap: 2px">
+<div style="padding: 8px 10px 6px; font-size: 12px; font-weight: 500; color: var(--muted)">Export the {{roleLabel}} view</div>
+<sc-for list="{{exportItems}}" as="e" hint-placeholder-count="3">
+<button role="menuitem" onClick="{{e.go}}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 48px; padding: 8px 10px; border: 0; border-radius: 14px; background: transparent; text-align: left"><span style="font-size: 14px; font-weight: 600">{{e.label}}</span><span style="font-size: 12px; color: var(--muted)">{{e.note}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: var(--muted)">Preview state</span>
+<div role="group" aria-label="Preview state" style="display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--track)">
+<sc-for list="{{views}}" as="v" hint-placeholder-count="4">
+<button class="seg" style="flex: 1; padding: 0 4px" aria-pressed="{{v.pressed}}" onClick="{{v.go}}">{{v.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{showToast}}" hint-placeholder-val="{{ false }}">
+<div class="glass toast" role="status" aria-live="polite" style="border-radius: 18px; padding: 12px 14px; display: flex; align-items: center; gap: 10px">
+<svg class="{{toastSpin}}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 auto; stroke: {{toastColor}}"><path d="{{toastIcon}}"/></svg>
+<span style="flex: 1; font-size: 13px; line-height: 1.45">{{toastMsg}}</span>
+<sc-if value="{{toastDone}}" hint-placeholder-val="{{ false }}">
+<button onClick="{{dismissToast}}" style="min-height: 44px; padding: 0 10px; border: 0; background: transparent; font-size: 13px; font-weight: 600; color: var(--accentText)">Dismiss</button>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{showRoleNote}}" hint-placeholder-val="{{ false }}">
+<p role="status" aria-live="polite" style="margin: -4px 0 0; font-size: 12px; line-height: 1.45; color: var(--text2)">{{roleNote}}</p>
+</sc-if>
+
+<sc-if value="{{isReady}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<sc-if value="{{showVat}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="background: linear-gradient(0deg, var(--warnBg), var(--warnBg)), var(--card); border-radius: 22px; padding: 14px; display: flex; align-items: flex-start; gap: 12px">
+<span style="flex: 0 0 auto; width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--warn); color: #2B1A00"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iAlert}}"/></svg></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; line-height: 1.4"><span style="font-size: 14px; font-weight: 600; color: var(--warnText)">October VAT return is due on 15 November, in 3 days</span><span style="font-size: 12px; color: var(--text2)">Estimated VAT payable ৳4,86,200. Still a draft. Filing late can mean a penalty.</span></span>
+</article>
+</sc-if>
+
+<sc-if value="{{showCash}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="position: relative; overflow: hidden; border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="position: absolute; right: -50px; top: -50px; width: 190px; height: 190px; border-radius: 50%; background: var(--accent); opacity: 0.24; filter: blur(44px)"></div>
+<div style="position: relative; font-size: 13px; color: var(--text2)">Cash and bank</div>
+<div class="num" style="position: relative; font-size: 40px; font-weight: 600; line-height: 1.1">৳65,80,095</div>
+<div style="position: relative; display: flex; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iUp}}"/></svg>+৳4,12,300</span>
+<span style="font-size: 12px; color: var(--muted)">vs last week</span>
+</div>
+<svg viewBox="0 0 320 64" preserveAspectRatio="none" width="100%" height="64" aria-hidden="true" style="position: relative; display: block; margin-top: 6px">
+<defs><linearGradient id="heroG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: var(--accent); stop-opacity: 0.35"/><stop offset="1" style="stop-color: var(--accent); stop-opacity: 0"/></linearGradient></defs>
+<path d="{{heroFill}}" fill="url(#heroG)"/>
+<path d="{{heroLine}}" fill="none" style="stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; vector-effect: non-scaling-stroke"/>
+</svg>
+</article>
+</sc-if>
+
+<section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<article class="glass" style="background: linear-gradient(145deg, var(--tintAccent), transparent 80%), var(--card); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2)"><span style="width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--accent); color: var(--icoInk); box-shadow: 0 6px 12px -4px var(--accent)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></span>Revenue</span>
+<span class="num" style="font-size: 20px; font-weight: 600">৳1,40,59,500</span>
+<span style="display: inline-flex; align-self: flex-start; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)">+12.4%</span>
+<span style="font-size: 12px; color: var(--muted)">1 to 11 November</span>
+</article>
+<sc-if value="{{showNp}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="background: linear-gradient(145deg, var(--tintPos), transparent 80%), var(--card); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2)"><span style="width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--pos); color: var(--icoInk); box-shadow: 0 6px 12px -4px var(--pos)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M17 7H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>Net profit</span>
+<span class="num" style="font-size: 20px; font-weight: 600">৳23,13,680</span>
+<span style="display: inline-flex; align-self: flex-start; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)">+8.2%</span>
+<span style="font-size: 12px; color: var(--muted)">16.5% of revenue</span>
+</article>
+</sc-if>
+<sc-if value="{{showAr}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="background: linear-gradient(145deg, var(--tintNeg), transparent 80%), var(--card); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2)"><span style="width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--neg); color: var(--icoInk); box-shadow: 0 6px 12px -4px var(--neg)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>Customer dues</span>
+<span class="num" style="font-size: 20px; font-weight: 600">৳63,48,645</span>
+<span style="display: inline-flex; align-self: flex-start; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--negBg); color: var(--negText)">34% overdue</span>
+<span style="font-size: 12px; color: var(--muted)">61+ days</span>
+</article>
+</sc-if>
+<sc-if value="{{showAp}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="background: linear-gradient(145deg, var(--tintWarn), transparent 80%), var(--card); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2)"><span style="width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--warn); color: var(--icoInk); box-shadow: 0 6px 12px -4px var(--warn)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h11v10H2zM13 9h4l4 4v3h-8M6.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg></span>Supplier payable</span>
+<span class="num" style="font-size: 20px; font-weight: 600">৳39,98,175</span>
+<span style="display: inline-flex; align-self: flex-start; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--warnBg); color: var(--warnText)">1 to check</span>
+<span style="font-size: 12px; color: var(--muted)">negative balance</span>
+</article>
+</sc-if>
+</section>
+
+<sc-if value="{{showTarget}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 15px">
+<div>
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Sales target, November</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">Target ৳4,00,00,000. 11 of 30 days are over.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px"><span class="num" style="font-size: 36px; font-weight: 600; line-height: 1">35.1%</span><span style="font-size: 13px; color: var(--text2)">reached, ৳1,40,59,500</span></div>
+<div>
+<div role="img" aria-label="35.1 percent of the November target reached. The pace for 11 of 30 days is 36.7 percent." style="position: relative; height: 14px; border-radius: 999px; background: var(--track)">
+<span class="gloss" style="position: absolute; left: 0; top: 0; bottom: 0; width: 35.1%; border-radius: 999px; background-color: var(--c1); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span>
+<span aria-hidden="true" style="position: absolute; left: 36.7%; top: -4px; bottom: -4px; width: 2px; background: var(--text)"></span>
+</div>
+<div style="position: relative; height: 18px; margin-top: 6px; font-size: 12px; color: var(--muted)"><span style="position: absolute; left: 36.7%; transform: translateX(-50%); white-space: nowrap">Pace 36.7%</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="align-self: flex-start; display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--warnBg); color: var(--warnText)">Behind pace by ৳6,07,167</span>
+<p style="margin: 0; font-size: 13px; color: var(--text2); line-height: 1.5">At this pace November ends near ৳3.83 Cr, about 96% of the target.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--rowBorder)">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span>Hossain Motors</span><span class="num" style="font-weight: 600">36.6% <span style="font-weight: 400; color: var(--muted)">of ৳2.80 Cr</span></span></div>
+<div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 36.6%; border-radius: 999px; background-color: var(--bizA); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span aria-hidden="true" style="position: absolute; left: 36.7%; top: -3px; bottom: -3px; width: 2px; background: var(--text)"></span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span>Hossain Spare Parts</span><span class="num" style="font-weight: 600">31.9% <span style="font-weight: 400; color: var(--muted)">of ৳1.20 Cr</span></span></div>
+<div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 31.9%; border-radius: 999px; background-color: var(--bizB); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span aria-hidden="true" style="position: absolute; left: 36.7%; top: -3px; bottom: -3px; width: 2px; background: var(--text)"></span></div>
+</div>
+</div>
+</article>
+</sc-if>
+
+<sc-if value="{{showCash}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 16px">
+<div>
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Cash forecast and dues</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">Next 30 days, as an estimate. Salaries, rent and new sales are not included.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="padding: 12px; border-radius: 16px; background: var(--chipBg); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 3px"><span style="font-size: 12px; color: var(--muted)">Cash now</span><span class="num" style="font-size: 17px; font-weight: 600">৳65,80,095</span><span style="font-size: 12px; color: var(--text2); line-height: 1.4">About 6 days of spending</span></div>
+<div style="padding: 12px; border-radius: 16px; background: var(--accentSoft); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 3px"><span style="font-size: 12px; color: var(--accentText)">Cash in 30 days</span><span class="num" style="font-size: 17px; font-weight: 600">৳73,71,752</span><span style="font-size: 12px; color: var(--text2); line-height: 1.4">Now, plus in, minus out</span></div>
+<div style="padding: 12px; border-radius: 16px; background: var(--chipBg); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 3px"><span style="font-size: 12px; color: var(--muted)">Coming in</span><span class="num" style="font-size: 17px; font-weight: 600; color: var(--posText)">+৳41,90,106</span><span style="font-size: 12px; color: var(--text2); line-height: 1.4">Dues up to 60 days old</span></div>
+<div style="padding: 12px; border-radius: 16px; background: var(--chipBg); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 3px"><span style="font-size: 12px; color: var(--muted)">Going out</span><span class="num" style="font-size: 17px; font-weight: 600; color: var(--negText)">−৳33,98,449</span><span style="font-size: 12px; color: var(--text2); line-height: 1.4">Supplier dues up to 60 days</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 14px; padding-top: 14px; border-top: 1px solid var(--rowBorder)">
+<div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text2)">
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--pos)"></span>0 to 30 days</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--warn)"></span>31 to 60</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--neg)"></span>61 or more</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span>Customers owe you</span><span class="num" style="font-weight: 600">৳63,48,645</span></div>
+<div role="img" aria-label="Customer dues by age: 38 percent 0 to 30 days, 28 percent 31 to 60 days, 34 percent 61 days or more" style="display: flex; gap: 2px; height: 12px"><span class="gloss" style="flex: 38; border-radius: 999px 3px 3px 999px; background-color: var(--pos); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span style="flex: 28; border-radius: 3px; background-color: var(--warn); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span style="flex: 34; border-radius: 3px 999px 999px 3px; background-color: var(--neg); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted)"><span><span class="num" style="color: var(--text); font-weight: 600">৳24,12,485</span> 38%</span><span><span class="num" style="color: var(--text); font-weight: 600">৳17,77,621</span> 28%</span><span><span class="num" style="color: var(--text); font-weight: 600">৳21,58,539</span> 34%</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span>You owe suppliers</span><span class="num" style="font-weight: 600">৳39,98,175</span></div>
+<div role="img" aria-label="Supplier payable by age: 55 percent 0 to 30 days, 30 percent 31 to 60 days, 15 percent 61 days or more" style="display: flex; gap: 2px; height: 12px"><span style="flex: 55; border-radius: 999px 3px 3px 999px; background-color: var(--pos); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span style="flex: 30; border-radius: 3px; background-color: var(--warn); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span style="flex: 15; border-radius: 3px 999px 999px 3px; background-color: var(--neg); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted)"><span><span class="num" style="color: var(--text); font-weight: 600">৳21,98,996</span> 55%</span><span><span class="num" style="color: var(--text); font-weight: 600">৳11,99,453</span> 30%</span><span><span class="num" style="color: var(--text); font-weight: 600">৳5,99,726</span> 15%</span></div>
+</div>
+</div>
+</article>
+</sc-if>
+
+<sc-if value="{{showChart}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div>
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">{{pcTitle}}</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">Jun to Nov 2026, ৳ crore. Nov* is an estimate for the full month, worked out from the first 11 days.</p>
+</div>
+<div style="display: flex; align-self: flex-start; gap: 4px; padding: 4px; border-radius: 999px; background: var(--track)">
+<button class="seg" aria-pressed="{{pRevPressed}}" onClick="{{setRev}}">Revenue and expenses</button>
+<button class="seg" aria-pressed="{{pProfitPressed}}" onClick="{{setProfit}}">Net profit</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text2)">
+<sc-for list="{{pLegend}}" as="l" hint-placeholder-count="2">
+<span style="display: inline-flex; align-items: center; gap: 8px"><span style="width: 20px; height: 0; border-top: 3px {{l.style}} {{l.color}}"></span>{{l.label}}</span>
+</sc-for>
+</div>
+<div style="position: relative">
+<svg viewBox="0 0 340 210" width="100%" style="display: block" role="img" aria-label="{{pcAria}}">
+<defs><linearGradient id="pcArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: {{pStroke}}; stop-opacity: 0.30"/><stop offset="1" style="stop-color: {{pStroke}}; stop-opacity: 0"/></linearGradient></defs>
+<path d="{{pGrid}}" fill="none" style="stroke: var(--grid); stroke-width: 1"/>
+<path d="{{pArea}}" fill="url(#pcArea)"/>
+<path d="{{pExp}}" fill="none" style="stroke: var(--c2); stroke-width: 9; stroke-linecap: round; opacity: {{pGlow}}; filter: blur(3px)"/>
+<path d="{{pExp}}" fill="none" style="stroke: var(--c2); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 7 5; opacity: {{pOp}}"/>
+<path d="{{pExpTail}}" fill="none" style="stroke: var(--c2); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 2 5; opacity: {{pOp}}"/>
+<path d="{{pLine}}" fill="none" style="stroke: {{pStroke}}; stroke-width: 11; stroke-linecap: round; opacity: 0.2; filter: blur(4px)"/>
+<path d="{{pLine}}" fill="none" style="stroke: {{pStroke}}; stroke-width: 3; stroke-linecap: round"/>
+<path d="{{pLine}}" fill="none" transform="translate(0,-0.9)" style="stroke: #FFFFFF; stroke-width: 1; stroke-linecap: round; opacity: 0.5"/>
+<path d="{{pTail}}" fill="none" style="stroke: {{pStroke}}; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 6"/>
+<circle cx="40" cy="{{pd0}}" r="4.5" style="fill: {{pStroke}}; stroke: var(--dotFill); stroke-width: 2"/>
+<circle cx="96" cy="{{pd1}}" r="4.5" style="fill: {{pStroke}}; stroke: var(--dotFill); stroke-width: 2"/>
+<circle cx="152" cy="{{pd2}}" r="4.5" style="fill: {{pStroke}}; stroke: var(--dotFill); stroke-width: 2"/>
+<circle cx="208" cy="{{pd3}}" r="4.5" style="fill: {{pStroke}}; stroke: var(--dotFill); stroke-width: 2"/>
+<circle cx="264" cy="{{pd4}}" r="4.5" style="fill: {{pStroke}}; stroke: var(--dotFill); stroke-width: 2"/>
+<circle cx="320" cy="{{pd5}}" r="5" style="fill: var(--dotFill); stroke: {{pStroke}}; stroke-width: 2.5"/>
+<text x="40" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Jun</text>
+<text x="96" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Jul</text>
+<text x="152" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Aug</text>
+<text x="208" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Sep</text>
+<text x="264" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Oct</text>
+<text x="320" y="202" text-anchor="middle" font-size="12" style="fill: var(--muted)">Nov*</text>
+</svg>
+<sc-for list="{{pl}}" as="L" hint-placeholder-count="17">
+<span class="num" style="position: absolute; left: {{L.x}}; top: {{L.y}}; transform: {{L.t}}; font-size: 12px; font-weight: {{L.w}}; color: {{L.c}}; opacity: {{L.o}}; background: {{L.b}}; padding: {{L.p}}; border-radius: 6px; line-height: 1.3; white-space: nowrap; pointer-events: none">{{L.v}}</span>
+</sc-for>
+</div>
+</article>
+</sc-if>
+
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px">
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px">Needs action<span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 999px; background: var(--negBg); color: var(--negText); font-size: 12px; font-weight: 700">5</span></h2>
+<a href="#top" style="font-size: 13px; font-weight: 600; color: var(--accentText); min-height: 44px; display: inline-flex; align-items: center">View all</a>
+</div>
+<sc-for list="{{actions}}" as="a" hint-placeholder-count="3">
+<a href="#top" style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 4px 10px 0; border-top: 1px solid var(--rowBorder)">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; line-height: 1.3">
+<span style="display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: {{a.bg}}; color: {{a.ink}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iAlert}}"/></svg>{{a.sev}}</span>
+<span style="font-size: 14px; font-weight: 600">{{a.title}}</span>
+<span style="font-size: 12px; color: var(--muted)">{{a.meta}}</span>
+</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</a>
+</sc-for>
+</article>
+
+<sc-if value="{{showBranch}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<div>
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Revenue by branch</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">1 to 11 November, ৳ lakh. Total ৳1,40,59,500.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text2)">
+<span style="display: inline-flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--bizA)"></span>Hossain Motors</span>
+<span style="display: inline-flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--bizB)"></span>Hossain Spare Parts</span>
+</div>
+<svg viewBox="0 0 360 346" width="100%" style="display: block" role="img" aria-label="Bar chart of revenue by branch, 1 to 11 November. Mirpur-10 Motors 52,40,000 taka; Uttara Motors 31,25,000; Mirpur-10 Spare Parts 22,14,500; Narayanganj Motors 18,70,000; Agrabad Spare Parts 16,10,000.">
+<defs><linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.10"/><stop offset="0.5" stop-color="#000000" stop-opacity="0.06"/><stop offset="1" stop-color="#000000" stop-opacity="0.18"/></linearGradient></defs>
+<path d="M40 304 L360 304 M40 208 L360 208 M40 112 L360 112 M40 16 L360 16" fill="none" style="stroke: var(--grid); stroke-width: 1"/>
+<text x="32" y="308" text-anchor="end" font-size="12" style="fill: var(--muted)">0</text>
+<text x="32" y="212" text-anchor="end" font-size="12" style="fill: var(--muted)">20</text>
+<text x="32" y="116" text-anchor="end" font-size="12" style="fill: var(--muted)">40</text>
+<text x="32" y="20" text-anchor="end" font-size="12" style="fill: var(--muted)">60</text>
+<path d="{{bp0}}" style="fill: {{bc0}}"/>
+<path d="{{bp0}}" fill="url(#gloss)"/>
+<path d="{{bp1}}" style="fill: {{bc1}}"/>
+<path d="{{bp1}}" fill="url(#gloss)"/>
+<path d="{{bp2}}" style="fill: {{bc2}}"/>
+<path d="{{bp2}}" fill="url(#gloss)"/>
+<path d="{{bp3}}" style="fill: {{bc3}}"/>
+<path d="{{bp3}}" fill="url(#gloss)"/>
+<path d="{{bp4}}" style="fill: {{bc4}}"/>
+<path d="{{bp4}}" fill="url(#gloss)"/>
+<text class="num" x="72" y="44.5" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--text)">৳52.4L</text>
+<text class="num" x="136" y="146" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--text)">৳31.3L</text>
+<text class="num" x="200" y="189.7" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--text)">৳22.1L</text>
+<text class="num" x="264" y="206.2" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--text)">৳18.7L</text>
+<text class="num" x="328" y="218.7" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--text)">৳16.1L</text>
+<text x="72" y="322" text-anchor="middle" font-size="12" font-weight="600" style="fill: var(--text)">Mirpur-10</text>
+<text x="136" y="322" text-anchor="middle" font-size="12" font-weight="600" style="fill: var(--text)">Uttara</text>
+<text x="200" y="322" text-anchor="middle" font-size="12" font-weight="600" style="fill: var(--text)">Mirpur-10</text>
+<text x="264" y="322" text-anchor="middle" font-size="12" font-weight="600" style="fill: var(--text)">N'ganj</text>
+<text x="328" y="322" text-anchor="middle" font-size="12" font-weight="600" style="fill: var(--text)">Agrabad</text>
+<text x="72" y="338" text-anchor="middle" font-size="12" style="fill: var(--muted)">Motors</text>
+<text x="136" y="338" text-anchor="middle" font-size="12" style="fill: var(--muted)">Motors</text>
+<text x="200" y="338" text-anchor="middle" font-size="12" style="fill: var(--muted)">Parts</text>
+<text x="264" y="338" text-anchor="middle" font-size="12" style="fill: var(--muted)">Motors</text>
+<text x="328" y="338" text-anchor="middle" font-size="12" style="fill: var(--muted)">Parts</text>
+</svg>
+</article>
+</sc-if>
+
+<sc-if value="{{showProfit}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="margin-bottom: 6px">
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Profit by branch</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">Net profit, 1 to 11 November, ৳ lakh. Revenue alone does not show which branch earns.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text2); margin-bottom: 4px"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--bizA)"></span>Motors <span class="num" style="font-weight: 600; color: var(--text)">৳18.53L</span> 18.1%</span><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--bizB)"></span>Spare Parts <span class="num" style="font-weight: 600; color: var(--text)">৳4.60L</span> 12.0%</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 0; border-top: 1px solid var(--rowBorder)"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span style="font-size: 14px; font-weight: 600">Mirpur-10 <span style="font-weight: 400; font-size: 12px; color: var(--muted)">Motors</span></span><span style="display: inline-flex; align-items: center; gap: 8px"><span class="num" style="font-size: 13px; font-weight: 600">৳11.00L</span><span class="num" style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)">21.0%</span></span></div><div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 999px; background-color: var(--c3); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div><span style="font-size: 12px; color: var(--muted)">Revenue ৳52.40L</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 0; border-top: 1px solid var(--rowBorder)"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span style="font-size: 14px; font-weight: 600">Uttara <span style="font-weight: 400; font-size: 12px; color: var(--muted)">Motors</span></span><span style="display: inline-flex; align-items: center; gap: 8px"><span class="num" style="font-size: 13px; font-weight: 600">৳6.88L</span><span class="num" style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)">22.0%</span></span></div><div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 62.5%; border-radius: 999px; background-color: var(--c3); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div><span style="font-size: 12px; color: var(--muted)">Revenue ৳31.25L</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 0; border-top: 1px solid var(--rowBorder)"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span style="font-size: 14px; font-weight: 600">Mirpur-10 <span style="font-weight: 400; font-size: 12px; color: var(--muted)">Spare Parts</span></span><span style="display: inline-flex; align-items: center; gap: 8px"><span class="num" style="font-size: 13px; font-weight: 600">৳5.31L</span><span class="num" style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--posBg); color: var(--posText)">24.0%</span></span></div><div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 48.3%; border-radius: 999px; background-color: var(--c3); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div><span style="font-size: 12px; color: var(--muted)">Revenue ৳22.15L</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 0; border-top: 1px solid var(--rowBorder)"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span style="font-size: 14px; font-weight: 600">Narayanganj <span style="font-weight: 400; font-size: 12px; color: var(--muted)">Motors</span></span><span style="display: inline-flex; align-items: center; gap: 8px"><span class="num" style="font-size: 13px; font-weight: 600">৳0.65L</span><span class="num" style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--warnBg); color: var(--warnText)">3.5%</span></span></div><div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 5.9%; border-radius: 999px; background-color: var(--c3); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div><span style="font-size: 12px; color: var(--muted)">Revenue ৳18.70L</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 0; border-top: 1px solid var(--rowBorder)"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span style="font-size: 14px; font-weight: 600">Agrabad <span style="font-weight: 400; font-size: 12px; color: var(--muted)">Spare Parts</span></span><span style="display: inline-flex; align-items: center; gap: 8px"><span class="num" style="font-size: 13px; font-weight: 600; color: var(--negText)">−৳0.71L</span><span class="num" style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--negBg); color: var(--negText)">−4.4%</span></span></div><div style="position: relative; height: 8px; border-radius: 999px; background: var(--track)"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 6.5%; border-radius: 999px; background-color: var(--c2); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div><span style="font-size: 12px; color: var(--muted)">Revenue ৳16.10L</span></div>
+<p style="margin: 4px 0 0; font-size: 13px; color: var(--text2); line-height: 1.5">Agrabad (Spare Parts) sold ৳16.1 lakh but lost ৳0.71 lakh. Narayanganj keeps only 3.5% of its sales as profit.</p>
+</article>
+</sc-if>
+
+<sc-if value="{{showCust}}" hint-placeholder-val="{{ true }}">
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 13px">
+<div>
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Customer insights</h2>
+<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted)">1 to 11 November. 214 customers bought.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="padding: 12px; border-radius: 16px; background: var(--chipBg); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Repeat rate</span><span class="num" style="font-size: 26px; font-weight: 600; line-height: 1.15">58%</span><span style="font-size: 12px; color: var(--text2)">124 bought before</span></div>
+<div style="padding: 12px; border-radius: 16px; background: var(--chipBg); border: 1px solid var(--rowBorder); display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: var(--muted)">Top 5 customers</span><span class="num" style="font-size: 26px; font-weight: 600; line-height: 1.15">27%</span><span style="font-size: 12px; color: var(--text2)">of revenue</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div role="img" aria-label="124 repeat customers and 90 new customers" style="display: flex; gap: 2px; height: 12px"><span style="flex: 124; border-radius: 999px 3px 3px 999px; background-color: var(--accent); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span><span style="flex: 90; border-radius: 3px 999px 999px 3px; background-color: var(--insight); background-image: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.08) 50%, rgba(0,0,0,0.14))"></span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text2)"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--accent)"></span>Repeat, 124 (58%)</span><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--insight)"></span>New, 90 (42%)</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding-top: 10px; border-top: 1px solid var(--rowBorder)">
+<div style="font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px">Top customers by revenue</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: 13px"><span style="display: flex; align-items: center; gap: 10px"><span class="num" style="width: 28px; height: 28px; border-radius: 50%; background: var(--accentSoft); color: var(--accentText); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">RT</span>Rahim Traders</span><span class="num" style="font-weight: 600">৳12,40,000</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: 13px"><span style="display: flex; align-items: center; gap: 10px"><span class="num" style="width: 28px; height: 28px; border-radius: 50%; background: var(--accentSoft); color: var(--accentText); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">KA</span>Karim Auto Centre</span><span class="num" style="font-weight: 600">৳9,85,000</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: 13px"><span style="display: flex; align-items: center; gap: 10px"><span class="num" style="width: 28px; height: 28px; border-radius: 50%; background: var(--accentSoft); color: var(--accentText); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">NE</span>Nasrin Enterprise</span><span class="num" style="font-weight: 600">৳7,20,000</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: 13px"><span style="display: flex; align-items: center; gap: 10px"><span class="num" style="width: 28px; height: 28px; border-radius: 50%; background: var(--accentSoft); color: var(--accentText); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">SR</span>Sadia Rahman</span><span class="num" style="font-weight: 600">৳4,95,000</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; font-size: 13px"><span style="display: flex; align-items: center; gap: 10px"><span class="num" style="width: 28px; height: 28px; border-radius: 50%; background: var(--accentSoft); color: var(--accentText); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">TA</span>Tanvir Ahmed</span><span class="num" style="font-weight: 600">৳3,60,000</span></div>
+</div>
+</article>
+</sc-if>
+
+<article class="glass" style="border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<h2 class="num" style="margin: 0; font-size: 18px; font-weight: 600">Day close</h2>
+<span style="display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--warnBg); color: var(--warnText)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iAlert}}"/></svg>Not balanced</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: var(--text2); line-height: 1.5">2 bank items are unmatched. Last closed on 10 November.</p>
+<button class="btn-primary">Review and close</button>
+</article>
+
+</div>
+</sc-if>
+
+<sc-if value="{{isAlt}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{ false }}">
+<p role="status" aria-live="polite" style="margin: 0; font-size: 13px; color: var(--text2)">Loading the latest figures…</p>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<article class="glass" role="status" style="border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 15px; font-weight: 600">Nothing recorded for 1 to 11 November</span>
+<span style="font-size: 13px; color: var(--text2); line-height: 1.45">No sales, bills or payments match these filters. Pick other dates, or record the first sale.</span>
+<button class="btn-primary">Record a sale</button>
+<button class="btn">Change dates</button>
+</article>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{ false }}">
+<article class="glass" role="alert" style="background: linear-gradient(0deg, var(--negBg), var(--negBg)), var(--card); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--negText)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iAlert}}"/></svg>The dashboard could not load</span>
+<span style="font-size: 13px; color: var(--text2); line-height: 1.45">The server did not respond in time. Nothing was changed or lost. Last good update: today, 2:10 PM.</span>
+<button class="btn-primary" onClick="{{retryAll}}">Try again</button>
+</article>
+</sc-if>
+<section aria-busy="{{altBusy}}" aria-label="Dashboard cards" style="display: flex; flex-wrap: wrap; gap: 12px">
+<sc-for list="{{altCards}}" as="c" hint-placeholder-count="11">
+<article class="glass" style="flex: {{c.flex}}; min-width: 0; min-height: {{c.h}}; box-sizing: border-box; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<sc-if value="{{c.loading}}" hint-placeholder-val="{{ false }}">
+<span class="sk" style="width: 52%; height: 16px"></span>
+<span class="sk" style="width: 78%; height: 12px"></span>
+<span class="sk" style="flex: 1; min-height: 36px; border-radius: 14px"></span>
+<span class="sk" style="width: 60%; height: 12px"></span>
+</sc-if>
+<sc-if value="{{c.empty}}" hint-placeholder-val="{{ false }}">
+<h2 class="num" style="margin: 0; font-size: {{c.ts}}; font-weight: 600">{{c.title}}</h2>
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center">
+<sc-if value="{{c.big}}" hint-placeholder-val="{{ true }}">
+<span style="width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--accentSoft); color: var(--accentText)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/></svg></span>
+</sc-if>
+<span style="font-size: 14px; font-weight: 600">{{c.emptyTitle}}</span>
+<span style="font-size: 12px; color: var(--text2); line-height: 1.45">{{c.emptyMsg}}</span>
+<sc-if value="{{c.hasAction}}" hint-placeholder-val="{{ true }}">
+<button class="btn" style="margin-top: 4px">{{c.action}}</button>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{c.error}}" hint-placeholder-val="{{ false }}">
+<h2 class="num" style="margin: 0; font-size: {{c.ts}}; font-weight: 600">{{c.title}}</h2>
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center">
+<span style="display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--negBg); color: var(--negText)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{iAlert}}"/></svg>Could not load</span>
+<span style="font-size: 12px; color: var(--text2); line-height: 1.45">{{c.errMsg}}</span>
+<button class="btn" style="margin-top: 4px" onClick="{{c.retry}}">Try again</button>
+</div>
+</sc-if>
+</article>
+</sc-for>
+</section>
+</div>
+</sc-if>
+
+<p style="margin: 0; font-size: 12px; color: var(--muted)">Demo data. Every figure on this screen is illustrative.</p>
+</div>
+
+<nav class="glass" aria-label="Main" style="z-index: 2; position: absolute; left: 12px; right: 12px; bottom: 12px; height: 68px; box-sizing: border-box; border-radius: 28px; padding: 6px; display: flex; gap: 4px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+<a class="tab" href="{{t.href}}" aria-current="{{t.current}}">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"/></svg>
+<span>{{t.label}}</span>
+</a>
+</sc-for>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","default":"light","options":["light","dark"],"section":"Appearance"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  curve(pts) {
+    const f = (n) => Math.round(n * 10) / 10;
+    let d = 'M' + f(pts[0][0]) + ' ' + f(pts[0][1]);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      d += ' C' + f(p1[0] + (p2[0] - p0[0]) / 6) + ' ' + f(p1[1] + (p2[1] - p0[1]) / 6) + ' ' + f(p2[0] - (p3[0] - p1[0]) / 6) + ' ' + f(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + f(p2[0]) + ' ' + f(p2[1]);
+    }
+    return d;
+  }
+  componentDidMount() { this.ixMotion('first'); }
+  componentDidUpdate(pp, ps) {
+    const a = ps || {}, b = this.state || {};
+    if (a.view !== b.view || a.refreshing !== b.refreshing) this.ixMotion(((b.refreshing ? 'loading' : (b.view || 'ready')) === 'ready') ? 'ready' : 'swap');
+    else if (a.role !== b.role) this.ixMotion('swap');
+    else if (a.tab !== b.tab) this.ixMotion('chart');
+  }
+  ixLoad(cb) {
+    if (window.Motion) { cb(window.Motion); return; }
+    if (window.__ixFail) return;
+    if (window.__ixQ) { window.__ixQ.push(cb); return; }
+    window.__ixQ = [cb];
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/motion@latest/dist/motion.js';
+    s.onload = () => { const q = window.__ixQ || []; window.__ixQ = null; if (window.Motion) q.forEach((f) => f(window.Motion)); else window.__ixFail = true; };
+    s.onerror = () => { window.__ixQ = null; window.__ixFail = true; };
+    document.head.appendChild(s);
+  }
+  ixMotion(kind) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.ixLoad((M) => { requestAnimationFrame(() => { try {
+      const root = document.getElementById('top'); if (!root) return;
+      const q = (s) => Array.prototype.slice.call(root.querySelectorAll(s));
+      const first = kind === 'first';
+      if (kind !== 'chart') {
+        const cards = q('.glass').filter((el) => !el.matches('.menu, .toast, nav, aside'));
+        if (cards.length) M.animate(cards, { opacity: [0, 1], y: [first ? 16 : 8, 0] }, { duration: first ? 0.45 : 0.25, delay: M.stagger(first ? 0.04 : 0.02), ease: 'easeOut' });
+        const fills = q('span').filter((el) => el.classList.contains('gloss') || /255,\s*255,\s*255,\s*0\.5\)/.test(el.style.backgroundImage || ''));
+        fills.forEach((el) => { el.style.transformOrigin = '0 50%'; });
+        if (fills.length) M.animate(fills, { scaleX: [0, 1] }, { duration: 0.7, delay: first ? 0.35 : 0.15, ease: [0.2, 0.8, 0.2, 1] });
+        const bars = q('svg[aria-label^="Bar chart"] path').filter((el) => el.getAttribute('fill') !== 'none');
+        bars.forEach((el) => { el.style.transformBox = 'fill-box'; el.style.transformOrigin = '50% 100%'; });
+        if (bars.length) M.animate(bars, { scaleY: [0, 1] }, { duration: 0.6, delay: (i) => (first ? 0.3 : 0.1) + Math.floor(i / 2) * 0.07, ease: [0.2, 0.8, 0.2, 1] });
+        if (first || kind === 'ready') {
+          q('.num').forEach((el) => {
+            const t = el.firstChild; if (!t || el.children.length || t.nodeType !== 3) return;
+            if (!/^৳[\d,]+$/.test(t.nodeValue) || parseFloat(el.style.fontSize) < 20) return;
+            const to = Number(t.nodeValue.replace(/[^0-9]/g, '')); if (!to) return;
+            const fmt = (n) => { const s = String(n), l = s.slice(-3), r = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ','); return '৳' + (r ? r + ',' : '') + l; };
+            M.animate(0, to, { duration: 0.9, ease: 'easeOut', onUpdate: (v) => { t.nodeValue = fmt(Math.round(v)); }, onComplete: () => { t.nodeValue = fmt(to); } });
+          });
+        }
+      }
+      const lines = q('svg[aria-label^="Line chart"] path').filter((el) => (el.getAttribute('d') || '').indexOf(' C') > 0 && el.getAttribute('fill') === 'none' && !el.style.strokeDasharray);
+      if (lines.length) M.animate(lines, { pathLength: [0, 1] }, { duration: 0.9, delay: first ? 0.3 : 0, ease: 'easeInOut' });
+      const areas = q('svg[aria-label^="Line chart"] path').filter((el) => (el.getAttribute('fill') || '').indexOf('url(') === 0);
+      if (areas.length) M.animate(areas, { opacity: [0, 1] }, { duration: 0.8, delay: first ? 0.6 : 0.3 });
+    } catch (e) {} }); });
+  }
+  renderVals() {
+    const st = this.state || {};
+    const theme = st.theme || this.props.theme || 'light';
+    const dark = theme === 'dark';
+
+    const light = {
+      text: '#0E1836', text2: '#33405F', muted: '#3F4A6E',
+      card: 'linear-gradient(145deg, rgba(255,255,255,0.66), rgba(255,255,255,0.30))',
+      cardBorder: 'rgba(255,255,255,0.95)',
+      cardShadow: '0 0 0 1px rgba(40,56,130,0.07), inset 0 1px 0 rgba(255,255,255,1), inset 0 -1px 0 rgba(255,255,255,0.35), 0 26px 50px -18px rgba(40,56,130,0.34)',
+      rowBorder: 'rgba(16,27,59,0.08)',
+      accent: '#4F5DF0', accentSoft: 'rgba(79,93,240,0.13)', accentText: '#2A35B5', onAccent: '#FFFFFF',
+      pos: '#12A57A', posText: '#055A3F', posBg: 'rgba(18,165,122,0.15)',
+      neg: '#E04466', negText: '#9E1E3B', negBg: 'rgba(224,68,102,0.13)',
+      warn: '#E89A1C', warnText: '#744205', warnBg: 'rgba(232,154,28,0.18)',
+      insight: '#12A9BF', bizA: '#3346B8', bizB: '#1FA391',
+      grid: 'rgba(16,27,59,0.10)', track: 'rgba(16,27,59,0.08)',
+      chipBg: 'rgba(255,255,255,0.48)', dotFill: '#F4F6FA',
+      orbA: 'rgba(255,255,255,0.5)', orbB: 'rgba(197,113,119,0.14)', orbC: 'rgba(255,255,255,0.4)', orbD: 'rgba(197,113,119,0.18)', icoInk: '#FFFFFF', c1: '#3346B8', c2: '#A61E4D', c3: '#1FA391',
+      tintAccent: 'rgba(79,93,240,0.20)', tintPos: 'rgba(18,165,122,0.20)', tintNeg: 'rgba(224,68,102,0.18)', tintWarn: 'rgba(232,154,28,0.22)'
+    };
+    const night = {
+      text: '#F2F5FF', text2: '#B7C1DE', muted: '#93A1C6',
+      card: 'linear-gradient(145deg, rgba(160,190,255,0.09), rgba(255,255,255,0.015) 55%, rgba(120,90,255,0.04))',
+      cardBorder: 'rgba(170,195,255,0.16)',
+      cardShadow: '0 28px 56px -20px rgba(0,0,0,0.95), 0 0 36px -14px rgba(80,130,255,0.35), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.03)',
+      rowBorder: 'rgba(255,255,255,0.09)',
+      accent: '#8C98FF', accentSoft: 'rgba(140,152,255,0.20)', accentText: '#B4BCFF', onAccent: '#0A1030',
+      pos: '#2FC99A', posText: '#57DDB1', posBg: 'rgba(47,201,154,0.14)',
+      neg: '#F0627C', negText: '#FF93A6', negBg: 'rgba(240,98,124,0.14)',
+      warn: '#F2AB44', warnText: '#FFC673', warnBg: 'rgba(242,171,68,0.14)',
+      insight: '#2CC4D8', bizA: '#7F92F7', bizB: '#2FB3A0',
+      grid: 'rgba(255,255,255,0.10)', track: 'rgba(255,255,255,0.10)',
+      chipBg: 'rgba(255,255,255,0.04)', dotFill: '#0A0E1C',
+      orbA: 'rgba(59,130,246,0.16)', orbB: 'rgba(139,92,246,0.12)', orbC: 'rgba(34,211,238,0.05)', orbD: 'rgba(59,130,246,0.09)', icoInk: '#0A1030', c1: '#7F92F7', c2: '#F26D55', c3: '#2FB3A0',
+      tintAccent: 'rgba(131,146,255,0.20)', tintPos: 'rgba(47,201,154,0.17)', tintNeg: 'rgba(240,98,124,0.17)', tintWarn: 'rgba(242,171,68,0.17)'
+    };
+    const V = dark ? night : light;
+    const aurora = dark
+      ? 'radial-gradient(520px 420px at 0% -2%, rgba(56,110,255,0.20), transparent 62%), radial-gradient(480px 420px at 100% 100%, rgba(124,82,255,0.15), transparent 62%), radial-gradient(360px 300px at 80% 35%, rgba(34,211,238,0.05), transparent 65%), linear-gradient(135deg, #000000 0%, #000000 55%, #02040E 100%)'
+      : 'radial-gradient(460px 420px at 0% 0%, rgba(99,102,241,0), transparent 62%), linear-gradient(270deg, rgba(197,113,119,0.24) 0%, rgba(197,113,119,0.10) 28%, rgba(197,113,119,0) 55%), radial-gradient(460px 460px at 100% 100%, rgba(31,163,145,0), transparent 62%), radial-gradient(420px 420px at 0% 100%, rgba(99,102,241,0), transparent 60%), linear-gradient(180deg, #F7F8FC 0%, #EEF1F8 100%)';
+    const vars = Object.keys(V).map((k) => '--' + k + ':' + V[k]).join(';');
+    const rootStyle = vars + ';background:' + aurora + ';color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px;box-sizing:border-box;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column';
+
+    const I = {
+      home: 'M3 11l9-8 9 8M5 9.5V21h5v-6h4v6h5V9.5',
+      cart: 'M3 4h2l2.4 11.2a1 1 0 001 .8h8.7a1 1 0 001-.76L20 8H6.2M9 20.5a.5.5 0 100-1 .5.5 0 000 1zM17 20.5a.5.5 0 100-1 .5.5 0 000 1z',
+      box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
+      cal: 'M4 7a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4',
+      more: 'M5 12h.01M12 12h.01M19 12h.01',
+      up: 'M12 19V5M5 12l7-7 7 7',
+      alert: 'M12 3l10 18H2zM12 10v5M12 18h.01',
+      bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
+      sun: 'M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+      moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z'
+    };
+
+    const isRev = (st.tab || 'rev') === 'rev';
+    const role = st.role || 'owner';
+    const SH = {
+      owner: { kpi: ['rev', 'np', 'cash', 'ar', 'ap'], target: 1, cash: 1, vat: 1, chart: 1, branch: 1, profit: 1, cust: 1 },
+      manager: { kpi: ['rev', 'ar'], target: 1, cash: 0, vat: 0, chart: 0, branch: 1, profit: 0, cust: 1 },
+      accountant: { kpi: ['rev', 'np', 'cash', 'ar', 'ap'], target: 0, cash: 1, vat: 1, chart: 1, branch: 0, profit: 1, cust: 0 }
+    }[role];
+    const RL = { owner: 'Owner', manager: 'Manager', accountant: 'Accountant' }[role];
+    const exportAs = (label) => { this.setState({ exportOpen: false, toast: { msg: 'Preparing ' + label + ' for the ' + RL + ' view…', busy: true } }); setTimeout(() => { this.setState({ toast: { msg: label + ' is ready for the ' + RL + ' view. This is a demo, so no file is saved.', busy: false } }); }, 1400); };
+    const toast = st.toast || null;
+    const view = st.refreshing ? 'loading' : (st.view || 'ready');
+    const retryAll = () => { this.setState({ view: 'loading' }); setTimeout(() => this.setState({ view: 'ready', fresh: true }), 1200); };
+    const K = '1 1 150px', Fw = '1 1 100%';
+    const ACD = [
+      ['cashh', 'cash', 'Cash and bank', Fw, '200px', 'No balance yet', 'Connect a bank account or add a cash book.', 'Add an account'],
+      ['rev', 'kpi', 'Revenue', K, '170px', 'No sales yet', 'Nothing sold in these dates.', ''],
+      ['np', 'kpi', 'Net profit', K, '170px', 'No profit to show', 'Appears once sales and costs are posted.', ''],
+      ['ar', 'kpi', 'Customer dues', K, '170px', 'No dues', 'No customer owes you money.', ''],
+      ['ap', 'kpi', 'Supplier payable', K, '170px', 'No payables', 'You owe no supplier.', ''],
+      ['target', 'target', 'Sales target, November', Fw, '300px', 'No target set for November', 'Set a monthly target to see progress against pace.', 'Set a target'],
+      ['cashf', 'cash', 'Cash forecast and dues', Fw, '320px', 'Nothing to forecast yet', 'Add a customer invoice or a supplier bill to see what comes in and goes out.', 'Add an invoice'],
+      ['chart', 'chart', 'Revenue and expenses', Fw, '320px', 'No revenue or expenses in this period', 'Try a wider date range.', 'Change dates'],
+      ['act', 'all', 'Needs action', Fw, '220px', 'Nothing needs action', 'You are all caught up.', ''],
+      ['branch', 'branch', 'Revenue by branch', Fw, '320px', 'No branch sales yet', 'Sales appear here by branch as soon as they are recorded.', 'Record a sale'],
+      ['profit', 'profit', 'Profit by branch', Fw, '320px', 'No profit to compare yet', 'Branch profit appears once sales and costs are posted.', 'Open accounting'],
+      ['cust', 'cust', 'Customer insights', Fw, '320px', 'No customers bought in this period', 'Top customers and repeat rate appear after the first sale.', 'Add a customer'],
+      ['status', 'all', 'Day close', Fw, '200px', 'No day to close yet', 'Day close starts once the first sale is recorded.', 'Open day close']
+    ];
+    const altCards = ACD.filter((c) => c[1] === 'all' || (c[1] === 'kpi' ? SH.kpi.indexOf(c[0]) >= 0 : !!SH[c[1]])).map((c) => ({ title: c[2], flex: c[3], h: c[4], ts: c[1] === 'kpi' ? '13px' : '18px', big: c[1] !== 'kpi', loading: view === 'loading', empty: view === 'empty', error: view === 'error', emptyTitle: c[5], emptyMsg: c[6], hasAction: !!c[7], action: c[7], errMsg: c[2] + ' did not load. The server took too long to answer.', retry: retryAll }));
+    const pcx = [40, 96, 152, 208, 264, 320];
+    const prevv = [3.12, 2.99, 3.41, 3.57, 3.72, 3.83], pexp = [2.61, 2.60, 2.85, 3.01, 3.19, 3.20], pprof = [0.51, 0.39, 0.56, 0.56, 0.53, 0.63];
+    const pyMax = isRev ? 4 : 0.8;
+    const pyOf = (v) => Math.round((180 - (v / pyMax) * 150) * 10) / 10;
+    const pmv = isRev ? prevv : pprof;
+    const pmp = pmv.map((v, i) => [pcx[i], pyOf(v)]);
+    const pep = pexp.map((v, i) => [pcx[i], pyOf(v)]);
+    const ptick = isRev ? [0, 1, 2, 3, 4] : [0, 0.2, 0.4, 0.6, 0.8];
+    const ptl = isRev ? ['0', '1', '2', '3', '4'] : ['0', '0.2', '0.4', '0.6', '0.8'];
+    const pfmt = (v) => '৳' + v.toFixed(2) + 'Cr';
+    const pStroke = isRev ? 'var(--c1)' : 'var(--c3)';
+    const pl = [];
+    for (let i = 0; i < 6; i++) {
+      const last = i === 5;
+      pl.push({ x: (last ? 336 : pcx[i]) / 3.4 + '%', y: (pmp[i][1] - 9) / 2.1 + '%', t: last ? 'translate(-100%,-100%)' : (i === 0 ? 'translate(-8%,-100%)' : 'translate(-50%,-100%)'), w: '600', c: pStroke, o: 1, b: 'var(--dotFill)', p: '1px 5px', v: (last ? 'est. ' : '') + pfmt(pmv[i]) });
+      pl.push({ x: (last ? 336 : pcx[i]) / 3.4 + '%', y: (pep[i][1] + 9) / 2.1 + '%', t: last ? 'translate(-100%,0)' : (i === 0 ? 'translate(-8%,0)' : 'translate(-50%,0)'), w: '600', c: 'var(--c2)', o: isRev ? 1 : 0, b: 'var(--dotFill)', p: '1px 5px', v: (last ? 'est. ' : '') + pfmt(pexp[i]) });
+    }
+    ptick.forEach((v, k) => pl.push({ x: 30 / 3.4 + '%', y: pyOf(v) / 2.1 + '%', t: 'translate(-100%,-50%)', w: '400', c: 'var(--muted)', o: 1, b: 'transparent', p: '0', v: ptl[k] }));
+    const pcAreaPath = this.curve(pmp.slice(0, 5)) + ' L' + pcx[4] + ' 180 L' + pcx[0] + ' 180 Z';
+    const pc = {
+      pl, pStroke, pArea: pcAreaPath,
+      pLine: this.curve(pmp.slice(0, 5)),
+      pTail: 'M' + pmp[4][0] + ' ' + pmp[4][1] + ' L' + pmp[5][0] + ' ' + pmp[5][1],
+      pExp: this.curve(pep.slice(0, 5)),
+      pExpTail: 'M' + pep[4][0] + ' ' + pep[4][1] + ' L' + pep[5][0] + ' ' + pep[5][1],
+      pGrid: ptick.map((v) => 'M40 ' + pyOf(v) + ' L328 ' + pyOf(v)).join(' '),
+      pOp: isRev ? 1 : 0,
+      pGlow: isRev ? 0.16 : 0,
+      pcTitle: isRev ? 'Revenue and expenses' : 'Net profit',
+      pcAria: isRev ? 'Line chart of monthly revenue and expenses in crore taka, June to November' : 'Line chart of monthly net profit in crore taka, June to November',
+      pLegend: isRev ? [{ label: 'Revenue', color: 'var(--c1)', style: 'solid' }, { label: 'Expenses', color: 'var(--c2)', style: 'dashed' }, { label: 'Nov est.', color: 'var(--muted)', style: 'dotted' }] : [{ label: 'Net profit', color: 'var(--c3)', style: 'solid' }, { label: 'Nov est.', color: 'var(--muted)', style: 'dotted' }],
+      pRevPressed: isRev ? 'true' : 'false',
+      pProfitPressed: isRev ? 'false' : 'true',
+      setRev: () => this.setState({ tab: 'rev' }),
+      setProfit: () => this.setState({ tab: 'profit' })
+    };
+    for (let i = 0; i < 6; i++) { pc['pd' + i] = pmp[i][1]; }
+    const bars = {};
+    const bd = [['Mirpur-10', 'Motors', 52.4, 'a', '52.4'], ['Uttara', 'Motors', 31.25, 'a', '31.3'], ['Mirpur-10', 'Parts', 22.145, 'b', '22.1'], ['Narayanganj', 'Motors', 18.7, 'a', '18.7'], ['Agrabad', 'Parts', 16.1, 'b', '16.1']];
+    bd.forEach((r, i) => {
+      const c = 72 + 64 * i, w = 52, rr = 7, x = c - 26, h = Math.round(r[2] * 48) / 10, y = Math.round((304 - h) * 10) / 10;
+      bars['bp' + i] = 'M' + x + ' 304 L' + x + ' ' + (y + rr) + ' Q' + x + ' ' + y + ' ' + (x + rr) + ' ' + y + ' L' + (x + w - rr) + ' ' + y + ' Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + rr) + ' L' + (x + w) + ' 304 Z';
+      bars['bc' + i] = r[3] === 'a' ? 'var(--bizA)' : 'var(--bizB)';
+      bars['bv' + i] = ['৳52.4L', '৳31.3L', '৳22.1L', '৳18.7L', '৳16.1L'][i]; bars['bvy' + i] = Math.round((y - 8) * 10) / 10;
+      bars['bn' + i] = r[0]; bars['bb' + i] = r[1]; bars['bx' + i] = c;
+    });
+    const hv = [40, 38, 42, 41, 46, 44, 49, 52, 50, 56];
+    const hmin = Math.min.apply(null, hv), hmax = Math.max.apply(null, hv);
+    const hpts = hv.map((v, i) => [i * (320 / (hv.length - 1)), 60 - ((v - hmin) / (hmax - hmin)) * 52]);
+    const heroLine = this.curve(hpts);
+    const heroFill = heroLine + ' L320 64 L0 64 Z';
+
+    return {
+      ...bars, ...pc, rootStyle, heroLine, heroFill,
+      iUp: I.up, iAlert: I.alert, iBell: I.bell,
+      themeIcon: dark ? I.sun : I.moon,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      showTarget: !!SH.target, showCash: !!SH.cash, showVat: !!SH.vat, showChart: !!SH.chart, showBranch: !!SH.branch, showProfit: !!SH.profit, showCust: !!SH.cust,
+      showNp: SH.kpi.indexOf('np') >= 0, showAr: SH.kpi.indexOf('ar') >= 0, showAp: SH.kpi.indexOf('ap') >= 0,
+      ownerPressed: role === 'owner' ? 'true' : 'false', managerPressed: role === 'manager' ? 'true' : 'false', accountantPressed: role === 'accountant' ? 'true' : 'false',
+      setOwner: () => this.setState({ role: 'owner' }), setManager: () => this.setState({ role: 'manager' }), setAccountant: () => this.setState({ role: 'accountant' }),
+      roleLabel: { owner: 'Owner', manager: 'Manager', accountant: 'Accountant' }[role],
+      showExport: !!st.exportOpen, exportExpanded: st.exportOpen ? 'true' : 'false',
+      toggleExport: () => this.setState({ exportOpen: !st.exportOpen }),
+      exportItems: [{ label: 'PDF report', note: 'Print-ready summary of this view', go: () => exportAs('PDF report') }, { label: 'Excel (.xlsx)', note: 'Tables and figures, ready to edit', go: () => exportAs('Excel file') }, { label: 'CSV', note: 'Raw rows for your accountant', go: () => exportAs('CSV file') }],
+      showToast: !!toast, toastMsg: toast ? toast.msg : '', toastDone: !!toast && !toast.busy,
+      toastSpin: toast && toast.busy ? 'spin' : '', toastColor: toast && toast.busy ? 'var(--accent)' : 'var(--pos)',
+      toastIcon: toast && toast.busy ? 'M12 3a9 9 0 109 9' : 'M5 12l5 5 9-10',
+      dismissToast: () => this.setState({ toast: null }),
+      isReady: view === 'ready', isAlt: view !== 'ready', isLoading: view === 'loading', isEmpty: view === 'empty', isError: view === 'error',
+      altBusy: view === 'loading' ? 'true' : 'false', altCards, retryAll,
+      views: [['ready', 'Data'], ['loading', 'Loading'], ['empty', 'Empty'], ['error', 'Error']].map((v) => ({ label: v[1], pressed: view === v[0] ? 'true' : 'false', go: () => this.setState({ view: v[0] }) })),
+      refresh: () => { if (st.refreshing) return; this.setState({ refreshing: true }); setTimeout(() => this.setState({ refreshing: false, fresh: true, view: 'ready' }), 1200); },
+      refreshBusy: st.refreshing ? 'true' : 'false', refreshSpin: st.refreshing ? 'spin' : '',
+      updatedText: st.refreshing ? 'Updating…' : (st.fresh ? 'Updated just now.' : 'Updated today, 2:10 PM.'),
+      showRoleNote: role !== 'owner',
+      roleNote: role === 'manager' ? 'Manager view: sales target, branch revenue and customers. Profit, cash and VAT are hidden.' : 'Accountant view: cash, dues, VAT and profit. Sales target and customers are hidden.',
+      tabs: [
+        { label: 'Home', icon: I.home, current: 'page', href: dark ? 'PhoneDark.dc.html' : 'PhoneLight.dc.html' },
+        { label: 'Sales', icon: I.cart, current: 'false', href: dark ? 'SalesPhoneDark.dc.html' : 'SalesPhone.dc.html' },
+        { label: 'Stock', icon: I.box, current: 'false', href: dark ? 'InventoryPhoneDark.dc.html' : 'InventoryPhone.dc.html' },
+        { label: 'Products', icon: 'M5.5 18a3 3 0 100-6 3 3 0 000 6zM18.5 18a3 3 0 100-6 3 3 0 000 6zM8.5 15l3-5h4.5l2.5 5M11.5 10L10 7H7.5M16 10l1-3h2', current: 'false', href: dark ? 'BikesPhoneDark.dc.html' : 'BikesPhone.dc.html' },
+        { label: 'More', icon: I.more, current: 'false', href: '#top' }
+      ],
+      actions: [
+        { sev: 'Critical', bg: 'var(--negBg)', ink: 'var(--negText)', title: 'Bike sold but not delivered', meta: '৳1,34,000 unpaid. Mirpur-10. 6 days.' },
+        { sev: 'Critical', bg: 'var(--negBg)', ink: 'var(--negText)', title: 'Bank receipt not matched', meta: '৳85,000. Uttara. 3 days.' },
+        { sev: 'Warning', bg: 'var(--warnBg)', ink: 'var(--warnText)', title: 'Four parts sold at zero stock', meta: 'Spare Parts, Agrabad. 2 days.' }
+      ],
+      branches: [
+        { name: 'Mirpur-10', biz: 'Hossain Motors', amount: '৳52,40,000', w: '100%', color: 'var(--bizA)' },
+        { name: 'Uttara', biz: 'Hossain Motors', amount: '৳31,25,000', w: '59.6%', color: 'var(--bizA)' },
+        { name: 'Mirpur-10', biz: 'Hossain Spare Parts', amount: '৳22,14,500', w: '42.3%', color: 'var(--bizB)' },
+        { name: 'Narayanganj', biz: 'Hossain Motors', amount: '৳18,70,000', w: '35.7%', color: 'var(--bizA)' },
+        { name: 'Agrabad', biz: 'Hossain Spare Parts', amount: '৳16,10,000', w: '30.7%', color: 'var(--bizB)' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "@erp/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Backend container. The three layers are their own workspaces: src/api -> src/businessLogic -> src/dal. Scripts run per layer through the root turbo scripts.",
+  "type": "module"
+}

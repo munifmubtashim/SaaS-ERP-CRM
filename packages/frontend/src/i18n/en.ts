@@ -1,0 +1,33 @@
+/** English catalogue. The source of truth for keys: bn must have exactly the same keys. */
+export const en = {
+  'app.name': 'ERP',
+  'shell.nav.home': 'Home',
+  'shell.nav.businesses': 'Businesses',
+  'shell.nav.sales': 'Sales / POS',
+  'shell.nav.inventory': 'Inventory',
+  'shell.nav.customers': 'Customers',
+  'shell.nav.accounting': 'Accounting',
+  'shell.nav.reports': 'Reports',
+  'shell.nav.users': 'Users and permissions',
+  'shell.language': 'Language',
+  'shell.theme.light': 'Light',
+  'shell.theme.dark': 'Dark',
+  'shell.sidebar.collapse': 'Collapse sidebar',
+  'shell.sidebar.expand': 'Expand sidebar',
+  'home.title': 'System status',
+  'home.subtitle': 'Phase 0: the app shell talks to the API, and the API talks to the database.',
+  'health.api': 'API',
+  'health.database': 'Database',
+  'health.ok': 'Working',
+  'health.down': 'Not reachable',
+  'health.loading': 'Checking…',
+  'health.error': 'Could not reach the API. Is `npm run dev` running?',
+  'health.retry': 'Try again',
+  'health.version': 'Version',
+  'health.checkedAt': 'Checked at',
+  'page.notBuilt': 'This module is not built yet. It arrives in a later phase.',
+  'error.title': 'Something went wrong',
+  'error.home': 'Back to home',
+} as const;
+
+export type MessageKey = keyof typeof en;

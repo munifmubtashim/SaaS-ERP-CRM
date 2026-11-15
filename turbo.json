@@ -1,0 +1,35 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["tsconfig.json", "eslint.config.mjs"],
+  "globalPassThroughEnv": ["DATABASE_URL", "MIGRATION_DATABASE_URL", "REDIS_URL", "LOG_LEVEL", "NODE_ENV"],
+  "tasks": {
+    "generate": {
+      "inputs": ["prisma/schema/**", "prisma.config.ts"],
+      "outputs": ["generated/**"]
+    },
+    "build": {
+      "dependsOn": ["@erp/dal#generate", "^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["@erp/dal#generate"]
+    },
+    "lint": {
+      "dependsOn": ["@erp/dal#generate"]
+    },
+    "test": {
+      "dependsOn": ["@erp/dal#generate"],
+      "outputs": []
+    },
+    "test:integration": {
+      "dependsOn": ["@erp/dal#generate"],
+      "cache": false
+    },
+    "dev": {
+      "dependsOn": ["@erp/dal#generate"],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

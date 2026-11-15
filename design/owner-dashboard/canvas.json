@@ -1,0 +1,180 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "DesktopDark.dc.html": {
+      "expand": "fill",
+      "h": 2300,
+      "is_interactive": true,
+      "title": "Desktop, dark",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 2300,
+      "is_interactive": true,
+      "title": "Desktop, light",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "PhoneDark.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone, dark",
+      "w": 390,
+      "x": 470,
+      "y": 2420
+    },
+    "PhoneLight.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Phone, light",
+      "w": 390,
+      "x": 0,
+      "y": 2420
+    },
+    "Sales.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Sales / POS, desktop light",
+      "w": 1440,
+      "x": 0,
+      "y": 3500
+    },
+    "SalesDark.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Sales / POS, desktop dark",
+      "w": 1440,
+      "x": 1520,
+      "y": 3500
+    },
+    "SalesPhone.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Sales / POS, phone light",
+      "w": 390,
+      "x": 3040,
+      "y": 3500
+    },
+    "SalesPhoneDark.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Sales / POS, phone dark",
+      "w": 390,
+      "x": 3510,
+      "y": 3500
+    },
+    "Inventory.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Inventory, desktop light",
+      "w": 1440,
+      "x": 0,
+      "y": 5260
+    },
+    "InventoryDark.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Inventory, desktop dark",
+      "w": 1440,
+      "x": 1520,
+      "y": 5260
+    },
+    "InventoryPhone.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Inventory, phone light",
+      "w": 390,
+      "x": 3040,
+      "y": 5260
+    },
+    "InventoryPhoneDark.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Inventory, phone dark",
+      "w": 390,
+      "x": 3510,
+      "y": 5260
+    },
+    "Bikes.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Products, desktop light",
+      "w": 1440,
+      "x": 0,
+      "y": 7020
+    },
+    "BikesDark.dc.html": {
+      "expand": "fill",
+      "h": 1180,
+      "is_interactive": true,
+      "title": "Products, desktop dark",
+      "w": 1440,
+      "x": 1520,
+      "y": 7020
+    },
+    "BikesPhone.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Products, phone light",
+      "w": 390,
+      "x": 3040,
+      "y": 7020
+    },
+    "BikesPhoneDark.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Products, phone dark",
+      "w": 390,
+      "x": 3510,
+      "y": 7020
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-11T21:51:16.972Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "title": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Owner Dashboard: glass, light and dark",
+      "w": 240,
+      "x": 0,
+      "y": -280
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "DesktopDark.dc.html",
+    "PhoneLight.dc.html",
+    "PhoneDark.dc.html",
+    "Sales.dc.html",
+    "SalesDark.dc.html",
+    "SalesPhone.dc.html",
+    "SalesPhoneDark.dc.html",
+    "Inventory.dc.html",
+    "InventoryDark.dc.html",
+    "InventoryPhone.dc.html",
+    "InventoryPhoneDark.dc.html",
+    "Bikes.dc.html",
+    "BikesDark.dc.html",
+    "BikesPhone.dc.html",
+    "BikesPhoneDark.dc.html"
+  ],
+  "pages": [],
+  "title": "Owner Dashboard: Glass (light, dark, phone)"
+}
