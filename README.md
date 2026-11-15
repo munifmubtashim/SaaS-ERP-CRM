@@ -27,6 +27,8 @@ _Tested by Farhan on Windows with WSL2, 15 Nov 2026._
 - Docker Desktop can freeze a machine with 8 GB of RAM. The tested alternative is Docker Engine inside
   Ubuntu: `sudo apt install docker.io docker-compose-v2`, and keep Docker Desktop closed.
   `docker-compose.yml` works unchanged.
+- Once, after installing: `sudo usermod -aG docker $USER`, then close and reopen the Ubuntu terminal, so
+  Docker runs without `sudo`.
 - After every restart, run `sudo service docker start` before `npm run docker:up`.
 - Install Node inside Ubuntu with [nvm](https://github.com/nvm-sh/nvm); the Windows Node is not used there.
 
@@ -111,5 +113,7 @@ naming pattern and rules: [CLAUDE.md](CLAUDE.md) and [ADR 0003](docs/adr/0003-re
   `docker compose down -v && npm run docker:up`.
 - **WSL2: `Cannot connect to the Docker daemon` on `npm run docker:up`:** Docker Engine does not start by itself
   after a restart; run `sudo service docker start` first (tested by Farhan on Windows with WSL2, 15 Nov 2026).
+- **WSL2: `permission denied` on `npm run docker:up`:** your user is not in the `docker` group. Run
+  `sudo usermod -aG docker $USER`, then close and reopen the Ubuntu terminal (found by Farhan, 15 Nov 2026).
 - **Prisma client errors after pulling:** `npm run db:generate`.
 - **Start the database from scratch:** `docker compose down -v` (deletes local data), then `npm run docker:up` and `npm run db:migrate:deploy`.
