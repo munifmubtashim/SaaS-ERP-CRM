@@ -57,12 +57,18 @@ returning every row or quietly returning none.
 Step 7 is needed because Express 5 does not wait for a handler's promise (router 2.2.0 only attaches a
 rejection handler). If Controllers wrote the response themselves, it would leave before the commit.
 
-**Login and public routes.** Identity tables (`user`, `session`, `login_attempt`) are not tenant tables:
-they hold no business data and are read before a tenant is known. Only the Auth module may query without a
-scope. It does so through a separately named base class, `UnscopedQuery`, and lint allows only
-`AuthQuery` to extend or import it. Auth also reads the user's business memberships, so
-`tenantMiddleware` can build `req.tenant`. `HealthQuery` is the one other user, because it runs
-`SELECT 1` and reads no table. No `SECURITY DEFINER` function unless a concrete case needs one.
+**Login and public routes.** The identity and access tables are not tenant tables. They are read before a
+tenant is known, to log the user in and to build `req.tenant`:
+
+- `user`, `session`, `login_attempt`;
+- `membership`;
+- the role, permission and user-scope tables.
+
+Only Auth and Health may query without a scope. They do it through a separately named base class,
+`UnscopedQuery`, and the lint rule lists `AuthQuery` and `HealthQuery` by name as the only classes allowed
+to extend or import it. Health runs `SELECT 1` and reads no table. Membership and scope reads always
+filter by the authenticated user's own id, so a user never sees another user's memberships. No
+`SECURITY DEFINER` function unless a concrete case needs one.
 
 **Files, PDFs and redirects** are out of scope for this ADR. A tenant route returns JSON. A PDF or export
 is produced by a background job, stored in object storage (MinIO), and handed back as JSON with a
@@ -98,6 +104,7 @@ each query pays for setting the scope again.
   - **Primary, set on the `erp_app` role:** `statement_timeout = 5s` and
     `idle_in_transaction_session_timeout = 15s`. A route that needs a different limit (for example a
     report) sets it for its own transaction with `set_config('statement_timeout', …, true)`.
+  - Reports and imports will go past the 5 s statement limit. They must override it per route or run as jobs.
   - Checked on PostgreSQL 16.16 as `erp_app`: a transaction-local `statement_timeout` cancels the slow
     statement and resets after the transaction. A transaction-local `idle_in_transaction_session_timeout`
     ends the connection, which the pool then discards.
@@ -135,7 +142,8 @@ each query pays for setting the scope again.
 - `dal/config/db.ts`: pool `max` and `transactionOptions` from env; remove the TODO.
 - `dal/query/BaseQuery.ts`: the client comes from `currentClient()`.
 - `dal/query/UnscopedQuery.ts` (new): the injected root client, for `AuthQuery` and `HealthQuery` only.
-- `eslint.config.mjs`: only `AuthQuery.ts` and `HealthQuery.ts` may import `UnscopedQuery`.
+- `eslint.config.mjs`: a rule that lists `AuthQuery.ts` and `HealthQuery.ts` explicitly as the only files
+  that may import `UnscopedQuery`.
 - `dal/sql/tenancy.sql`, shipped in the first tenant migration: `app_organization_id()`,
   `app_business_ids()` (both raise when unset), and the `legal_entity` table.
 - `businessLogic/src/contracts/ITenantScope.ts` and `createManagers()`: expose `runInTenantScope`.
@@ -151,7 +159,8 @@ statement_timeout` and `SET idle_in_transaction_session_timeout`.
   - move the proof test onto the real `tenantScope.ts`;
   - api test: a commit failure returns an error, not a 2xx;
   - api test: the response is sent only after the commit;
-  - isolation cases per tenant route.
+  - isolation cases per tenant route;
+  - Auth test: a user cannot read another user's memberships.
 - **CLAUDE.md, once this ADR is accepted:**
   - Tenancy rules: replace "to be designed in a Phase 1 ADR" with "tenant routes run in `runInTenantScope`
     (ADR 0005); Queries get the transaction from `BaseQuery`, never from a constructor".
