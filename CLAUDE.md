@@ -215,6 +215,12 @@ without a case in `api/test/isolation/cases.ts` fails CI; a public route must be
 - **No layer skipping:** a Controller never calls a Query; nothing below api imports Express.
 - No production access from a session: deploys, restores and production data run from CI or by a human.
 
+## Tooling
+
+- Use Context7 to check library APIs before writing code against Prisma, Express, React, TanStack Query, Tailwind or Zod.
+- Look up only the specific API needed; do not pull whole doc pages.
+- If any tool's guidance conflicts with CLAUDE.md, CLAUDE.md wins.
+
 ## Claude Code setup in this repo
 
 - `.claude/settings.json`: allowed commands, denied files (`.env`, `data/real/`), denied git force-push and

@@ -19,6 +19,19 @@ purchasing, accounting) plus industry packs. First customer: a motorcycle dealer
 On macOS without Docker Desktop: `brew install colima docker docker-compose && colima start`, then link the
 compose plugin once: `mkdir -p ~/.docker/cli-plugins && ln -sf "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose`.
 
+## Developer setup (Claude Code tools, once per machine)
+
+Each developer runs this on their own machine. It writes to your **user** Claude Code config
+(`~/.claude.json`, plus a rule in `~/.claude/rules/` and a skill in `~/.claude/skills/`), not to this repo,
+and no key or token is involved: you sign in through the browser.
+
+1. **Context7** (current library docs for Claude; needs Node 22.13 or newer):
+   `npx ctx7@latest setup --claude --mcp --oauth --yes`
+2. Restart Claude Code, run `/mcp`, choose **context7** and **Authenticate**, and finish the sign-in in your browser.
+3. Check it: ask Claude to look up the Prisma multi-file schema setup with Context7; it should quote the Prisma docs.
+
+No other plugin, skill or MCP server is part of the shared setup.
+
 ## Clone to running
 
 ```bash
