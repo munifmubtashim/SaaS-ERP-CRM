@@ -25,6 +25,11 @@ Hierarchy (ADR 0001 row 1, accepted): Organization > Legal entity > Business > B
 businesses are organization-level records; a business belongs to one legal entity. RLS keys on
 `business_id` for business-owned tables and on `organization_id` for organization-level tables.
 
+**The tenant scope has no legal-entity id.** Books stay per business, and each business belongs to exactly
+one legal entity. So `app.organization_id` and `app.business_ids` are enough, and a legal-entity report
+finds its businesses through the `legal_entity` table. If books ever move to the legal-entity level, this
+ADR is revisited.
+
 ## Decision
 
 **Option B: the route opens the scope, automatically, for every tenant route.**
