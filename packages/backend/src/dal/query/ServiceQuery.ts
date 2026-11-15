@@ -1,10 +1,8 @@
-import type { DbClient } from '../config/db.js';
+import { BaseQuery } from './BaseQuery.js';
 
 /**
- * Service module, database access (dal). SQL and Prisma calls live only here. Owner: Farhan.
+ * Service module: database access (dal). Satisfies businessLogic contracts/IServiceQuery. Owner: Farhan.
  * TODO(Farhan): workshop job cards, warranty (roadmap 5.10).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
  */
-export class ServiceQuery {
-  constructor(readonly db: DbClient) {}
-}
+export class ServiceQuery extends BaseQuery {}

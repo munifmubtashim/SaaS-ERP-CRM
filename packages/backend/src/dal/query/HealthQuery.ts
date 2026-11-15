@@ -1,18 +1,16 @@
-import type { DbClient } from '../config/db.js';
-import type { HealthDTO } from '../dto/HealthDTO.js';
+import { HealthDTO } from '../dto/HealthDTO.js';
+import { BaseQuery } from './BaseQuery.js';
 
-/** Example Query: the only layer that talks to the database. Pattern to copy for every module. */
-export class HealthQuery {
-  constructor(private readonly db: DbClient) {}
-
+/** Reference Query: database access only, returns a DTO. Satisfies businessLogic's IHealthQuery. */
+export class HealthQuery extends BaseQuery {
   /** Runs SELECT 1. Never throws: a failure is reported as databaseOk = false. */
   async ping(): Promise<HealthDTO> {
     const started = performance.now();
     try {
       await this.db.$queryRaw`SELECT 1`;
-      return { databaseOk: true, latencyMs: Math.round(performance.now() - started) };
+      return HealthDTO.fromProbe(true, performance.now() - started);
     } catch {
-      return { databaseOk: false, latencyMs: Math.round(performance.now() - started) };
+      return HealthDTO.fromProbe(false, performance.now() - started);
     }
   }
 }

@@ -1,10 +1,13 @@
-import type { SalesManager } from '@erp/business-logic';
+import { BaseController } from './BaseController.js';
+import type { ISalesManager } from './contracts/ISalesManager.js';
 
 /**
- * Sales module, HTTP controller. Parse input, call SalesManager, send the response. Owner: Farhan.
+ * Sales module: HTTP controller. HTTP in and out only. Owner: Farhan.
  * TODO(Farhan): invoices, payments, POS sessions, returns (roadmap 5.6).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
  */
-export class SalesController {
-  constructor(readonly manager: SalesManager) {}
+export class SalesController extends BaseController {
+  constructor(protected readonly manager: ISalesManager) {
+    super();
+  }
 }

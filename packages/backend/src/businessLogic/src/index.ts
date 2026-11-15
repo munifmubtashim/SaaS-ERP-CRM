@@ -1,4 +1,4 @@
-// Public surface of @erp/business-logic. The api layer imports only from here.
+// Public surface of @erp/business-logic, and the backend composition root (createManagers).
 import {
   createDbClient,
   HealthQuery,
@@ -28,7 +28,22 @@ import { SalesManager } from './SalesManager.js';
 import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
+import { SystemClock } from './SystemClock.js';
 
+export type { IClock } from './contracts/IClock.js';
+export type { IHealthQuery } from './contracts/IHealthQuery.js';
+export type { IAuthQuery } from './contracts/IAuthQuery.js';
+export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
+export type { IProductQuery } from './contracts/IProductQuery.js';
+export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
+export type { IAccountingQuery } from './contracts/IAccountingQuery.js';
+export type { IVehicleQuery } from './contracts/IVehicleQuery.js';
+export type { IReportQuery } from './contracts/IReportQuery.js';
+export type { IPartyQuery } from './contracts/IPartyQuery.js';
+export type { ISalesQuery } from './contracts/ISalesQuery.js';
+export type { IPurchaseQuery } from './contracts/IPurchaseQuery.js';
+export type { IServiceQuery } from './contracts/IServiceQuery.js';
+export type { ICrmQuery } from './contracts/ICrmQuery.js';
 export {
   HealthManager,
   AuthManager,
@@ -45,7 +60,7 @@ export {
   CrmManager,
 };
 
-/** Every Manager the API can call. api receives this object and never sees dal. */
+/** Every Manager, as built by createManagers. */
 export interface Managers {
   health: HealthManager;
   auth: AuthManager;
@@ -69,13 +84,14 @@ export interface ManagerConfig {
 }
 
 /**
- * Composition root of the backend: builds the dal client and Queries, and hands each Manager its
- * Query. It lives here so the api layer depends only on businessLogic (api -> businessLogic -> dal).
+ * Composition root: the ONLY place Queries and Managers are constructed (lint-enforced).
+ * Each dal Query is passed where a businessLogic I<Module>Query is expected, so TypeScript checks
+ * here that dal satisfies the contracts businessLogic owns, without dal importing businessLogic.
  */
 export function createManagers(config: ManagerConfig): { managers: Managers; close: () => Promise<void> } {
   const db = createDbClient(config.databaseUrl);
   const managers: Managers = {
-    health: new HealthManager(new HealthQuery(db), config.version),
+    health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(new AuthQuery(db)),
     organization: new OrganizationManager(new OrganizationQuery(db)),
     product: new ProductManager(new ProductQuery(db)),

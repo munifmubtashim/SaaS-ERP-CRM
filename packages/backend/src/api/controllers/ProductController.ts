@@ -1,10 +1,13 @@
-import type { ProductManager } from '@erp/business-logic';
+import { BaseController } from './BaseController.js';
+import type { IProductManager } from './contracts/IProductManager.js';
 
 /**
- * Product module, HTTP controller. Parse input, call ProductManager, send the response. Owner: Munif.
+ * Product module: HTTP controller. HTTP in and out only. Owner: Munif.
  * TODO(Munif): products and catalogue (roadmap 5.4).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
  */
-export class ProductController {
-  constructor(readonly manager: ProductManager) {}
+export class ProductController extends BaseController {
+  constructor(protected readonly manager: IProductManager) {
+    super();
+  }
 }

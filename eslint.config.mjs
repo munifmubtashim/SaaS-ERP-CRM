@@ -18,6 +18,42 @@ const layer = (message, packages, patterns = []) => ({
   ],
 });
 
+// ---- Code-standard selectors (no-restricted-syntax) -------------------------
+const ban = (selector, message) => ({ selector, message });
+export const NEW_QUERY_MANAGER = ban(
+  'NewExpression[callee.name=/(Query|Manager)$/]',
+  'Construct Queries and Managers only in createManagers (businessLogic/src/index.ts); inject an interface instead.',
+);
+export const NEW_CONTROLLER = ban(
+  'NewExpression[callee.name=/Controller$/]',
+  'Construct Controllers only in createControllers (api/controllers/index.ts).',
+);
+export const NOT_SUPPORTED = ban(
+  'ThrowStatement NewExpression > Literal[value=/not (supported|implemented)/i]',
+  'Liskov: a subclass must work wherever its base does. Do not override a method to throw "not supported"; split the interface instead.',
+);
+export const PRISMA_REEXPORT = [
+  ban(
+    'ExportAllDeclaration[source.value=/generated/]',
+    'No Prisma types leave dal: export DTO classes instead.',
+  ),
+  ban(
+    'ExportNamedDeclaration[source.value=/generated/]',
+    'No Prisma types leave dal: export DTO classes instead.',
+  ),
+];
+export const HAND_WRITTEN_TYPE = [
+  ban(
+    'TSInterfaceDeclaration',
+    'shared types are inferred from the Zod schemas: z.infer<typeof <module>Schema>.',
+  ),
+  ban(
+    'TSTypeAliasDeclaration > TSTypeLiteral',
+    'shared types are inferred from the Zod schemas: z.infer<typeof <module>Schema>.',
+  ),
+];
+export const syntax = (...rules) => ({ 'no-restricted-syntax': ['error', ...rules] });
+
 export const baseConfig = tseslint.config(
   {
     ignores: [
@@ -99,4 +135,61 @@ export default tseslint.config(
       ['**/dal/**', '**/businessLogic/src/**'],
     ),
   },
+
+  // ---- Code standards (CLAUDE.md "Code standards", ADR 0004) --------------
+  // Later entries replace earlier no-restricted-syntax lists for the files they match, so each
+  // composition root re-declares the full list minus the one `new` it is allowed to do.
+  {
+    files: ['packages/backend/src/**/*.ts'],
+    rules: syntax(NEW_QUERY_MANAGER, NEW_CONTROLLER, NOT_SUPPORTED),
+  },
+  {
+    files: ['packages/backend/src/businessLogic/src/index.ts'],
+    rules: syntax(NEW_CONTROLLER, NOT_SUPPORTED),
+  },
+  {
+    files: ['packages/backend/src/api/controllers/index.ts'],
+    rules: syntax(NEW_QUERY_MANAGER, NOT_SUPPORTED),
+  },
+  {
+    files: ['packages/backend/src/dal/index.ts'],
+    rules: syntax(NEW_QUERY_MANAGER, NEW_CONTROLLER, NOT_SUPPORTED, ...PRISMA_REEXPORT),
+  },
+  { files: ['packages/shared/src/types/**/*.ts'], rules: syntax(...HAND_WRITTEN_TYPE) },
+  {
+    // Controllers depend on api-owned contracts (I<Module>Manager), never on businessLogic classes.
+    files: ['packages/backend/src/api/controllers/*Controller.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@erp/business-logic',
+              message: 'Depend on ./contracts/I<Module>Manager (an interface), not on businessLogic.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Managers depend on businessLogic contracts (I<Module>Query); only DTO types may come from dal.
+    files: ['packages/backend/src/businessLogic/src/*Manager.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@erp/dal',
+              allowTypeImports: true,
+              message: 'Depend on ./contracts/I<Module>Query; import only types (DTOs) from @erp/dal.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  { files: ['**/*.test.ts', '**/test/**'], rules: { 'no-restricted-syntax': 'off' } },
 );

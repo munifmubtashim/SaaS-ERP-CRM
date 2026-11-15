@@ -1,4 +1,3 @@
-import type { Managers } from '@erp/business-logic';
 import { HealthController } from './HealthController.js';
 import { AuthController } from './AuthController.js';
 import { OrganizationController } from './OrganizationController.js';
@@ -12,11 +11,12 @@ import { SalesController } from './SalesController.js';
 import { PurchaseController } from './PurchaseController.js';
 import { ServiceController } from './ServiceController.js';
 import { CrmController } from './CrmController.js';
+import type { ApiManagers } from './contracts/index.js';
 
 export type Controllers = ReturnType<typeof createControllers>;
 
-/** One Controller per module, each given its own Manager. */
-export function createControllers(managers: Managers) {
+/** The ONLY place Controllers are constructed (lint-enforced). Each gets its Manager as an interface. */
+export function createControllers(managers: ApiManagers) {
   return {
     health: new HealthController(managers.health),
     auth: new AuthController(managers.auth),

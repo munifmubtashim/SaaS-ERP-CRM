@@ -1,4 +1,4 @@
-import type { Managers } from '@erp/business-logic';
+import type { ApiManagers } from './controllers/contracts/index.js';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
@@ -12,7 +12,7 @@ import { buildRoutes } from './routes/index.js';
 
 export interface AppDeps {
   logger: Logger;
-  managers: Managers;
+  managers: ApiManagers;
 }
 
 /**

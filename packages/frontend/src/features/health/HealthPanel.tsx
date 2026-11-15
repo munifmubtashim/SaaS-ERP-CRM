@@ -1,12 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
 import { Button, Card, StatusPill } from '../../components/ui';
 import { useI18n } from '../../i18n';
-import { healthService } from '../../services/healthService';
+import { useHealth } from './useHealth';
 
-/** Proves the full path: browser -> Vite proxy -> api -> businessLogic -> dal -> PostgreSQL. */
+/** Reference component: renders only; data comes from useHealth(). Proves the full path: browser -> Vite proxy -> api -> businessLogic -> dal -> PostgreSQL. */
 export function HealthPanel() {
   const { t } = useI18n();
-  const health = useQuery({ queryKey: ['health'], queryFn: healthService.get, retry: false });
+  const health = useHealth();
 
   if (health.isPending) {
     return (

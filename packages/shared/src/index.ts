@@ -1,6 +1,7 @@
 // Public surface of @erp/shared. Imports nothing from the other packages.
 export * from './schemas/error.schema.js';
 export * from './schemas/health.schema.js';
+export * from './schemas/tenant.schema.js';
 export * from './schemas/auth.schema.js';
 export * from './schemas/organization.schema.js';
 export * from './schemas/product.schema.js';

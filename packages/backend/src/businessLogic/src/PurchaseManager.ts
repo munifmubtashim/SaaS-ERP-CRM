@@ -1,10 +1,10 @@
-import type { PurchaseQuery } from '@erp/dal';
+import type { IPurchaseQuery } from './contracts/IPurchaseQuery.js';
 
 /**
- * Purchase module, business rules. No Express, no SQL: call PurchaseQuery. Owner: Farhan.
+ * Purchase module: business rules. No Express, no SQL. Owner: Farhan.
  * TODO(Farhan): purchase orders, receipts, supplier bills (roadmap 5.7).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
  */
 export class PurchaseManager {
-  constructor(readonly query: PurchaseQuery) {}
+  constructor(protected readonly query: IPurchaseQuery) {}
 }

@@ -1,10 +1,8 @@
-import type { DbClient } from '../config/db.js';
+import { BaseQuery } from './BaseQuery.js';
 
 /**
- * Crm module, database access (dal). SQL and Prisma calls live only here. Owner: Farhan.
+ * Crm module: database access (dal). Satisfies businessLogic contracts/ICrmQuery. Owner: Farhan.
  * TODO(Farhan): leads, pipeline, campaigns, messaging (roadmap 5.11).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
  */
-export class CrmQuery {
-  constructor(readonly db: DbClient) {}
-}
+export class CrmQuery extends BaseQuery {}

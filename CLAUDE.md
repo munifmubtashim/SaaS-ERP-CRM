@@ -119,17 +119,18 @@ The **Health** slice is the pattern to copy: `HealthRoutes → HealthController 
 
 ## Naming pattern
 
-| What       | File                                                                          | Export                                                   |
-| ---------- | ----------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Routes     | `api/routes/<Module>Routes.ts`                                                | `<module>Routes(controller): ModuleRoutes`               |
-| Controller | `api/controllers/<Module>Controller.ts`                                       | `class <Module>Controller`                               |
-| Manager    | `businessLogic/src/<Module>Manager.ts`                                        | `class <Module>Manager`                                  |
-| Query      | `dal/query/<Module>Query.ts`                                                  | `class <Module>Query`                                    |
-| DTO        | `dal/dto/<Module>DTO.ts`                                                      | `type <Module>DTO` (extends `BaseDTO` for business rows) |
-| Types      | `shared/src/types/<module>.types.ts`                                          | `type <Module>`                                          |
-| Schema     | `shared/src/schemas/<module>.schema.ts`                                       | `const <module>Schema` (Zod)                             |
-| Prisma     | `dal/prisma/schema/<module>.prisma`                                           | models for that module only                              |
-| Frontend   | `frontend/src/features/<module>/`, `frontend/src/services/<module>Service.ts` | `<module>Service`                                        |
+| What       | File                                                                                             | Export                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Routes     | `api/routes/<Module>Routes.ts`                                                                   | `<module>Routes(controller): ModuleRoutes`                  |
+| Controller | `api/controllers/<Module>Controller.ts`                                                          | `class <Module>Controller`                                  |
+| Manager    | `businessLogic/src/<Module>Manager.ts`                                                           | `class <Module>Manager`                                     |
+| Query      | `dal/query/<Module>Query.ts`                                                                     | `class <Module>Query extends BaseQuery`                     |
+| Contracts  | `businessLogic/src/contracts/I<Module>Query.ts`, `api/controllers/contracts/I<Module>Manager.ts` | `interface I<Module>Query`, `interface I<Module>Manager`    |
+| DTO        | `dal/dto/<Module>DTO.ts`                                                                         | `class <Module>DTO extends BaseDTO` with `static fromRow()` |
+| Types      | `shared/src/types/<module>.types.ts`                                                             | `type <Module>`                                             |
+| Schema     | `shared/src/schemas/<module>.schema.ts`                                                          | `const <module>Schema` (Zod)                                |
+| Prisma     | `dal/prisma/schema/<module>.prisma`                                                              | models for that module only                                 |
+| Frontend   | `frontend/src/features/<module>/`, `frontend/src/services/<module>Service.ts`                    | `class <Module>Service implements I<Module>Service`         |
 
 Modules and owners (`.github/CODEOWNERS`): **Munif**: Auth, Organization, Product, Inventory, Accounting, Vehicle,
 Report. **Farhan**: Party, Sales, Purchase, Service, Crm. Each has a stub in every layer with a `TODO(owner)`.
@@ -138,6 +139,22 @@ these rules) needs both reviewers and changes in **small separate PRs, merged fi
 
 Every module router is mounted from `api/routes/index.ts` with `scope: 'public' | 'tenant'`. A tenant route
 without a case in `api/test/isolation/cases.ts` fails CI; a public route must be on `PUBLIC_ROUTES`.
+
+## Code standards: classes, SOLID, DRY (ADR 0004; example: the Health slice)
+
+- One class per layer per module: `<Module>Controller`, `<Module>Manager`, `<Module>Query`; Routes files only build a router and bind controller methods.
+- Dependencies arrive through the constructor, typed as interfaces; never `new` a dependency inside a class.
+- Construct Queries and Managers only in `createManagers`, Controllers only in `createControllers`, frontend services only in `createServices` (lint-enforced).
+- The consuming layer owns the contract: `businessLogic/src/contracts/I<Module>Query.ts`, `api/controllers/contracts/I<Module>Manager.ts`; the lower layer satisfies it without importing it.
+- Base classes only for code two or more modules share: `BaseController`, `BaseQuery`, `BaseDTO` today; no `BaseManager` until two Managers share code.
+- DTOs are classes with static mapping methods (`fromRow`); no Prisma type leaves dal.
+- Single responsibility: Controller = HTTP, Manager = rules, Query = database; a class described with "and" gets split.
+- Open/closed: add variation (payment methods, posting rules, packs) as a new class behind an interface, not a new `switch` branch.
+- Liskov: a subclass works wherever its base does; never override a method to throw "not supported".
+- Interface segregation: small interfaces per use; no catch-all `I<Module>Service`-style contract on the backend.
+- DRY: types are `z.infer` of the shared Zod schemas; money, dates, pagination, errors and permissions come from `shared/src/utils` only.
+- No abstraction until the same logic exists twice; similar code with different business rules stays separate.
+- Frontend: function components with hooks only; logic in custom hooks; API access in `<Module>Service` classes behind interfaces, reached via `useServices()`; shared UI in `components/ui`.
 
 ## Coding conventions (roadmap appendix C)
 

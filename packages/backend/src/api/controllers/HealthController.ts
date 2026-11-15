@@ -1,13 +1,16 @@
-import type { HealthManager } from '@erp/business-logic';
-import type { RequestHandler } from 'express';
+import type { Request, Response } from 'express';
+import { BaseController } from './BaseController.js';
+import type { IHealthManager } from './contracts/IHealthManager.js';
 
-/** Example Controller: HTTP only. It calls HealthManager and maps the result to a status code. */
-export class HealthController {
-  constructor(private readonly manager: Pick<HealthManager, 'getHealth'>) {}
+/** Reference Controller: HTTP in and out only. Depends on IHealthManager, never on the class. */
+export class HealthController extends BaseController {
+  constructor(private readonly manager: IHealthManager) {
+    super();
+  }
 
   /** GET /health: 200 when everything answers, 503 when the database is down (uptime checks alert). */
-  get: RequestHandler = async (_req, res) => {
+  async get(_req: Request, res: Response): Promise<void> {
     const health = await this.manager.getHealth();
-    res.status(health.status === 'ok' ? 200 : 503).json(health);
-  };
+    this.sendJson(res, health.status === 'ok' ? 200 : 503, health);
+  }
 }
