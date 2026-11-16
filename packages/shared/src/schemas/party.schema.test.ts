@@ -75,6 +75,11 @@ describe('partyListQuerySchema', () => {
     expect(partyListQuerySchema.safeParse({ limit: '101' }).success).toBe(false);
   });
 
+  it('refuses a cursor longer than 512 characters before it reaches a Query', () => {
+    expect(partyListQuerySchema.safeParse({ cursor: 'a'.repeat(512) }).success).toBe(true);
+    expect(partyListQuerySchema.safeParse({ cursor: 'a'.repeat(513) }).success).toBe(false);
+  });
+
   it('trims the search text and treats blank as no search', () => {
     expect(partyListQuerySchema.parse({ search: '  one ' }).search).toBe('one');
     expect(partyListQuerySchema.parse({ search: '   ' }).search).toBeUndefined();

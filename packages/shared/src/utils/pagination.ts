@@ -6,9 +6,11 @@ import { z } from 'zod';
  */
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
+/** Refuses an oversized query string at parsing, before it reaches a Query. */
+export const MAX_CURSOR_LENGTH = 512;
 
 export const pageQuerySchema = z.object({
-  cursor: z.string().min(1).optional(),
+  cursor: z.string().min(1).max(MAX_CURSOR_LENGTH).optional(),
   /** Query strings arrive as text, so the number is coerced. */
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
 });
