@@ -104,7 +104,12 @@ each query pays for setting the scope again.
 - **One connection per request, held for the whole request.** This caps concurrent tenant requests at the
   pool size, per api process. A request that finds no free connection waits up to `maxWait`, then fails
   with 503. Slow work (large exports, PDFs, imports, external calls) must not run inside a tenant request.
-  It goes to background jobs, which take their own short scopes.
+  It goes to background jobs, which take their own short scopes. Named job candidates: party merge with a
+  long history, large imports, opening balances, purchase receipts with many lines or serial numbers, and
+  bulk work.
+  - **Until the worker exists** (deferred, ADR 0003), these stay inside the request with a cap on their
+    size, set when each is built and checked against the Phase 2 measurements. A request over the cap is
+    refused with a clear error, not queued. Each moves to a job when the worker lands.
 - **Time limits: PostgreSQL first, Prisma second.** All values are **provisional; measure in Phase 2**.
   - **Primary, set on the `erp_app` role:** `statement_timeout = 5s` and
     `idle_in_transaction_session_timeout = 15s`. A route that needs a different limit (for example a
@@ -129,7 +134,8 @@ each query pays for setting the scope again.
 - **Writes that must survive a failed request** (an audit record of a denied action, a failed-login
   counter) cannot use the request transaction, because it rolls back. They need a separate, explicit path:
   a second short scoped transaction opened after the rollback. It is used only for audit and security
-  records, and lint flags it outside them.
+  records, and lint flags it outside them. It opens after the request transaction has ended, so it is not
+  a nested scope. Revisit once the worker exists.
 - **The mechanism is implicit.** A reader of a Query cannot see where its transaction comes from, so
   CLAUDE.md and `BaseQuery` must say it in plain words. Code outside a scope fails loudly instead of
   working by accident.
@@ -172,11 +178,13 @@ statement_timeout` and `SET idle_in_transaction_session_timeout`.
   - Code standards: "Controllers return `{status, body}`; the route wrapper sends it after the commit".
   - Never do: "no slow work (exports, PDFs, external calls) inside a tenant request".
 
-## Open questions for Farhan
+## Answers (Farhan, 2026-11-16, on PR #3)
 
-1. Is 10 s enough for your heaviest Sales or Purchase write (an invoice with many lines)? If not, which one
-   should move to a job?
-2. Audit of denied actions: a second short transaction after the rollback (proposed), or written by the
-   worker from a log event?
-3. Do you agree that Controllers return `{status, body}` instead of writing the response, across all your
-   modules?
+1. **Time limit.** 10 s is enough for normal saves (invoices, parties, payments). Party merge with a long
+   history, large imports, opening balances, purchase receipts with many lines or serial numbers, and bulk
+   work should run as jobs. Until the worker exists they stay in the request with a size cap (see
+   Consequences).
+2. **Denied-action audit.** A second short transaction after the rollback: a denied action is a security
+   record and must not be lost, and the worker does not exist yet. Revisit once it does.
+3. **Controllers return `{status, body}`.** Agreed for all modules: the response goes out only after the
+   commit.
