@@ -191,5 +191,24 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // ADR 0005: only AuthQuery and HealthQuery run without a tenant scope. Every other Query extends BaseQuery.
+    files: ['packages/backend/src/dal/**/*.ts'],
+    ignores: ['**/dal/query/AuthQuery.ts', '**/dal/query/HealthQuery.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/UnscopedQuery', '**/UnscopedQuery.js'],
+              message:
+                'ADR 0005: only AuthQuery and HealthQuery may extend UnscopedQuery. Tenant Queries extend BaseQuery.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   { files: ['**/*.test.ts', '**/test/**'], rules: { 'no-restricted-syntax': 'off' } },
 );

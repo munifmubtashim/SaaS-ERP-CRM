@@ -1,14 +1,13 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { AppError } from '@erp/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
-import { PrismaClient } from '../generated/prisma/client.js';
-import { currentClient, runInTenantScope } from './support/tenantScope.spike.js';
+import { currentClient, runInTenantScope } from '../config/tenantScope.js';
+import { BaseQuery } from '../query/BaseQuery.js';
 
 /**
  * Proof test for ADR 0005 (tenant transaction scope, Option B). It builds a throwaway RLS table in its own
- * schema as the owner, runs the spike scope runner as the application role, and drops everything afterwards.
+ * schema as the owner, runs the real scope runner (config/tenantScope.ts) as the application role, and drops everything afterwards.
  * No migration, no tenant table in the real schema.
  */
 const appUrl = process.env.DATABASE_URL;
@@ -24,9 +23,7 @@ const BIZ_C = '0196f000-0000-7000-8000-0000000000c1';
 const owner = createDbClient(ownerUrl);
 const app: DbClient = createDbClient(appUrl);
 /** One connection only, so "the same pooled connection" is guaranteed, not hoped for. */
-const singleConnection: DbClient = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: appUrl, max: 1 }),
-});
+const singleConnection: DbClient = createDbClient(appUrl, { poolMax: 1 });
 
 interface NoteRow {
   business_id: string;
@@ -35,6 +32,13 @@ interface NoteRow {
 
 const readNotes = () =>
   currentClient().$queryRaw<NoteRow[]>`SELECT business_id::text, body FROM tenancy_proof.note ORDER BY body`;
+
+/** A tenant Query as modules will write them: it never receives a client, BaseQuery supplies the scoped one. */
+class NoteQuery extends BaseQuery {
+  async list(): Promise<NoteRow[]> {
+    return this.db.$queryRaw<NoteRow[]>`SELECT business_id::text, body FROM tenancy_proof.note ORDER BY body`;
+  }
+}
 
 beforeAll(async () => {
   const [role] = await app.$queryRaw<{ app_role: string }[]>`SELECT current_user AS app_role`;
@@ -150,5 +154,26 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
 
     const afterwards = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_A] }, readNotes);
     expect(afterwards.map((r) => r.body)).toEqual(['a-1', 'a-2']);
+  });
+});
+
+describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
+  it('inside the scope, a tenant Query runs on the scoped transaction', async () => {
+    const rows = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_B] }, () =>
+      new NoteQuery().list(),
+    );
+    expect(rows.map((r) => r.body)).toEqual(['b-1']);
+  });
+
+  it('outside any scope, a tenant Query throws an AppError before reaching the database', async () => {
+    await expect(new NoteQuery().list()).rejects.toThrow(AppError);
+    await expect(new NoteQuery().list()).rejects.toThrow(/tenant scope/i);
+  });
+
+  it('rejects a malformed scope before opening a transaction', async () => {
+    const smuggled = { organizationId: ORG, businessIds: [`${BIZ_A},${BIZ_B}`] };
+    await expect(runInTenantScope(app, smuggled, readNotes)).rejects.toThrow(AppError);
+    const noOrg = { organizationId: 'not-a-uuid', businessIds: [BIZ_A] };
+    await expect(runInTenantScope(app, noOrg, readNotes)).rejects.toThrow(AppError);
   });
 });
