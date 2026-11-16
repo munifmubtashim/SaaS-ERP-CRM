@@ -55,6 +55,13 @@ describe('partyListItemSchema', () => {
     expect(parsed).not.toHaveProperty('address');
     expect(parsed).toMatchObject({ id: sample.id, code: 'C-0001', phone: '+8801700000001' });
   });
+
+  it('uses the same field rules as the full party', () => {
+    const tooLongCode = { ...sample, code: 'C'.repeat(33) };
+    expect(partySchema.safeParse(tooLongCode).success).toBe(false);
+    expect(partyListItemSchema.safeParse(tooLongCode).success).toBe(false);
+    expect(partyListItemSchema.safeParse({ ...sample, phone: '01700000001' }).success).toBe(false);
+  });
 });
 
 describe('partyListQuerySchema', () => {
