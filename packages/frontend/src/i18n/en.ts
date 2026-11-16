@@ -28,6 +28,18 @@ export const en = {
   'page.notBuilt': 'This module is not built yet. It arrives in a later phase.',
   'error.title': 'Something went wrong',
   'error.home': 'Back to home',
+  'login.title': 'Sign in',
+  'login.subtitle': 'Use your phone number or email.',
+  'login.field.login': 'Phone or email',
+  'login.field.password': 'Password',
+  'login.submit': 'Sign in',
+  'login.submitting': 'Signing in…',
+  'login.error.login': 'Enter a phone number like 01XXXXXXXXX or an email address.',
+  'login.error.password': 'The password has at least 8 characters.',
+  'login.error.wrong': 'The phone, email or password is not right.',
+  'login.error.unavailable': 'Could not sign in. Try again in a moment.',
+  'shell.signedInAs': 'Signed in as',
+  'shell.signOut': 'Sign out',
 } as const;
 
 export type MessageKey = keyof typeof en;
