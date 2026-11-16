@@ -45,14 +45,18 @@ Request flow for a route with `scope: 'tenant'`:
      active business the user has chosen (spec O-04). A scope with several businesses is allowed only on
      read-only group routes (for example the owner dashboard), and that transaction runs `READ ONLY`, so
      PostgreSQL itself refuses any write in it.
+   - **Read-only is declared, never inferred.** A route is read-only only when it is wrapped with
+     `{ readOnly: true }`. It is never inferred from the HTTP method or from the number of businesses. A
+     route marked read-only always runs `READ ONLY`, even with one business. A scope with more than one
+     business is refused unless the route is marked read-only (as built in #8).
    - **Branches are always explicit.** `app.branch_ids` lists the branches the user may use. For a
      business-wide role it lists every branch of the business; an unset list never means "all branches".
    - **No empty scope.** A scope with no business, or no branch, is rejected before a connection is used,
      like a malformed id.
 2. The tenant route wrapper (api) calls the businessLogic entry point
    `runInTenantScope(req.tenant, () => controller.method(req))`. api still imports only businessLogic.
-3. businessLogic asks dal to open **one** Prisma interactive transaction. For a scope with several
-   businesses its first statement is `SET TRANSACTION READ ONLY`.
+3. businessLogic asks dal to open **one** Prisma interactive transaction. For a route marked
+   `{ readOnly: true }` its first statement is `SET TRANSACTION READ ONLY`.
 4. dal then sets the three values in one statement:
    `SELECT set_config('app.organization_id', $1, true), set_config('app.business_ids', $2, true), set_config('app.branch_ids', $3, true)`.
    `SET LOCAL` takes no bind parameters; `set_config(..., true)` is its parameterised form and ends with the
@@ -159,11 +163,14 @@ each query pays for setting the scope again.
   - an empty result reveals no other business's data;
   - an `INSERT` or `UPDATE` always checks the new row (`WITH CHECK`), so writes still raise.
 
-- **Writes that must survive a failed request** (an audit record of a denied action, a failed-login
-  counter) cannot use the request transaction, because it rolls back. They need a separate, explicit path:
-  a second short scoped transaction opened after the rollback. It is used only for audit and security
-  records, and lint flags it outside them. It opens after the request transaction has ended, so it is not
-  a nested scope. Revisit once the worker exists.
+- **Writes that must survive a failed request** (an audit record of a denied action) cannot use the
+  request transaction, because it rolls back. They need a separate, explicit path: a second short scoped
+  transaction opened after the rollback. It is used only for audit and security records, and lint flags it
+  outside them. It opens after the request transaction has ended, so it is not a nested scope. Revisit
+  once the worker exists.
+- **The failed-login counter is not one of them.** Login is a public route and runs outside any tenant
+  transaction. `AuthQuery` (an `UnscopedQuery`) writes each `login_attempt` row in its own statement,
+  committed on its own, so a failure later in the same request cannot roll it back.
 - **The mechanism is implicit.** A reader of a Query cannot see where its transaction comes from, so
   CLAUDE.md and `BaseQuery` must say it in plain words. Code outside a scope fails loudly instead of
   working by accident.
@@ -187,15 +194,17 @@ each query pays for setting the scope again.
   `app_business_ids()`, `app_branch_ids()` (all raise when unset), and the `legal_entity` table.
 - `shared/src/schemas/tenant.schema.ts`: `businessIds` needs at least one id; `branchId?` becomes
   `branchIds` (at least one).
-- `dal/config/tenantScope.ts`: set `app.branch_ids`; `SET TRANSACTION READ ONLY` when the scope has
-  several businesses; reject an empty business list (#4) and an empty branch list.
+- `dal/config/tenantScope.ts`: set `app.branch_ids`; `SET TRANSACTION READ ONLY` when the route is
+  marked `{ readOnly: true }`; refuse several businesses otherwise (#8); reject an empty business list
+  (#4) and an empty branch list.
 - `businessLogic/src/contracts/ITenantScope.ts` and `createManagers()`: expose `runInTenantScope`.
 - `api/routes/tenantRoute.ts` (new): the wrapper from steps 2, 7 and 8. Use it for every route in a
   `scope: 'tenant'` module.
 - `api/controllers/BaseController.ts`: `sendJson` becomes a helper that returns `{ status, body }`, and
   Controllers return it.
 - `api/middleware/tenantMiddleware.ts`: resolve `req.tenant` with the active business and the allowed
-  branches; remove the placeholder. Mark read-only group routes explicitly; only they get several businesses.
+  branches; remove the placeholder. Read-only group routes are marked with `{ readOnly: true }` in the
+  route wrapper; only they get several businesses.
 - `docker/postgres/init/01-app-role.sh`, CI and the production role setup: `ALTER ROLE erp_app SET
 statement_timeout` and `SET idle_in_transaction_session_timeout`.
 - `.env.example`: `DB_POOL_MAX`, `DB_TX_TIMEOUT_MS`.
