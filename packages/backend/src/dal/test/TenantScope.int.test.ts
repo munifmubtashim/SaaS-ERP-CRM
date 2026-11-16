@@ -1,29 +1,27 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { AppError } from '@erp/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createDbClient, type DbClient } from '../config/db.js';
 import { currentClient, runInTenantScope } from '../config/tenantScope.js';
 import { BaseQuery } from '../query/BaseQuery.js';
+import {
+  BIZ_A,
+  BIZ_B,
+  BIZ_C,
+  connectTestClients,
+  createScopedSchema,
+  dropSchema,
+  inScope,
+  ORG,
+  protectByBusiness,
+} from './support/tenantTestKit.js';
 
 /**
  * Proof test for ADR 0005 (tenant transaction scope, Option B). It builds a throwaway RLS table in its own
- * schema as the owner, runs the real scope runner (config/tenantScope.ts) as the application role, and drops everything afterwards.
- * No migration, no tenant table in the real schema.
+ * schema as the owner (support/tenantTestKit.ts), runs the real scope runner (config/tenantScope.ts) as the
+ * application role, and drops everything afterwards. No migration, no tenant table in the real schema.
  */
-const appUrl = process.env.DATABASE_URL;
-const ownerUrl = process.env.MIGRATION_DATABASE_URL;
-if (!appUrl || !ownerUrl)
-  throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must be set (see .env.example).');
-
-const ORG = '0196f000-0000-7000-8000-00000000000a';
-const BIZ_A = '0196f000-0000-7000-8000-0000000000a1';
-const BIZ_B = '0196f000-0000-7000-8000-0000000000b1';
-const BIZ_C = '0196f000-0000-7000-8000-0000000000c1';
-
-const owner = createDbClient(ownerUrl);
-const app: DbClient = createDbClient(appUrl);
-/** One connection only, so "the same pooled connection" is guaranteed, not hoped for. */
-const singleConnection: DbClient = createDbClient(appUrl, { poolMax: 1 });
+const clients = connectTestClients();
+const { owner, app, singleConnection } = clients;
 
 interface NoteRow {
   business_id: string;
@@ -41,41 +39,28 @@ class NoteQuery extends BaseQuery {
 }
 
 beforeAll(async () => {
-  const [role] = await app.$queryRaw<{ app_role: string }[]>`SELECT current_user AS app_role`;
-  if (!role) throw new Error('could not read the application role');
-  const app_role = role.app_role;
+  await createScopedSchema(clients, 'tenancy_proof');
   const ddl = [
-    'DROP SCHEMA IF EXISTS tenancy_proof CASCADE',
-    'CREATE SCHEMA tenancy_proof',
-    `GRANT USAGE ON SCHEMA tenancy_proof TO "${app_role}"`,
-    // Fails loudly when the scope is missing: an unset value must never mean "all rows" or "no rows".
-    `CREATE FUNCTION tenancy_proof.allowed_business_ids() RETURNS uuid[] LANGUAGE plpgsql STABLE AS $$
-       DECLARE v text := current_setting('app.business_ids', true);
-       BEGIN
-         IF v IS NULL OR v = '' THEN
-           RAISE EXCEPTION 'tenant scope not set' USING ERRCODE = 'insufficient_privilege';
-         END IF;
-         RETURN string_to_array(v, ',')::uuid[];
-       END $$`,
     `CREATE TABLE tenancy_proof.note (
        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
        business_id uuid NOT NULL,
        body text NOT NULL)`,
     `INSERT INTO tenancy_proof.note (business_id, body) VALUES
        ('${BIZ_A}', 'a-1'), ('${BIZ_A}', 'a-2'), ('${BIZ_B}', 'b-1'), ('${BIZ_C}', 'c-1')`,
-    'ALTER TABLE tenancy_proof.note ENABLE ROW LEVEL SECURITY',
-    'ALTER TABLE tenancy_proof.note FORCE ROW LEVEL SECURITY',
-    `CREATE POLICY note_business ON tenancy_proof.note
-       USING (business_id = ANY (tenancy_proof.allowed_business_ids()))
-       WITH CHECK (business_id = ANY (tenancy_proof.allowed_business_ids()))`,
-    `GRANT SELECT, INSERT, UPDATE, DELETE ON tenancy_proof.note TO "${app_role}"`,
+    // Stands in for a deferred check such as the balanced-journal trigger: it fails only at COMMIT.
+    `CREATE FUNCTION tenancy_proof.refuse_at_commit() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN RAISE EXCEPTION 'refused at commit'; END $$`,
+    `CREATE CONSTRAINT TRIGGER note_refuse_at_commit AFTER INSERT ON tenancy_proof.note
+       DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.body = 'fail-at-commit')
+       EXECUTE FUNCTION tenancy_proof.refuse_at_commit()`,
   ];
   for (const statement of ddl) await owner.$executeRawUnsafe(statement);
+  await protectByBusiness(clients, 'tenancy_proof.note');
 });
 
 afterAll(async () => {
-  await owner.$executeRawUnsafe('DROP SCHEMA IF EXISTS tenancy_proof CASCADE');
-  await Promise.all([owner.$disconnect(), app.$disconnect(), singleConnection.$disconnect()]);
+  await dropSchema(clients, 'tenancy_proof');
+  await clients.disconnect();
 });
 
 describe('tenant transaction scope (ADR 0005 proof)', () => {
@@ -83,10 +68,12 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
     const onlyA = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_A] }, readNotes);
     expect(onlyA.map((r) => r.body)).toEqual(['a-1', 'a-2']);
 
+    // Several businesses: read-only group routes only (ADR 0005, Q2).
     const aAndB = await runInTenantScope(
       app,
       { organizationId: ORG, businessIds: [BIZ_A, BIZ_B] },
       readNotes,
+      { readOnly: true },
     );
     expect(aAndB.map((r) => r.body)).toEqual(['a-1', 'a-2', 'b-1']);
   });
@@ -195,5 +182,47 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
         runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
       ),
     ).rejects.toThrow(/nested/i);
+  });
+});
+
+describe('one active business for writes; several only read-only (ADR 0005 Q2)', () => {
+  it('rejects a scope with several businesses unless it is read-only', async () => {
+    const both = inScope(app, [BIZ_A, BIZ_B], readNotes);
+    await expect(both).rejects.toThrow(AppError);
+    await expect(both).rejects.toThrow(/read-only/i);
+  });
+
+  it('a read-only scope over several businesses reads them all', async () => {
+    const rows = await inScope(app, [BIZ_A, BIZ_B], readNotes, { readOnly: true });
+    expect(rows.map((r) => r.body)).toEqual(['a-1', 'a-2', 'b-1']);
+  });
+
+  it('PostgreSQL refuses a write inside a read-only scope', async () => {
+    const write = inScope(
+      app,
+      [BIZ_A],
+      () => currentClient().$executeRaw`
+        INSERT INTO tenancy_proof.note (business_id, body) VALUES (${BIZ_A}::uuid, 'read-only-write')`,
+      { readOnly: true },
+    );
+    await expect(write).rejects.toThrow(/read-only transaction/);
+    const rows = await inScope(app, [BIZ_A], readNotes);
+    expect(rows.map((r) => r.body)).toEqual(['a-1', 'a-2']);
+  });
+});
+
+describe('a failed commit is a failure (ADR 0005 step 8)', () => {
+  it('rejects when the commit fails, even though fn resolved, and keeps no write', async () => {
+    let fnResolved = false;
+    const run = inScope(app, [BIZ_A], async () => {
+      await currentClient().$executeRaw`
+        INSERT INTO tenancy_proof.note (business_id, body) VALUES (${BIZ_A}::uuid, 'fail-at-commit')`;
+      fnResolved = true;
+      return 'handler result';
+    });
+    await expect(run).rejects.toThrow(/refused at commit/);
+    expect(fnResolved).toBe(true);
+    const rows = await inScope(app, [BIZ_A], readNotes);
+    expect(rows.map((r) => r.body)).toEqual(['a-1', 'a-2']);
   });
 });

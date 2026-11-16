@@ -15,6 +15,14 @@ const storage = new AsyncLocalStorage<TxClient>();
 /** Provisional (ADR 0005, measured in Phase 2). The database role timeouts are the primary limit. */
 const TX_OPTIONS = { maxWait: 2_000, timeout: 10_000 } as const;
 
+export interface TenantScopeOptions {
+  /**
+   * The transaction runs READ ONLY, so PostgreSQL refuses any write in it. Required for a scope with several
+   * businesses: every write runs with exactly one active business (ADR 0005, Q2).
+   */
+  readOnly?: boolean;
+}
+
 /**
  * Opens one transaction, sets the tenant values with bound parameters, and runs fn with the transaction
  * available through currentClient(). Commits when fn resolves, rolls back when it throws. A malformed
@@ -22,7 +30,12 @@ const TX_OPTIONS = { maxWait: 2_000, timeout: 10_000 } as const;
  * Nesting is forbidden: an inner call would open a second transaction on another connection, outside
  * the outer one's commit or rollback.
  */
-export function runInTenantScope<T>(db: DbClient, scope: TenantScope, fn: () => Promise<T>): Promise<T> {
+export function runInTenantScope<T>(
+  db: DbClient,
+  scope: TenantScope,
+  fn: () => Promise<T>,
+  { readOnly = false }: TenantScopeOptions = {},
+): Promise<T> {
   if (storage.getStore()) {
     return Promise.reject(
       new AppError('INTERNAL_ERROR', 'Nested tenant scope: already inside runInTenantScope.'),
@@ -33,13 +46,29 @@ export function runInTenantScope<T>(db: DbClient, scope: TenantScope, fn: () => 
     return Promise.reject(new AppError('INTERNAL_ERROR', 'Invalid tenant scope: ids must be UUIDs.'));
   }
   const { organizationId, businessIds } = parsed.data;
+  if (businessIds.length > 1 && !readOnly) {
+    return Promise.reject(
+      new AppError('INTERNAL_ERROR', 'A scope with several businesses is allowed only on read-only routes.'),
+    );
+  }
   return db.$transaction(async (tx) => {
+    // Must come before any other statement in the transaction.
+    if (readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
     // set_config(name, value, is_local = true) is SET LOCAL with bind parameters (SET LOCAL takes none).
     await tx.$queryRaw`
       SELECT set_config('app.organization_id', ${organizationId}, true),
              set_config('app.business_ids', ${businessIds.join(',')}, true)`;
     return storage.run(tx, fn);
   }, TX_OPTIONS);
+}
+
+/** runInTenantScope bound to one client, so businessLogic can hand it to the api as an interface. */
+export class TenantScopeRunner {
+  constructor(private readonly db: DbClient) {}
+
+  run<T>(scope: TenantScope, fn: () => Promise<T>, options?: TenantScopeOptions): Promise<T> {
+    return runInTenantScope(this.db, scope, fn, options);
+  }
 }
 
 /** The scoped transaction. Outside a scope it throws instead of falling back to the shared client. */
