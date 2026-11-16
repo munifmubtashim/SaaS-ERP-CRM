@@ -19,8 +19,15 @@ const TX_OPTIONS = { maxWait: 2_000, timeout: 10_000 } as const;
  * Opens one transaction, sets the tenant values with bound parameters, and runs fn with the transaction
  * available through currentClient(). Commits when fn resolves, rolls back when it throws. A malformed
  * scope is rejected before any connection is used: an id containing a comma could add a business.
+ * Nesting is forbidden: an inner call would open a second transaction on another connection, outside
+ * the outer one's commit or rollback.
  */
 export function runInTenantScope<T>(db: DbClient, scope: TenantScope, fn: () => Promise<T>): Promise<T> {
+  if (storage.getStore()) {
+    return Promise.reject(
+      new AppError('INTERNAL_ERROR', 'Nested tenant scope: already inside runInTenantScope.'),
+    );
+  }
   const parsed = tenantScopeSchema.safeParse(scope);
   if (!parsed.success) {
     return Promise.reject(new AppError('INTERNAL_ERROR', 'Invalid tenant scope: ids must be UUIDs.'));

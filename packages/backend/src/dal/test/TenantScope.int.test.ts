@@ -176,4 +176,17 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
     const noOrg = { organizationId: 'not-a-uuid', businessIds: [BIZ_A] };
     await expect(runInTenantScope(app, noOrg, readNotes)).rejects.toThrow(AppError);
   });
+
+  it('a nested scope is forbidden: it throws an AppError instead of opening a second transaction', async () => {
+    // One connection: a second transaction could only wait for it, so a quick AppError proves none was opened.
+    const nested = runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_A] }, () =>
+      runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
+    );
+    await expect(nested).rejects.toThrow(AppError);
+    await expect(
+      runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_A] }, () =>
+        runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
+      ),
+    ).rejects.toThrow(/nested/i);
+  });
 });
