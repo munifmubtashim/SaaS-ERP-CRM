@@ -100,6 +100,14 @@ is produced by a background job, stored in object storage (MinIO), and handed ba
 short-lived download URL. The download itself never runs inside a tenant transaction. If a route ever has
 to stream or redirect, the `{ status, body }` result gets a new variant in its own ADR.
 
+**Until the worker exists** (deferred, ADR 0003):
+
+- **Invoices and receipts print from the browser** with a print stylesheet. There is no server-side PDF.
+- **Small exports are CSV** from a read-only tenant route, capped at **5,000 rows**. Above the cap the
+  route returns a clear error that names the cap and sends no partial file. The CSV text goes out
+  through `{ status, body }` with a CSV content type, added when the first export route is built.
+- **Large exports and the Mushak 6.3 PDF wait for the worker.** They are not built inside a request.
+
 **Proof:** `packages/backend/src/dal/test/TenantScope.int.test.ts` runs against a throwaway RLS table in
 its own schema with a spike runner (`test/support/tenantScope.spike.ts`). It shows:
 
