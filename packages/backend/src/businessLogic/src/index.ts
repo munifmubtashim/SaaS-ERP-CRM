@@ -99,17 +99,17 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(new AuthQuery(db)),
-    organization: new OrganizationManager(new OrganizationQuery(db)),
-    product: new ProductManager(new ProductQuery(db)),
-    inventory: new InventoryManager(new InventoryQuery(db)),
-    accounting: new AccountingManager(new AccountingQuery(db)),
-    vehicle: new VehicleManager(new VehicleQuery(db)),
-    report: new ReportManager(new ReportQuery(db)),
-    party: new PartyManager(new PartyQuery(db)),
-    sales: new SalesManager(new SalesQuery(db)),
-    purchase: new PurchaseManager(new PurchaseQuery(db)),
-    service: new ServiceManager(new ServiceQuery(db)),
-    crm: new CrmManager(new CrmQuery(db)),
+    organization: new OrganizationManager(new OrganizationQuery()),
+    product: new ProductManager(new ProductQuery()),
+    inventory: new InventoryManager(new InventoryQuery()),
+    accounting: new AccountingManager(new AccountingQuery()),
+    vehicle: new VehicleManager(new VehicleQuery()),
+    report: new ReportManager(new ReportQuery()),
+    party: new PartyManager(new PartyQuery()),
+    sales: new SalesManager(new SalesQuery()),
+    purchase: new PurchaseManager(new PurchaseQuery()),
+    service: new ServiceManager(new ServiceQuery()),
+    crm: new CrmManager(new CrmQuery()),
   };
   return { managers, close: () => db.$disconnect() };
 }
