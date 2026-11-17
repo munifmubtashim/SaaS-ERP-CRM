@@ -5,9 +5,13 @@
 -- only through these functions, which RAISE when a value is missing or empty: an unscoped query must error,
 -- never return every row and never quietly return none.
 --
--- Use in a policy:
---   business_id = ANY (app_business_ids())
---   AND branch_id = ANY (app_branch_ids())   -- branch-scoped tables only
+-- Use in a policy, each call wrapped in its own SELECT:
+--   business_id = ANY ((SELECT app_business_ids()))
+--   AND branch_id = ANY ((SELECT app_branch_ids()))   -- branch-scoped tables only
+-- Wrapped in SELECT, PostgreSQL runs the function once per query (an InitPlan), not once per row.
+--
+-- Changing a function: add a new migration with CREATE OR REPLACE FUNCTION, and make the same edit here.
+-- RlsSqlSource.int.test.ts fails when this file and the migrations define different functions.
 --
 -- Not SECURITY DEFINER: they run as the caller and read only the caller's own transaction settings.
 -- search_path is fixed so a schema created by someone else cannot shadow current_setting.
