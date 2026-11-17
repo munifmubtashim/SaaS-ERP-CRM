@@ -79,6 +79,23 @@ jobs:
         run: npm run test:integration
       - name: Tenant-isolation suite
         run: npm run test:isolation
+      # A bundle can build and still crash on start (#17), so start the built API and ask /health.
+      - name: Start the built API and check /health
+        env:
+          API_PORT: '3100'
+        run: |
+          npm run build -w @erp/api
+          node packages/backend/src/api/dist/server.js > api-start.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:${API_PORT}/health"; then echo; kill "$pid"; exit 0; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          echo "The built API did not answer /health:"
+          cat api-start.log
+          kill "$pid" 2>/dev/null
+          exit 1
 
   build:
     runs-on: ubuntu-latest
