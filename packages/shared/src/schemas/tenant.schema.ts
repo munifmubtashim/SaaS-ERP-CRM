@@ -12,7 +12,10 @@ export const authContextSchema = z.object({
 
 export const tenantScopeSchema = z.object({
   organizationId: z.uuid(),
-  /** Businesses this request may read or write. Becomes SET LOCAL app.business_ids. */
-  businessIds: z.array(z.uuid()),
+  /**
+   * Businesses this request may read or write. Becomes SET LOCAL app.business_ids. At least one: an empty
+   * list would set an empty value that only the database guard catches, later (ADR 0005).
+   */
+  businessIds: z.array(z.uuid()).min(1),
   branchId: z.uuid().optional(),
 });

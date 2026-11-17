@@ -9,7 +9,12 @@ import { silentLogger } from '../helpers.js';
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl)
   throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
-const { managers, close } = createManagers({ databaseUrl, version: 'integration' });
+const { managers, close } = createManagers({
+  databaseUrl,
+  version: 'integration',
+  dbPoolMax: 10,
+  dbTxTimeoutMs: 10_000,
+});
 
 afterAll(async () => {
   await close();

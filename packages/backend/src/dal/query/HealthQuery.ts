@@ -1,8 +1,8 @@
 import { HealthDTO } from '../dto/HealthDTO.js';
-import { BaseQuery } from './BaseQuery.js';
+import { UnscopedQuery } from './UnscopedQuery.js';
 
 /** Reference Query: database access only, returns a DTO. Satisfies businessLogic's IHealthQuery. */
-export class HealthQuery extends BaseQuery {
+export class HealthQuery extends UnscopedQuery {
   /** Runs SELECT 1. Never throws: a failure is reported as databaseOk = false. */
   async ping(): Promise<HealthDTO> {
     const started = performance.now();

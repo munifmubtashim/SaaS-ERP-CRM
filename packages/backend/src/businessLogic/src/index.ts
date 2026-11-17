@@ -81,6 +81,9 @@ export interface ManagerConfig {
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
   version: string;
+  /** Pool size and transaction timeout (ADR 0005); the defaults live in the api's env.ts. */
+  dbPoolMax: number;
+  dbTxTimeoutMs: number;
 }
 
 /**
@@ -89,21 +92,24 @@ export interface ManagerConfig {
  * here that dal satisfies the contracts businessLogic owns, without dal importing businessLogic.
  */
 export function createManagers(config: ManagerConfig): { managers: Managers; close: () => Promise<void> } {
-  const db = createDbClient(config.databaseUrl);
+  const db = createDbClient(config.databaseUrl, {
+    poolMax: config.dbPoolMax,
+    txTimeoutMs: config.dbTxTimeoutMs,
+  });
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(new AuthQuery(db)),
-    organization: new OrganizationManager(new OrganizationQuery(db)),
-    product: new ProductManager(new ProductQuery(db)),
-    inventory: new InventoryManager(new InventoryQuery(db)),
-    accounting: new AccountingManager(new AccountingQuery(db)),
-    vehicle: new VehicleManager(new VehicleQuery(db)),
-    report: new ReportManager(new ReportQuery(db)),
-    party: new PartyManager(new PartyQuery(db)),
-    sales: new SalesManager(new SalesQuery(db)),
-    purchase: new PurchaseManager(new PurchaseQuery(db)),
-    service: new ServiceManager(new ServiceQuery(db)),
-    crm: new CrmManager(new CrmQuery(db)),
+    organization: new OrganizationManager(new OrganizationQuery()),
+    product: new ProductManager(new ProductQuery()),
+    inventory: new InventoryManager(new InventoryQuery()),
+    accounting: new AccountingManager(new AccountingQuery()),
+    vehicle: new VehicleManager(new VehicleQuery()),
+    report: new ReportManager(new ReportQuery()),
+    party: new PartyManager(new PartyQuery()),
+    sales: new SalesManager(new SalesQuery()),
+    purchase: new PurchaseManager(new PurchaseQuery()),
+    service: new ServiceManager(new ServiceQuery()),
+    crm: new CrmManager(new CrmQuery()),
   };
   return { managers, close: () => db.$disconnect() };
 }
