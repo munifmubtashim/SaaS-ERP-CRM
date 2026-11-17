@@ -51,7 +51,8 @@ describe('STATIC_DIR: one container serves the built frontend and the API', () =
   });
 
   it('an unknown API path stays a JSON 404, never index.html', async () => {
-    for (const path of ['/api/v1/nothing', '/v1/nothing']) {
+    // Any path that started with /api is API, also outside /v1 (Farhan, #17): /api/customers is no page.
+    for (const path of ['/api/v1/nothing', '/v1/nothing', '/api/customers', '/api', '/api/health/nothing']) {
       const res = await request(withStatic()).get(path).set('Accept', 'text/html');
       expect(res.status).toBe(404);
       expect(apiErrorSchema.parse(res.body).code).toBe('NOT_FOUND');

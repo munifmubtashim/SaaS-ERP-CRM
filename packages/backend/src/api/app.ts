@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { ApiManagers } from './controllers/contracts/index.js';
-import express, { type Express } from 'express';
+import express, { type Express, type Request } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from './config/logger.js';
@@ -10,6 +10,10 @@ import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddlewar
 import { requestIdFor } from './middleware/requestId.js';
 import { tenantMiddleware } from './middleware/tenantMiddleware.js';
 import { buildRoutes } from './routes/index.js';
+
+/** /api/..., /v1/... and /health/... as the client sent them: the API, never a page of the frontend. */
+const API_PATH = /^\/(?:api|v1|health)(?:\/|$)/;
+const isApiPath = (req: Request): boolean => API_PATH.test(req.originalUrl.split('?')[0] ?? '');
 
 export interface AppDeps {
   logger: Logger;
@@ -58,11 +62,13 @@ export function createApp(deps: AppDeps): Express {
 
   if (deps.staticDir) {
     const indexHtml = join(deps.staticDir, 'index.html');
-    app.use(express.static(deps.staticDir, { index: 'index.html' }));
-    // A page route of the app (a reload on /customers/42) gets index.html; API paths stay JSON 404s.
+    const serveStatic = express.static(deps.staticDir, { index: 'index.html' });
+    // API paths (judged on the URL as the client sent it, before /api was stripped) never get a file or
+    // index.html: they stay JSON 404s.
+    app.use((req, res, next) => (isApiPath(req) ? next() : serveStatic(req, res, next)));
+    // A page route of the app (a reload on /customers/42) gets index.html.
     app.use((req, res, next) => {
-      const isApi = req.path.startsWith('/v1/') || req.path === '/v1' || req.path === '/health';
-      if (req.method === 'GET' && !isApi && req.accepts('html')) {
+      if (req.method === 'GET' && !isApiPath(req) && req.accepts('html')) {
         res.sendFile(indexHtml);
         return;
       }
