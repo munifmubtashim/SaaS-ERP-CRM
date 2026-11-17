@@ -2,8 +2,8 @@
 
 | Field               | Value                                                                                          |
 | ------------------- | ---------------------------------------------------------------------------------------------- |
-| Status              | **Proposed**                                                                                   |
-| Date                | 2026-11-15                                                                                     |
+| Status              | **Accepted** (17 Nov 2026, Munif and Farhan, PR #3)                                            |
+| Date                | 2026-11-17 (accepted); proposed 2026-11-15                                                     |
 | Deciders            | Munif, Farhan                                                                                  |
 | Spec / roadmap refs | roadmap 4.2 (tenancy), 4.3 rule 4 (one transaction per posting); ADR 0001 row 1 (legal entity) |
 
@@ -260,3 +260,10 @@ Answered later (settle before the task named):
   the first report route (M6).
 - **Q10, Prisma 8:** stay on Prisma 7 until PostgreSQL 17 (`transaction_timeout`) is available; then only
   PostgreSQL limits remain. Before any Prisma major upgrade.
+
+Open, to settle before (Farhan, on PR #3):
+
+1. **Where the active business comes from** (a request header or the session). Before M2, #12 (the
+   business switcher) and F1b.
+2. **Two requests with the same Idempotency-Key at once:** the second waits on the first's key row, up to
+   the 5 s statement limit. Before F3.
