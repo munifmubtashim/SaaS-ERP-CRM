@@ -11,7 +11,7 @@ import { createDbClient } from '../config/db.js';
 const appUrl = process.env.DATABASE_URL;
 if (!appUrl) throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
 
-const app = createDbClient(appUrl);
+const app = createDbClient(appUrl, { poolMax: 10, txTimeoutMs: 10_000 });
 /** One connection and a 300 ms transaction limit, so both settings are observable. */
 const limited = createDbClient(appUrl, { poolMax: 1, txTimeoutMs: 300 });
 

@@ -81,9 +81,9 @@ export interface ManagerConfig {
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
   version: string;
-  /** Pool size and transaction timeout (ADR 0005); createDbClient's defaults when omitted. */
-  dbPoolMax?: number;
-  dbTxTimeoutMs?: number;
+  /** Pool size and transaction timeout (ADR 0005); the defaults live in the api's env.ts. */
+  dbPoolMax: number;
+  dbTxTimeoutMs: number;
 }
 
 /**
