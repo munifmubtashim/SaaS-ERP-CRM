@@ -1,3 +1,4 @@
+import { isAbsolute, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadEnv } from '../../config/env.js';
 
@@ -33,5 +34,11 @@ describe('loadEnv: STATIC_DIR', () => {
 
   it('reads the built frontend folder for the production image', () => {
     expect(loadEnv({ ...base, STATIC_DIR: '/app/public' }).STATIC_DIR).toBe('/app/public');
+  });
+
+  it('resolves a relative folder to an absolute path, as res.sendFile requires (Farhan, #17)', () => {
+    const dir = loadEnv({ ...base, STATIC_DIR: './public' }).STATIC_DIR;
+    expect(dir).toBe(resolve('./public'));
+    expect(isAbsolute(dir ?? '')).toBe(true);
   });
 });
