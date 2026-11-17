@@ -16,7 +16,7 @@
 -- Not SECURITY DEFINER: they run as the caller and read only the caller's own transaction settings.
 -- search_path is fixed so a schema created by someone else cannot shadow current_setting.
 
-CREATE FUNCTION app_organization_id() RETURNS uuid
+CREATE FUNCTION public.app_organization_id() RETURNS uuid
   LANGUAGE plpgsql STABLE
   SET search_path = pg_catalog
 AS $$
@@ -30,7 +30,7 @@ BEGIN
 END
 $$;
 
-CREATE FUNCTION app_business_ids() RETURNS uuid[]
+CREATE FUNCTION public.app_business_ids() RETURNS uuid[]
   LANGUAGE plpgsql STABLE
   SET search_path = pg_catalog
 AS $$
@@ -44,7 +44,7 @@ BEGIN
 END
 $$;
 
-CREATE FUNCTION app_branch_ids() RETURNS uuid[]
+CREATE FUNCTION public.app_branch_ids() RETURNS uuid[]
   LANGUAGE plpgsql STABLE
   SET search_path = pg_catalog
 AS $$

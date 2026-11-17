@@ -55,6 +55,14 @@ describe('dal/sql/rls/tenancy.sql matches the migrations', () => {
     expect(migratedAppFunctions).toEqual([...source.keys()].sort());
   });
 
+  it.each([...source.keys()])(
+    "%s is created as public.<name>, independent of the migration role's search_path",
+    (name) => {
+      expect(source.get(name)).toMatch(new RegExp(`^CREATE FUNCTION public\\.${name}\\(`));
+      expect(migrated.get(name)).toMatch(new RegExp(`^CREATE FUNCTION public\\.${name}\\(`));
+    },
+  );
+
   it.each([...source.keys()])('%s is defined the same way in the source and its latest migration', (name) => {
     expect(migrated.get(name)).toBe(source.get(name));
   });
