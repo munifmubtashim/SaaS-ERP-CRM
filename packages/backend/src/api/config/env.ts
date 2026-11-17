@@ -11,6 +11,8 @@ const envSchema = z.object({
   /** Whole-transaction limit in Prisma; the erp_app role timeouts are the primary limit (ADR 0005). */
   DB_TX_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   APP_VERSION: z.string().default('0.0.0-dev'),
+  /** The built frontend to serve from the same origin (production image only). Unset in development. */
+  STATIC_DIR: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -25,3 +25,13 @@ describe('loadEnv: database limits (ADR 0005)', () => {
     expect(() => loadEnv({ ...base, [name]: value })).toThrow(name);
   });
 });
+
+describe('loadEnv: STATIC_DIR', () => {
+  it('is unset by default, so development serves no frontend from the API', () => {
+    expect(loadEnv(base).STATIC_DIR).toBeUndefined();
+  });
+
+  it('reads the built frontend folder for the production image', () => {
+    expect(loadEnv({ ...base, STATIC_DIR: '/app/public' }).STATIC_DIR).toBe('/app/public');
+  });
+});
