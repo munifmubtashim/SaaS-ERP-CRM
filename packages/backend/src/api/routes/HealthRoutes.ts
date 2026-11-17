@@ -6,5 +6,6 @@ import type { ModuleRoutes } from './types.js';
 export function healthRoutes(controller: HealthController): ModuleRoutes {
   const router = Router();
   router.get('/', controller.get.bind(controller));
+  router.get('/live', controller.live.bind(controller));
   return { module: 'Health', basePath: '/health', scope: 'public', router };
 }

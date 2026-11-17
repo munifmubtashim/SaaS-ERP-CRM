@@ -50,6 +50,12 @@ describe('STATIC_DIR: one container serves the built frontend and the API', () =
     expect(res.body).toMatchObject({ status: 'ok' });
   });
 
+  it('serves the liveness path under /api too', async () => {
+    const res = await request(withStatic()).get('/api/health/live');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
   it('an unknown API path stays a JSON 404, never index.html', async () => {
     // Any path that started with /api is API, also outside /v1 (Farhan, #17): /api/customers is no page.
     for (const path of ['/api/v1/nothing', '/v1/nothing', '/api/customers', '/api', '/api/health/nothing']) {
