@@ -7,8 +7,9 @@ The one action is to switch. It runs against a mock organization service until `
 
 - **Switcher:** two labelled dropdowns, Business and Branch. Switching business moves to that business's first
   branch. States: loading, could not load (with Try again), and no business assigned yet.
-- **Active scope store:** the chosen business and branch, remembered on this device. A remembered choice the
-  user may no longer use falls back to the first business and its first branch.
+- **Active scope store:** the chosen business and branch, one per browser tab (ADR 0007): `sessionStorage`
+  for this tab, and the last-used choice in `localStorage` to start a new tab. A remembered choice the user
+  may no longer use falls back to the first business and its first branch.
 - **Why it matters:** ADR 0005 says every write runs with exactly one active business. This is where the user
   picks it; later the API reads it to set the tenant scope.
 
@@ -26,7 +27,7 @@ The one action is to switch. It runs against a mock organization service until `
 
 - `features/organization/ScopeSwitcher.tsx`: the header control; renders only.
 - `features/organization/useMyBusinesses.ts`: loading the list and keeping the active choice valid.
-- `store/activeScopeStore.ts`: the active business and branch, saved on this device.
+- `store/activeScopeStore.ts`: the active business and branch for this tab, plus the last-used one.
 - `services/organizationService.ts`: `IOrganizationService` and the HTTP class for the future route.
 - `services/mock/MockOrganizationService.ts`: two sample businesses with two branches each.
 - `app/AppShell/AppShell.tsx`: puts the switcher in the header.
@@ -37,5 +38,5 @@ The one action is to switch. It runs against a mock organization service until `
 1. Why must the client re-check a remembered business against the list from the server?
 2. Is hiding a business in the dropdown enough to stop a user from writing to it? Where is the real check?
 3. Why reset the branch when the business changes?
-4. Why keep the active scope in localStorage while the session uses sessionStorage?
+4. Why is the active business per tab, and what would go wrong if two tabs shared one value?
 5. How would you make every screen reload its data when the business changes?
