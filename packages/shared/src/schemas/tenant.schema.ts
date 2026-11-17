@@ -17,5 +17,9 @@ export const tenantScopeSchema = z.object({
    * list would set an empty value that only the database guard catches, later (ADR 0005).
    */
   businessIds: z.array(z.uuid()).min(1),
-  branchId: z.uuid().optional(),
+  /**
+   * Branches this request may use. Becomes SET LOCAL app.branch_ids. Always explicit, at least one: a
+   * business-wide role lists every branch of the business; an unset list never means "all branches".
+   */
+  branchIds: z.array(z.uuid()).min(1),
 });

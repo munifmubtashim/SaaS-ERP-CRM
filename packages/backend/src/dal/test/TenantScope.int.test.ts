@@ -20,6 +20,8 @@ import {
  * schema as the owner (support/tenantTestKit.ts), runs the real scope runner (config/tenantScope.ts) as the
  * application role, and drops everything afterwards. No migration, no tenant table in the real schema.
  */
+const BRANCH = '0196f000-0000-7000-8000-0000000001a1';
+
 const clients = connectTestClients();
 const { owner, app, singleConnection, shortTimeout } = clients;
 
@@ -65,13 +67,17 @@ afterAll(async () => {
 
 describe('tenant transaction scope (ADR 0005 proof)', () => {
   it('inside the scope, a query sees only rows of the allowed businesses', async () => {
-    const onlyA = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_A] }, readNotes);
+    const onlyA = await runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+      readNotes,
+    );
     expect(onlyA.map((r) => r.body)).toEqual(['a-1', 'a-2']);
 
     // Several businesses: read-only group routes only (ADR 0005, Q2).
     const aAndB = await runInTenantScope(
       app,
-      { organizationId: ORG, businessIds: [BIZ_A, BIZ_B] },
+      { organizationId: ORG, businessIds: [BIZ_A, BIZ_B], branchIds: [BRANCH] },
       readNotes,
       { readOnly: true },
     );
@@ -90,7 +96,7 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
   it('after a request ends, the same pooled connection sees nothing until the values are set again', async () => {
     const inside = await runInTenantScope(
       singleConnection,
-      { organizationId: ORG, businessIds: [BIZ_B] },
+      { organizationId: ORG, businessIds: [BIZ_B], branchIds: [BRANCH] },
       async () => {
         const [me] = await currentClient().$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid`;
         return { pid: me?.pid, rows: await readNotes() };
@@ -108,7 +114,7 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
 
     const again = await runInTenantScope(
       singleConnection,
-      { organizationId: ORG, businessIds: [BIZ_C] },
+      { organizationId: ORG, businessIds: [BIZ_C], branchIds: [BRANCH] },
       readNotes,
     );
     expect(again.map((r) => r.body)).toEqual(['c-1']);
@@ -117,12 +123,16 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
   it('concurrent requests for different businesses never see each other’s rows', async () => {
     const runs = Array.from({ length: 20 }, (_, i) => {
       const business = i % 2 === 0 ? BIZ_A : BIZ_B;
-      return runInTenantScope(app, { organizationId: ORG, businessIds: [business] }, async () => {
-        await sleep(Math.floor(Math.random() * 15)); // let the other requests interleave
-        await currentClient().$executeRaw`SELECT pg_sleep(${Math.random() / 50})`;
-        const rows = await readNotes();
-        return { business, seen: new Set(rows.map((r) => r.business_id)) };
-      });
+      return runInTenantScope(
+        app,
+        { organizationId: ORG, businessIds: [business], branchIds: [BRANCH] },
+        async () => {
+          await sleep(Math.floor(Math.random() * 15)); // let the other requests interleave
+          await currentClient().$executeRaw`SELECT pg_sleep(${Math.random() / 50})`;
+          const rows = await readNotes();
+          return { business, seen: new Set(rows.map((r) => r.business_id)) };
+        },
+      );
     });
     for (const { business, seen } of await Promise.all(runs)) {
       expect([...seen]).toEqual([business]);
@@ -130,24 +140,34 @@ describe('tenant transaction scope (ADR 0005 proof)', () => {
   });
 
   it('an error inside the scope rolls back every write', async () => {
-    const failing = runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_A] }, async () => {
-      await currentClient().$executeRaw`
+    const failing = runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+      async () => {
+        await currentClient().$executeRaw`
         INSERT INTO tenancy_proof.note (business_id, body) VALUES (${BIZ_A}::uuid, 'rollback-1')`;
-      await currentClient().$executeRaw`
+        await currentClient().$executeRaw`
         INSERT INTO tenancy_proof.note (business_id, body) VALUES (${BIZ_A}::uuid, 'rollback-2')`;
-      throw new AppError('CONFLICT', 'simulated failure after two writes');
-    });
+        throw new AppError('CONFLICT', 'simulated failure after two writes');
+      },
+    );
     await expect(failing).rejects.toThrow('simulated failure after two writes');
 
-    const afterwards = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_A] }, readNotes);
+    const afterwards = await runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+      readNotes,
+    );
     expect(afterwards.map((r) => r.body)).toEqual(['a-1', 'a-2']);
   });
 });
 
 describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
   it('inside the scope, a tenant Query runs on the scoped transaction', async () => {
-    const rows = await runInTenantScope(app, { organizationId: ORG, businessIds: [BIZ_B] }, () =>
-      new NoteQuery().list(),
+    const rows = await runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [BIZ_B], branchIds: [BRANCH] },
+      () => new NoteQuery().list(),
     );
     expect(rows.map((r) => r.body)).toEqual(['b-1']);
   });
@@ -158,36 +178,68 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
   });
 
   it('rejects a malformed scope before opening a transaction', async () => {
-    const smuggled = { organizationId: ORG, businessIds: [`${BIZ_A},${BIZ_B}`] };
+    const smuggled = { organizationId: ORG, businessIds: [`${BIZ_A},${BIZ_B}`], branchIds: [BRANCH] };
     await expect(runInTenantScope(app, smuggled, readNotes)).rejects.toThrow(AppError);
-    const noOrg = { organizationId: 'not-a-uuid', businessIds: [BIZ_A] };
+    const noOrg = { organizationId: 'not-a-uuid', businessIds: [BIZ_A], branchIds: [BRANCH] };
     await expect(runInTenantScope(app, noOrg, readNotes)).rejects.toThrow(AppError);
   });
 
   it('rejects a scope with no business before opening a transaction', async () => {
     // Otherwise app.business_ids is '' and only the database guard stops it, at the first row it touches.
-    const empty = runInTenantScope(app, { organizationId: ORG, businessIds: [] }, readNotes);
+    const empty = runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [], branchIds: [BRANCH] },
+      readNotes,
+    );
     await expect(empty).rejects.toThrow(AppError);
+    await expect(empty).rejects.toThrow(/Invalid tenant scope/);
+  });
+
+  it('rejects a scope with no branch before opening a transaction', async () => {
+    // An unset or empty branch list never means "all branches" (ADR 0005).
+    const empty = runInTenantScope(
+      app,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [] },
+      readNotes,
+    );
     await expect(empty).rejects.toThrow(/Invalid tenant scope/);
   });
 
   it('a nested scope is forbidden: it throws an AppError instead of opening a second transaction', async () => {
     // One connection: a second transaction could only wait for it, so a quick AppError proves none was opened.
-    const nested = runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_A] }, () =>
-      runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
+    const nested = runInTenantScope(
+      singleConnection,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+      () =>
+        runInTenantScope(
+          singleConnection,
+          { organizationId: ORG, businessIds: [BIZ_B], branchIds: [BRANCH] },
+          readNotes,
+        ),
     );
     await expect(nested).rejects.toThrow(AppError);
     await expect(
-      runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_A] }, () =>
-        runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
+      runInTenantScope(
+        singleConnection,
+        { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+        () =>
+          runInTenantScope(
+            singleConnection,
+            { organizationId: ORG, businessIds: [BIZ_B], branchIds: [BRANCH] },
+            readNotes,
+          ),
       ),
     ).rejects.toThrow(/nested/i);
   });
 
   it("uses the client's transaction timeout (DB_TX_TIMEOUT_MS), not a fixed one", async () => {
-    const slow = runInTenantScope(shortTimeout, { organizationId: ORG, businessIds: [BIZ_A] }, async () => {
-      await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
-    });
+    const slow = runInTenantScope(
+      shortTimeout,
+      { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] },
+      async () => {
+        await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
+      },
+    );
     await expect(slow).rejects.toThrow();
   });
 });
