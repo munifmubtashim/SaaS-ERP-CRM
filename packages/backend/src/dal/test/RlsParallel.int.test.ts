@@ -98,7 +98,9 @@ describe('RLS functions in parallel workers (PARALLEL SAFE proof)', () => {
 /** The policy lines in tenancy.sql's header comment, joined into one WHERE expression. */
 function policyTemplate(): string {
   const sql = readFileSync(fileURLToPath(new URL('../sql/rls/tenancy.sql', import.meta.url)), 'utf8');
-  const lines = [...sql.matchAll(/^--[ \t]+(?:AND[ \t]+)?(\w+ = ANY .*?)(?:[ \t]+--.*)?$/gm)].map((m) => m[1]);
+  const lines = [...sql.matchAll(/^--[ \t]+(?:AND[ \t]+)?(\w+ = ANY .*?)(?:[ \t]+--.*)?$/gm)].map(
+    (m) => m[1],
+  );
   expect(lines).toHaveLength(2); // the business line and the branch line
   return lines.join(' AND ');
 }
