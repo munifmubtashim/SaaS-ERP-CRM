@@ -123,7 +123,7 @@ its own schema with a spike runner (`test/support/tenantScope.spike.ts`). It sho
 - 20 interleaved requests for two businesses never see each other's rows;
 - a thrown error rolls back every write.
 
-The proof test now runs on the real runner in `dal/config/tenantScope.ts` (the spike was removed in #4).
+Once #4 merges, the proof test runs on the real runner in `dal/config/tenantScope.ts`, and the spike is removed.
 
 ## Alternatives rejected
 
