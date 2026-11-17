@@ -59,6 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      # Same script as docker compose, so CI and local get identical role timeouts (ADR 0005). Never inline it.
       - name: Create the application role (same script docker compose runs)
         env:
           PGHOST: localhost
