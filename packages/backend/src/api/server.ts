@@ -8,6 +8,8 @@ const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'de
 const { managers, tenantScope, close } = createManagers({
   databaseUrl: env.DATABASE_URL,
   version: env.APP_VERSION,
+  dbPoolMax: env.DB_POOL_MAX,
+  dbTxTimeoutMs: env.DB_TX_TIMEOUT_MS,
 });
 
 const server = createApp({ logger, managers, tenantScope }).listen(env.API_PORT, () => {

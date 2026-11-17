@@ -21,7 +21,7 @@ import {
  * application role, and drops everything afterwards. No migration, no tenant table in the real schema.
  */
 const clients = connectTestClients();
-const { owner, app, singleConnection } = clients;
+const { owner, app, singleConnection, shortTimeout } = clients;
 
 interface NoteRow {
   business_id: string;
@@ -182,6 +182,13 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
         runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
       ),
     ).rejects.toThrow(/nested/i);
+  });
+
+  it("uses the client's transaction timeout (DB_TX_TIMEOUT_MS), not a fixed one", async () => {
+    const slow = runInTenantScope(shortTimeout, { organizationId: ORG, businessIds: [BIZ_A] }, async () => {
+      await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
+    });
+    await expect(slow).rejects.toThrow();
   });
 });
 

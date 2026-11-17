@@ -17,6 +17,8 @@ export interface TestClients {
   app: DbClient;
   /** One connection only, so "the same pooled connection" is guaranteed, not hoped for. */
   singleConnection: DbClient;
+  /** A 300 ms transaction limit, to show a tenant scope uses the client's limit (DB_TX_TIMEOUT_MS). */
+  shortTimeout: DbClient;
   disconnect(): Promise<void>;
 }
 
@@ -26,15 +28,22 @@ export function connectTestClients(): TestClients {
   if (!appUrl || !ownerUrl) {
     throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must be set (see .env.example).');
   }
-  const owner = createDbClient(ownerUrl);
-  const app = createDbClient(appUrl);
-  const singleConnection = createDbClient(appUrl, { poolMax: 1 });
+  const owner = createDbClient(ownerUrl, { poolMax: 10, txTimeoutMs: 10_000 });
+  const app = createDbClient(appUrl, { poolMax: 10, txTimeoutMs: 10_000 });
+  const singleConnection = createDbClient(appUrl, { poolMax: 1, txTimeoutMs: 10_000 });
+  const shortTimeout = createDbClient(appUrl, { poolMax: 1, txTimeoutMs: 300 });
   return {
     owner,
     app,
     singleConnection,
+    shortTimeout,
     disconnect: async () => {
-      await Promise.all([owner.$disconnect(), app.$disconnect(), singleConnection.$disconnect()]);
+      await Promise.all([
+        owner.$disconnect(),
+        app.$disconnect(),
+        singleConnection.$disconnect(),
+        shortTimeout.$disconnect(),
+      ]);
     },
   };
 }

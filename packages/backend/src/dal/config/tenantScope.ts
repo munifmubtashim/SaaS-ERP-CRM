@@ -12,9 +12,6 @@ export type TxClient = Prisma.TransactionClient;
 
 const storage = new AsyncLocalStorage<TxClient>();
 
-/** Provisional (ADR 0005, measured in Phase 2). The database role timeouts are the primary limit. */
-const TX_OPTIONS = { maxWait: 2_000, timeout: 10_000 } as const;
-
 export interface TenantScopeOptions {
   /**
    * The transaction runs READ ONLY, so PostgreSQL refuses any write in it. Required for a scope with several
@@ -28,7 +25,7 @@ export interface TenantScopeOptions {
  * available through currentClient(). Commits when fn resolves, rolls back when it throws. A malformed
  * scope is rejected before any connection is used: an id containing a comma could add a business.
  * Nesting is forbidden: an inner call would open a second transaction on another connection, outside
- * the outer one's commit or rollback.
+ * the outer one's commit or rollback. The transaction's time limits come from the client (DB_TX_TIMEOUT_MS).
  */
 export function runInTenantScope<T>(
   db: DbClient,
@@ -59,7 +56,7 @@ export function runInTenantScope<T>(
       SELECT set_config('app.organization_id', ${organizationId}, true),
              set_config('app.business_ids', ${businessIds.join(',')}, true)`;
     return storage.run(tx, fn);
-  }, TX_OPTIONS);
+  });
 }
 
 /** runInTenantScope bound to one client, so businessLogic can hand it to the api as an interface. */

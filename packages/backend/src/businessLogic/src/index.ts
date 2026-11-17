@@ -84,6 +84,9 @@ export interface ManagerConfig {
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
   version: string;
+  /** Pool size and transaction timeout (ADR 0005); the defaults live in the api's env.ts. */
+  dbPoolMax: number;
+  dbTxTimeoutMs: number;
 }
 
 /**
@@ -97,7 +100,10 @@ export function createManagers(config: ManagerConfig): {
   tenantScope: ITenantScope;
   close: () => Promise<void>;
 } {
-  const db = createDbClient(config.databaseUrl);
+  const db = createDbClient(config.databaseUrl, {
+    poolMax: config.dbPoolMax,
+    txTimeoutMs: config.dbTxTimeoutMs,
+  });
   const tenantScope: ITenantScope = new TenantScopeRunner(db);
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
