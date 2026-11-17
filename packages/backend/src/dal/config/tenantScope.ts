@@ -5,7 +5,7 @@ import type { DbClient } from './db.js';
 
 /**
  * Tenant transaction scope (ADR 0005). Every tenant request runs in ONE transaction that first sets
- * app.organization_id and app.business_ids transaction-locally; RLS policies read them. Queries never
+ * app.organization_id, app.business_ids and app.branch_ids transaction-locally; RLS policies read them. Queries never
  * receive this client: BaseQuery reads it from currentClient().
  */
 export type TxClient = Prisma.TransactionClient;
@@ -29,12 +29,14 @@ export function runInTenantScope<T>(db: DbClient, scope: TenantScope, fn: () => 
   if (!parsed.success) {
     return Promise.reject(new AppError('INTERNAL_ERROR', 'Invalid tenant scope: ids must be UUIDs.'));
   }
-  const { organizationId, businessIds } = parsed.data;
+  const { organizationId, businessIds, branchIds } = parsed.data;
   return db.$transaction(async (tx) => {
     // set_config(name, value, is_local = true) is SET LOCAL with bind parameters (SET LOCAL takes none).
+    // RLS policies read these through app_organization_id(), app_business_ids(), app_branch_ids().
     await tx.$queryRaw`
       SELECT set_config('app.organization_id', ${organizationId}, true),
-             set_config('app.business_ids', ${businessIds.join(',')}, true)`;
+             set_config('app.business_ids', ${businessIds.join(',')}, true),
+             set_config('app.branch_ids', ${branchIds.join(',')}, true)`;
     return storage.run(tx, fn);
   });
 }
