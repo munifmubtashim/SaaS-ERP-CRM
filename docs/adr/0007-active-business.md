@@ -66,7 +66,10 @@ The forces:
    0005: never "all branches" by omission). With one business, that is its allowed branches. On a read-only
    route with several businesses, it is the allowed branches of every listed business. On a route marked
    `{ branch: 'required' }`, `X-Branch-Id` must be one of them, and it becomes the branch the document is
-   written to.
+   written to: **`req.tenant.branchId`**, optional in `tenantScopeSchema` next to `branchIds` (#19). The
+   schema refuses a `branchId` that is not one of `branchIds`; the tenant route wrapper refuses a missing
+   one on `{ branch: 'required' }` routes (step 5). The scope runner sets it as `app.branch_id`, and as `''`
+   when the route has none, so a pooled connection never carries a previous request's branch.
 7. **Read-only group routes** (ADR 0005 Q2) may send several businesses as a comma-separated
    `X-Business-Id`, **at most 20** (a constant in `shared`). Each must pass the membership check; one failure
    refuses the whole request. These routes run `READ ONLY`.
