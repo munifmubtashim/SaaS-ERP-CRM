@@ -4,16 +4,19 @@
 
 Every tenant request names its business in the `X-Business-Id` header, and its branch in `X-Branch-Id` where
 the route needs one. `tenantMiddleware` checks the header against the user's memberships and builds
-`req.tenant` only from them. The session keeps the last-used business as a starting default, never as a
-fallback.
+`req.tenant` only from them; the tenant route wrapper checks each route's own rules (`readOnly`,
+`branch: 'required'`). The active business is per tab (`sessionStorage`); the last-used business only seeds a
+new tab, never as a fallback.
 
 ## Request flow
 
-1. The user picks a business and branch in the header switcher; `activeScopeStore` keeps them for this tab.
+1. The user picks a business and branch in the header switcher; `activeScopeStore` keeps them for this tab
+   (`sessionStorage`), and the switch also updates the last-used business.
 2. The frontend's HTTP client adds `X-Business-Id` (and `X-Branch-Id`) to every tenant request.
 3. `tenantMiddleware` reads the user's memberships (unscoped, by the user's own id).
 4. Missing or malformed header: 400. Unknown business or not a member: 404, the same answer for both.
-5. Otherwise it sets `req.tenant`, and the route wrapper opens the tenant transaction (ADR 0005).
+5. Otherwise it sets `req.tenant`. The route wrapper checks the route's options (several businesses only when
+   read-only, a branch when required) and opens the tenant transaction (ADR 0005).
 
 ## Why each part exists
 

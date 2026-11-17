@@ -15,8 +15,8 @@ raised this on #3 as follow-up (a), to settle before M2, the business switcher (
 
 The forces:
 
-- A user can belong to several businesses and branches. The frontend already keeps the chosen business and
-  branch per device (`activeScopeStore`, #12).
+- A user can belong to several businesses and branches. The frontend keeps the chosen business and branch in
+  `activeScopeStore` (#12).
 - An owner often has two businesses open side by side, in two browser tabs. Each tab must keep working in
   its own business.
 - The server must never trust the client's choice on its own. A forged or stale id must not reach the tenant
@@ -28,44 +28,67 @@ The forces:
 1. **The frontend sends the active business on every tenant request** in the header `X-Business-Id`, and the
    active branch in `X-Branch-Id` on routes that need one (branch-scoped writes, such as an invoice or a
    payment). The frontend's HTTP client adds both from `activeScopeStore`, so no feature code sets them by hand.
-2. **`tenantMiddleware` checks the header against the user's memberships** and builds `req.tenant` only from
-   what the memberships allow. The header only says which of the user's own businesses to use; it never
-   grants access. The membership read is an unscoped read by the user's own id (ADR 0005, login and public
-   routes).
-3. **Answers:**
+2. **Three route kinds.** Every module router is mounted with one of:
+   - `'public'`: no sign-in (login, `/health`);
+   - `'user'`: signed in, no business (`/v1/me/...`, such as `GET /v1/me/businesses`). It reads only the
+     caller's own rows and ignores `X-Business-Id`;
+   - `'tenant'`: signed in and scoped to a business.
 
-   | Request                                                             | Answer                    |
-   | ------------------------------------------------------------------- | ------------------------- |
-   | `X-Business-Id` missing, empty or not a UUID                        | `400 VALIDATION_FAILED`   |
-   | `X-Branch-Id` missing on a route that needs a branch, or not a UUID | `400 VALIDATION_FAILED`   |
-   | A business id that does not exist                                   | `404 NOT_FOUND`           |
-   | A business id that exists but the user is not a member of           | `404 NOT_FOUND`           |
-   | A branch outside the active business, or not allowed for the user   | `404 NOT_FOUND`           |
-   | Several business ids on a route not marked `{ readOnly: true }`     | `400 VALIDATION_FAILED`   |
-   | A list on a read-only route with any business the user may not see  | `404 NOT_FOUND`, as whole |
+   `buildRoutes` attaches the middleware per kind: `authMiddleware` for `'user'` and `'tenant'`, and
+   `tenantMiddleware` for `'tenant'` only. It is no longer mounted on all of `/v1`.
+
+3. **`tenantMiddleware` reads the header and checks membership.** It builds `req.tenant` only from what the
+   user's memberships allow. The header only says which of the user's own businesses to use; it never grants
+   access. Memberships are read only through **`AuthQuery`**, the one class allowed to read without a tenant
+   scope (ADR 0005, lint rule).
+4. **The tenant route wrapper checks the route's own rules.** `wrap.tenant(handler, options)` (#8) knows the
+   route's options: `{ readOnly: true }` (ADR 0005) and **`{ branch: 'required' }`**, set on every
+   branch-scoped route. Both options can be combined.
+5. **Answers, and where each is checked:**
+
+   | Request                                                           | Answer                                 | Checked in           |
+   | ----------------------------------------------------------------- | -------------------------------------- | -------------------- |
+   | `X-Business-Id` missing, empty or not a UUID (or list)            | `400 VALIDATION_FAILED`                | `tenantMiddleware`   |
+   | More businesses in the list than the cap                          | the shared over-limit error (ADR 0005) | `tenantMiddleware`   |
+   | A business id that does not exist                                 | `404 NOT_FOUND`                        | `tenantMiddleware`   |
+   | A business id that exists but the user is not a member of         | `404 NOT_FOUND`                        | `tenantMiddleware`   |
+   | A list with any business the user may not see                     | `404 NOT_FOUND`, as whole              | `tenantMiddleware`   |
+   | `X-Branch-Id` not a UUID                                          | `400 VALIDATION_FAILED`                | `tenantMiddleware`   |
+   | A branch outside the active business, or not allowed for the user | `404 NOT_FOUND`                        | `tenantMiddleware`   |
+   | Several businesses on a route not marked `{ readOnly: true }`     | `400 VALIDATION_FAILED`                | tenant route wrapper |
+   | `X-Branch-Id` missing on a route marked `{ branch: 'required' }`  | `400 VALIDATION_FAILED`                | tenant route wrapper |
 
    "Does not exist" and "not a member" give the same answer, the same body and no difference the caller can
-   measure on purpose, so the ids of other businesses cannot be probed. The refusal happens before any tenant
-   transaction opens.
+   measure on purpose, so the ids of other businesses cannot be probed. The 404 body never repeats the
+   refused id. Every refusal happens before the tenant transaction opens.
 
-4. **Branches.** `req.tenant.branchIds` lists the branches of the active business the user may use (ADR 0005:
-   never "all branches" by omission). When the route needs a branch, `X-Branch-Id` must be one of them, and
-   it becomes the branch the document is written to.
-5. **Read-only group routes** (ADR 0005 Q2) may send several businesses as a comma-separated
-   `X-Business-Id`. Each must pass the membership check; one failure refuses the whole request. These routes
-   run `READ ONLY`.
-6. **The session remembers only the last-used business** as a default for the frontend to start with (for
-   example after login). The server never falls back to it for a request: a tenant request without
-   `X-Business-Id` is a `400`. So each tab works in the business it shows, and a switch in one tab never
-   changes another.
-7. **Logs.** The request log records the business and branch ids from `req.tenant`, never the raw header
-   when it was refused.
+6. **Branches.** `req.tenant.branchIds` lists the branches the user may use in the scope's businesses (ADR
+   0005: never "all branches" by omission). With one business, that is its allowed branches. On a read-only
+   route with several businesses, it is the allowed branches of every listed business. On a route marked
+   `{ branch: 'required' }`, `X-Branch-Id` must be one of them, and it becomes the branch the document is
+   written to.
+7. **Read-only group routes** (ADR 0005 Q2) may send several businesses as a comma-separated
+   `X-Business-Id`, **at most 20** (a constant in `shared`). Each must pass the membership check; one failure
+   refuses the whole request. These routes run `READ ONLY`.
+8. **The active business is per tab.** The frontend keeps it in `sessionStorage`, one value per tab, so two
+   tabs can work in two businesses and a switch in one tab never changes another.
+9. **The last-used business only seeds a new tab.** It is kept in `localStorage` and on the server (on the
+   user's session), so a new tab or a new device starts there. The server writes it **only on an explicit
+   switch**, through a `'user'` route (`PUT /v1/me/last-business`) and `AuthQuery`, outside any tenant
+   transaction. It is never written on an ordinary request, so read-only routes stay write-free. The server
+   never falls back to it: a tenant request without `X-Business-Id` is a `400`.
+10. **No HTTP caching of tenant data.** The same URL returns different data per header, so the wrapper sends
+    `Cache-Control: no-store` on every tenant response.
+11. **Idempotency-Key is unique per business** (ADR 0005 Q6): the key record carries `business_id`, so the same
+    key in two businesses never collides or replays across them.
+12. **Logs.** The request log records the business and branch ids from `req.tenant`, never the raw header
+    when it was refused.
 
 ## Alternatives considered
 
 - **The active business stored in the session.** One value per login, so two tabs would overwrite each
-  other's business, and a write could land in the business the other tab chose. A switch also needs a
-  server write. Rejected.
+  other's business, and a write could land in the business the other tab chose. Rejected. (The session
+  keeps only the last-used business, as a starting point; step 9.)
 - **The business in the URL path** (`/v1/b/:businessId/invoices`). Explicit and cache-friendly, but every
   route and every isolation case changes shape, group routes need a different form anyway, and the frontend
   must build every URL with it. Rejected for now; the header gives the same safety with less churn.
@@ -76,20 +99,26 @@ The forces:
 
 ## Consequences
 
-- Every tenant request carries one or two extra headers. The frontend's HTTP client owns them, and requests
-  made before a business is chosen (login, `GET /v1/me/businesses`) are public or unscoped and send none.
+- Every tenant request carries one or two extra headers. The frontend's HTTP client owns them. Public and
+  `'user'` routes (login, `GET /v1/me/businesses`) send none and ignore them.
+- Route kinds become `'public' | 'user' | 'tenant'`. When this is accepted, CLAUDE.md's routing rule and the
+  isolation suite add `'user'`: a `'user'` route must never accept a business id.
+- Checks live in two places, `tenantMiddleware` and the tenant route wrapper; the table in step 5 is the map.
+  A branch-scoped route that forgets `{ branch: 'required' }` would fall back to all allowed branches, so each
+  such route's isolation case also sends no `X-Branch-Id`.
 - `tenantMiddleware` reads memberships on every tenant request. It is one indexed read by user id; cache it
   per session later only if the Phase 2 measurements ask for it.
 - If the API is ever served from another origin, CORS must allow `X-Business-Id` and `X-Branch-Id`. The demo
   and production serve the frontend from the same origin, so no CORS change is needed now.
 - Any client-side cache (TanStack Query keys) must include the active business, or one tab could show
   another business's data after a switch.
+- `Cache-Control: no-store` means no browser or proxy caching of tenant responses.
 - Undoing it: the header is read in one middleware and set in one HTTP client. Moving to path parameters
   later changes those two places and the route definitions.
 
 ## Tests M2 must write first
 
-Integration, real PostgreSQL, through `tenantMiddleware` and a tenant route:
+Integration, real PostgreSQL, through `tenantMiddleware`, the tenant route wrapper and a tenant route:
 
 1. No `X-Business-Id` → 400. An empty value and a non-UUID → 400.
 2. A random UUID that is no business → 404. A real business the user is not a member of → 404, with the
@@ -102,5 +131,16 @@ Integration, real PostgreSQL, through `tenantMiddleware` and a tenant route:
    list → 404 for the whole request, and no rows returned.
 8. Two tabs: two requests from the same session with different `X-Business-Id` values, run in parallel, each
    see only their own business.
-9. The session's last-used business is never used as a fallback: a request without the header is still 400.
+9. The last-used business is never used as a fallback: a request without the header is still 400.
 10. A refused header is not written to the log.
+11. `GET /v1/me/businesses` works without `X-Business-Id`.
+12. `X-Business-Id` is ignored on public routes.
+13. The 404 body does not contain the refused id.
+14. A membership removed during a session gives a 404 on the next request.
+15. More businesses than the cap on a read-only route gives the shared over-limit error.
+16. A tenant response carries `Cache-Control: no-store`.
+
+Frontend (unit):
+
+17. Two tabs keep two businesses: switching in one `sessionStorage` leaves the other unchanged, and a new tab
+    starts from the last-used business in `localStorage`.
