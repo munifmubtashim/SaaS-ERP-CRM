@@ -21,8 +21,8 @@ const BIZ_A = '0196f000-0000-7000-8000-0000000000a1';
 const BIZ_B = '0196f000-0000-7000-8000-0000000000b1';
 const BIZ_C = '0196f000-0000-7000-8000-0000000000c1';
 
-const owner = createDbClient(ownerUrl);
-const app: DbClient = createDbClient(appUrl);
+const owner = createDbClient(ownerUrl, { poolMax: 10, txTimeoutMs: 10_000 });
+const app: DbClient = createDbClient(appUrl, { poolMax: 10, txTimeoutMs: 10_000 });
 /** One connection only, so "the same pooled connection" is guaranteed, not hoped for. */
 const singleConnection: DbClient = new PrismaClient({
   adapter: new PrismaPg({ connectionString: appUrl, max: 1 }),
