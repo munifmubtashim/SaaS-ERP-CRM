@@ -208,6 +208,7 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
     const slow = runInTenantScope(shortTimeout, { organizationId: ORG, businessIds: [BIZ_A] }, async () => {
       await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
     });
-    await expect(slow).rejects.toThrow();
+    // The timeout error itself, so an unrelated failure cannot pass this test (as in DbLimits.int.test.ts).
+    await expect(slow).rejects.toThrow(/transaction/i);
   });
 });
