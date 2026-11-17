@@ -77,7 +77,7 @@ forced**, singular names. Money is `numeric(18,2)` and a string in the API.
 table that points at a party uses a composite foreign key `(business_id, party_id)` → `party (business_id, id)`.
 That covers `merged_into_id`, `related_party_id` and the child tables. So a row can never point at a party of
 another business, even through a bug that skips the Manager. Other modules (Sales, Purchase, Accounting) use the
-same composite key when they reference a party.
+same composite key when they reference a party (decided on #15: Munif's modules use it too).
 
 | Table             | Fields                                                                                                                                                                                                                                                                                                                      | Notes                                                                                            |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -91,10 +91,10 @@ same composite key when they reference a party.
 | `credit_hold`     | `party_id`, `reason`, `set_by`, `set_at`, `released_by`, `released_at`                                                                                                                                                                                                                                                      | Blocks credit sales. Used by Sales (S-12).                                                       |
 
 **Area is free text in v1** (`area`, up to 100 characters), as in the merged F1a schema. An `area` table
-(business-level) comes only if collection routes or area reports need fixed values. See open question 6.
+(business-level) comes only if collection routes or area reports need fixed values. See open question 4.
 
 **`merged` status:** the F1a schema allows only `active` and `inactive`. `merged` is added to
-`partyStatusSchema` in the same shared PR as the merge work (order of work, step 5).
+`partyStatusSchema` in the same shared PR as the merge work (order of work, step 8).
 
 **Not in Party:**
 
@@ -105,10 +105,14 @@ same composite key when they reference a party.
 ### 3. National ID
 
 - **Optional on Party.** The vehicle pack makes it required for a vehicle sale (section 6), and nothing else may.
-- **Encrypted in the application, not in SQL.** AES-256-GCM, with a random nonce per value. The key comes
-  from the environment (`PARTY_NID_KEY`, local placeholder in `.env.example`) and never reaches the database.
-  So the plain NID never appears in SQL text, query logs or a database dump. `nid_key_version` allows key
-  rotation.
+- **Encrypted in the application, not in SQL.** AES-256-GCM, with a random nonce per value. The key
+  (`PARTY_NID_KEY`) never reaches the database. So the plain NID never appears in SQL text, query logs or a
+  database dump. `nid_key_version` allows key rotation.
+- **Where the keys live (decided on #15).** `PARTY_NID_KEY` and `PARTY_NID_HASH_KEY` are kept in the hosting
+  platform's secrets, with local placeholders in `.env.example`. They are read and checked only in
+  `api/config/env.ts` and passed to `createManagers` like the database URL. businessLogic never reads
+  `process.env`. The keys are backed up separately from the database, so a database backup alone can't
+  decrypt an NID.
 - **Duplicate check without decrypting:** `nid_hash` = HMAC-SHA256 of the normalised NID (digits only)
   with a second key (`PARTY_NID_HASH_KEY`). Index `(business_id, nid_hash)`. Not unique: a duplicate is a
   warning (CR-02).
@@ -125,7 +129,9 @@ same composite key when they reference a party.
   request failed.
 - **Never in:** list responses, search results, the merge snapshot, exports, Pino logs (a redact rule for
   `nid`, `national_id`, `nidPlain`), error messages or test fixtures with real-looking numbers.
-- **Editing the NID** needs `party.nid.edit`, and the change is logged (old and new `nid_last4` only).
+- **Entering the NID when creating a party** needs only `party.create`: the create payload may carry it.
+- **Adding or changing the NID of an existing party** needs `party.nid.edit`, and the change is logged (old
+  and new `nid_last4` only).
 
 ### 4. Phone and duplicate detection (CR-02)
 
@@ -143,6 +149,9 @@ same composite key when they reference a party.
 
 ### 5. Merge (CR-02)
 
+**Design only for now (decided on #15).** Merge and undo are built after 29 Nov. Before then, F2 needs only
+the duplicate-phone warning (section 4).
+
 - Needs `party.merge`. Both parties must be in the same business (the composite key makes any other case
   impossible), active, and not walk-in.
 - **Size cap (ADR 0005, agreed on #3 on 17 Nov).** Before changing anything, the Manager counts the documents and
@@ -153,22 +162,36 @@ same composite key when they reference a party.
   merges cannot deadlock. A second merge of the same party waits, then finds it already merged and fails
   with `409`.
 - **Posted journal lines are never rewritten** (invariant 2). The merged party gets `status = merged` and
-  `merged_into_id = kept_id`. Ledgers, dues and profile queries read "this party and every party merged into it".
-  Unposted drafts that point at the merged party are moved to the kept party.
+  `merged_into_id = kept_id`.
+- **Ledgers follow the merge (decided on #15).** Merge is not blocked by posted journal lines. One dal helper
+  resolves a party to "this party and every party merged into it", and every ledger, dues and profile query
+  uses that helper, so they all apply the same rule.
+- Unposted drafts that point at the merged party are moved to the kept party.
 - One transaction: the merge log row, the status change and the draft moves.
 - **Undo** is allowed while no new document has been posted against the kept party since the merge. It
   restores the snapshot and sets `undone_at`. After that, a merge can only be corrected by hand, and the
   correction is logged.
 - Chains are flattened: merging A into B, then B into C, sets A's `merged_into_id` to C.
 
+**Open until merge is built (Munif's review comments on #15):**
+
+- **Moving other modules' drafts.** Party must not write Sales or Purchase tables. Each module that holds
+  drafts provides an interface that moves its own drafts, and the merge calls those interfaces.
+- **Undo in full.** It must say whether the moved drafts move back, and what happens to a flattened chain
+  (A into B, then B into C). The "nothing posted against the kept party since the merge" check takes the same
+  row locks as the merge.
+
 ### 6. Required fields per sale type (vehicle pack hook, S-01)
 
 - Party exposes `IPartyRequirement` (open/closed rule): `check(party): MissingField[]`.
 - Core registers none. The Vehicle pack registers `VehicleSaleRequirement` (name, phone, NID, address).
 - Sales calls the requirements for the invoice's lines before posting. The core never names a vehicle field.
-- **Walk-in:** one system party per business (`is_walk_in = true`, created with the business). It cannot have
-  a credit limit, dues or an NID, and cannot be merged or deactivated. A vehicle sale to it fails the vehicle
-  requirement.
+- **Walk-in:** one system party per business (`is_walk_in = true`). It cannot have a credit limit, dues or an
+  NID, and cannot be merged or deactivated. A vehicle sale to it fails the vehicle requirement.
+- **How the walk-in party is created (decided on #15).** When a business is created (M2, Organization),
+  Organization calls a Party interface that creates the walk-in party. Organization never writes Party's
+  tables. The interface lives in `businessLogic/src/contracts/`, Party's Manager satisfies it, and
+  `createManagers` passes it to Organization's Manager.
 
 ### 7. Lifecycle
 
@@ -185,12 +208,12 @@ Permission codes (roadmap 5.1 `permission`, seeded):
 | Code                | What it allows                                        |
 | ------------------- | ----------------------------------------------------- |
 | `party.view`        | List, search, open a profile (NID masked)             |
-| `party.create`      | Create a party                                        |
+| `party.create`      | Create a party, including its NID                     |
 | `party.edit`        | Edit details, contacts, addresses                     |
 | `party.deactivate`  | Deactivate or reactivate                              |
 | `party.merge`       | Merge and undo a merge                                |
 | `party.nid.view`    | See the full NID (logged)                             |
-| `party.nid.edit`    | Add or change the NID (logged)                        |
+| `party.nid.edit`    | Add or change an existing party's NID (logged)        |
 | `party.credit.edit` | Change credit limit, pay terms, set or release a hold |
 | `party.import`      | Import customers and suppliers                        |
 
@@ -202,9 +225,10 @@ Default role mapping, **provisional until ADR 0001 row 8 (role names) is accepte
 | Business Manager | yes  | yes    | yes  | yes        | yes   | yes      | yes      | yes         | yes    |
 | Branch Manager   | yes  | yes    | yes  | no         | no    | yes      | yes      | no          | no     |
 | Accountant       | yes  | yes    | yes  | yes        | no    | no       | no       | yes         | yes    |
-| Cashier          | yes  | yes    | no   | no         | no    | no       | yes      | no          | no     |
+| Cashier          | yes  | yes    | no   | no         | no    | no       | no       | no          | no     |
 
-A cashier can **enter** an NID at a vehicle sale (`nid.edit`) but cannot read one back (`nid.view`).
+**Cashier (decided on #15):** a cashier may enter an NID when creating a party (`party.create`), but may not
+view (`nid.view`) or change (`nid.edit`) an existing one.
 
 ### 9. API (all `scope: 'tenant'`, each with an isolation case)
 
@@ -268,6 +292,8 @@ Integration (real Postgres, as `erp_app`):
 17. A deactivated party cannot be picked on a new document. The walk-in party cannot be deactivated, merged
     or given credit.
 18. RLS: a query on `party` outside a tenant scope fails (ADR 0005 proof pattern).
+19. **Cashier and the NID:** a cashier can create a party with an NID, but gets 403 on viewing it and on
+    `PUT /v1/parties/:id/national-id`.
 
 ### 12. Order of work (each a separate PR, under ~400 lines)
 
@@ -280,9 +306,12 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
 4. Migration: `party`, `party_identity`, `party_group`, `party_contact`, `party_address`, `party_merge_log`,
    `credit_hold`, with RLS, the composite keys and the append-only trigger (merge `main` and tell Munif first).
 5. Party Query, Manager, Controller: create, read, list, edit, deactivate, with isolation cases (F2).
-6. NID: cipher, `party_identity`, view and edit routes, audit (including denied views), log redaction.
-7. Duplicate detection and merge, with the size cap and `merged` added to `partyStatusSchema`.
-8. After the Phase 1 gate: `party_relation`, credit limit and BIN rules (S-15), `IPartyRequirement` wiring
+6. Duplicate-phone warning (F2, the only duplicate check needed before 29 Nov).
+7. NID: cipher, `party_identity`, view and edit routes, audit (including denied views), log redaction, and
+   the NID duplicate check.
+8. After 29 Nov: merge and undo, with the size cap and `merged` added to `partyStatusSchema`, once the two
+   open merge points in section 5 are settled.
+9. After the Phase 1 gate: `party_relation`, credit limit and BIN rules (S-15), `IPartyRequirement` wiring
    with Sales.
 
 ## Consequences
@@ -293,11 +322,11 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
   the branch-scoped documents, not from Party.
 - Every module that references a party carries `business_id` and uses the composite key. That is one more
   column on their tables, and it makes cross-business links impossible.
-- Ledger queries must follow `merged_into_id`. Accounting's party ledger and dues queries need that rule
-  (to agree with Munif).
+- Every ledger, dues and profile query must go through the one dal helper that follows `merged_into_id`.
 - Large merges and imports are refused above their caps until the worker exists.
-- A lost `PARTY_NID_KEY` makes every NID unreadable. Production key storage and backup must be planned with
-  the deploy (open question 3).
+- A lost `PARTY_NID_KEY` makes every NID unreadable, so the keys are backed up apart from the database
+  (section 3).
+- Organization depends on a Party interface to create the walk-in party.
 - Undoing this plan: everything sits in Party's own tables and routes. Moving to organization-level parties later
   means a data migration that groups per-business records, with the per-business ledgers left unchanged.
 
@@ -305,13 +334,13 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
 
 1. **Owner:** should one customer be shared across the owner's businesses? ADR 0005 already keys Party on
    `business_id`. This asks only whether the owner needs a shared view, which would be a report.
-2. **Munif (Accounting):** do party ledger and dues queries follow `merged_into_id`, or should merge be
-   blocked once the merged party has posted journal lines?
-3. **Munif (deploy):** where does `PARTY_NID_KEY` live in production (secret manager), and who can read it?
-4. **Owner:** retention: when a customer asks to be forgotten, do we blank name, phone and NID and keep
+2. **Owner:** retention: when a customer asks to be forgotten, do we blank name, phone and NID and keep
    the ledger lines? Not in v1 unless the owner needs it.
-5. **Both:** confirm the role table once ADR 0001 row 8 (role names) is decided.
-6. **Owner:** is a free-text area enough, or does the dealership collect dues by fixed areas or routes? A fixed
+3. **Both:** confirm the role table once ADR 0001 row 8 (role names) is decided.
+4. **Owner:** is a free-text area enough, or does the dealership collect dues by fixed areas or routes? A fixed
    list would mean an `area` table (business-level).
-7. **Both:** Munif's other modules reference parties. Do they accept the composite `(business_id, party_id)`
-   foreign key?
+
+Decided on #15 (Munif's review, 17 Nov), and written into the sections above: the composite key (section 2),
+ledgers follow the merge (section 5), where the NID keys live (section 3), the cashier and the NID (section 8),
+how the walk-in party is created (section 6), and merge built after 29 Nov (sections 5 and 12). The two open
+merge points are in section 5.
