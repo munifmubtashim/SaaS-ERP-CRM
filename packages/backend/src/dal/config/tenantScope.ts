@@ -12,9 +12,6 @@ export type TxClient = Prisma.TransactionClient;
 
 const storage = new AsyncLocalStorage<TxClient>();
 
-/** Provisional (ADR 0005, measured in Phase 2). The database role timeouts are the primary limit. */
-const TX_OPTIONS = { maxWait: 2_000, timeout: 10_000 } as const;
-
 /**
  * Opens one transaction, sets the tenant values with bound parameters, and runs fn with the transaction
  * available through currentClient(). Commits when fn resolves, rolls back when it throws. A malformed
@@ -39,7 +36,7 @@ export function runInTenantScope<T>(db: DbClient, scope: TenantScope, fn: () => 
       SELECT set_config('app.organization_id', ${organizationId}, true),
              set_config('app.business_ids', ${businessIds.join(',')}, true)`;
     return storage.run(tx, fn);
-  }, TX_OPTIONS);
+  });
 }
 
 /** The scoped transaction. Outside a scope it throws instead of falling back to the shared client. */

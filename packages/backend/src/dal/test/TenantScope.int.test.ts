@@ -24,6 +24,8 @@ const owner = createDbClient(ownerUrl, { poolMax: 10, txTimeoutMs: 10_000 });
 const app: DbClient = createDbClient(appUrl, { poolMax: 10, txTimeoutMs: 10_000 });
 /** One connection only, so "the same pooled connection" is guaranteed, not hoped for. */
 const singleConnection: DbClient = createDbClient(appUrl, { poolMax: 1, txTimeoutMs: 10_000 });
+/** A 300 ms transaction limit, to show a tenant scope uses the client's limit (DB_TX_TIMEOUT_MS). */
+const shortTimeout: DbClient = createDbClient(appUrl, { poolMax: 1, txTimeoutMs: 300 });
 
 interface NoteRow {
   business_id: string;
@@ -75,7 +77,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await owner.$executeRawUnsafe('DROP SCHEMA IF EXISTS tenancy_proof CASCADE');
-  await Promise.all([owner.$disconnect(), app.$disconnect(), singleConnection.$disconnect()]);
+  await Promise.all([
+    owner.$disconnect(),
+    app.$disconnect(),
+    singleConnection.$disconnect(),
+    shortTimeout.$disconnect(),
+  ]);
 });
 
 describe('tenant transaction scope (ADR 0005 proof)', () => {
@@ -195,5 +202,12 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
         runInTenantScope(singleConnection, { organizationId: ORG, businessIds: [BIZ_B] }, readNotes),
       ),
     ).rejects.toThrow(/nested/i);
+  });
+
+  it("uses the client's transaction timeout (DB_TX_TIMEOUT_MS), not a fixed one", async () => {
+    const slow = runInTenantScope(shortTimeout, { organizationId: ORG, businessIds: [BIZ_A] }, async () => {
+      await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
+    });
+    await expect(slow).rejects.toThrow();
   });
 });
