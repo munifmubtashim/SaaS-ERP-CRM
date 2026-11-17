@@ -10,7 +10,8 @@ import { createRouteWrappers } from '../../routes/tenantRoute.js';
 
 const ORG = '0196f000-0000-7000-8000-00000000000a';
 const BIZ_A = '0196f000-0000-7000-8000-0000000000a1';
-const scopeA: TenantScope = { organizationId: ORG, businessIds: [BIZ_A] };
+const BRANCH_A = '0196f000-0000-7000-8000-0000000001a1';
+const scopeA: TenantScope = { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH_A] };
 
 /**
  * Fake runner: records what happens in order, and can fail the "commit" after the handler resolved, which is

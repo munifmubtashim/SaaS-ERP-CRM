@@ -11,6 +11,8 @@ export const ORG = '0196f000-0000-7000-8000-00000000000a';
 export const BIZ_A = '0196f000-0000-7000-8000-0000000000a1';
 export const BIZ_B = '0196f000-0000-7000-8000-0000000000b1';
 export const BIZ_C = '0196f000-0000-7000-8000-0000000000c1';
+/** Every scope lists its branches explicitly (ADR 0005); the proof table is not branch-scoped. */
+export const BRANCH = '0196f000-0000-7000-8000-0000000001a1';
 
 export interface TestClients {
   owner: DbClient;
@@ -55,7 +57,7 @@ export function inScope<T>(
   fn: () => Promise<T>,
   options?: TenantScopeOptions,
 ): Promise<T> {
-  const scope: TenantScope = { organizationId: ORG, businessIds };
+  const scope: TenantScope = { organizationId: ORG, businessIds, branchIds: [BRANCH] };
   return runInTenantScope(db, scope, fn, options);
 }
 

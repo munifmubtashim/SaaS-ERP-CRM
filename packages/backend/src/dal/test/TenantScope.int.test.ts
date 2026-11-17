@@ -7,6 +7,7 @@ import {
   BIZ_A,
   BIZ_B,
   BIZ_C,
+  BRANCH,
   connectTestClients,
   createScopedSchema,
   dropSchema,
@@ -20,8 +21,6 @@ import {
  * schema as the owner (support/tenantTestKit.ts), runs the real scope runner (config/tenantScope.ts) as the
  * application role, and drops everything afterwards. No migration, no tenant table in the real schema.
  */
-const BRANCH = '0196f000-0000-7000-8000-0000000001a1';
-
 const clients = connectTestClients();
 const { owner, app, singleConnection, shortTimeout } = clients;
 
