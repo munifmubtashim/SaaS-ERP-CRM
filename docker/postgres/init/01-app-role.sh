@@ -9,6 +9,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   -v app_user="$APP_DB_USER" -v app_password="$APP_DB_PASSWORD" -v db_name="$POSTGRES_DB" <<'SQL'
 CREATE ROLE :"app_user" LOGIN PASSWORD :'app_password'
   NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
+-- Time limits (ADR 0005, provisional: measured in Phase 2). They apply from the next login. A route that
+-- needs longer sets it for its own transaction with set_config('statement_timeout', ..., true).
+ALTER ROLE :"app_user" SET statement_timeout = '5s';
+ALTER ROLE :"app_user" SET idle_in_transaction_session_timeout = '15s';
 GRANT CONNECT ON DATABASE :"db_name" TO :"app_user";
 GRANT USAGE ON SCHEMA public TO :"app_user";
 -- Tables created later by the owner (migrations) are readable/writable by the app, never owned by it.

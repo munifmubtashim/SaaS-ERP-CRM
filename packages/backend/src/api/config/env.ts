@@ -6,6 +6,10 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3000),
   /** Application role (NOSUPERUSER, NOBYPASSRLS). Never the migration/owner URL. */
   DATABASE_URL: z.url(),
+  /** Connections per api process; each tenant request holds one for its whole transaction (ADR 0005). */
+  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+  /** Whole-transaction limit in Prisma; the erp_app role timeouts are the primary limit (ADR 0005). */
+  DB_TX_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   APP_VERSION: z.string().default('0.0.0-dev'),
 });
 
