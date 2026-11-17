@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import type { ApiManagers } from './controllers/contracts/index.js';
 import express, { type Express, type Request } from 'express';
 import helmet from 'helmet';
@@ -14,6 +14,7 @@ import { buildRoutes } from './routes/index.js';
 /** /api/..., /v1/... and /health/... as the client sent them: the API, never a page of the frontend. */
 const API_PATH = /^\/(?:api|v1|health)(?:\/|$)/;
 const isApiPath = (req: Request): boolean => API_PATH.test(req.originalUrl.split('?')[0] ?? '');
+const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 export interface AppDeps {
   logger: Logger;
@@ -62,13 +63,23 @@ export function createApp(deps: AppDeps): Express {
 
   if (deps.staticDir) {
     const indexHtml = join(deps.staticDir, 'index.html');
-    const serveStatic = express.static(deps.staticDir, { index: 'index.html' });
+    const assetsDir = join(deps.staticDir, 'assets') + sep;
+    const serveStatic = express.static(deps.staticDir, {
+      index: 'index.html',
+      // Vite puts content-hashed files in assets/: a new build gets new names, so they never change.
+      // index.html names the current ones, so the browser revalidates it on every visit.
+      setHeaders: (res, filePath) => {
+        if (filePath.startsWith(assetsDir)) res.setHeader('Cache-Control', IMMUTABLE);
+        else if (filePath === indexHtml) res.setHeader('Cache-Control', 'no-cache');
+      },
+    });
     // API paths (judged on the URL as the client sent it, before /api was stripped) never get a file or
     // index.html: they stay JSON 404s.
     app.use((req, res, next) => (isApiPath(req) ? next() : serveStatic(req, res, next)));
     // A page route of the app (a reload on /customers/42) gets index.html.
     app.use((req, res, next) => {
       if (req.method === 'GET' && !isApiPath(req) && req.accepts('html')) {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(indexHtml);
         return;
       }

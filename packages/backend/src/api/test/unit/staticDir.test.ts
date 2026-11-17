@@ -59,3 +59,18 @@ describe('STATIC_DIR: one container serves the built frontend and the API', () =
     }
   });
 });
+
+describe('STATIC_DIR: cache headers (Farhan, #17)', () => {
+  it('hashed files under /assets are cached for a year and never revalidated', async () => {
+    const res = await request(withStatic()).get('/assets/app.js');
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('index.html is revalidated on every visit, at / and on a page route', async () => {
+    for (const path of ['/', '/customers/42']) {
+      const res = await request(withStatic()).get(path).set('Accept', 'text/html');
+      expect(res.text).toContain('<div id="root">');
+      expect(res.headers['cache-control']).toBe('no-cache');
+    }
+  });
+});
