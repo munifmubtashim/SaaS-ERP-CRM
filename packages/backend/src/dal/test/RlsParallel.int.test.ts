@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { currentClient, runInTenantScope } from '../config/tenantScope.js';
@@ -7,7 +9,9 @@ import { currentClient, runInTenantScope } from '../config/tenantScope.js';
  * processes. The functions may be marked PARALLEL SAFE only if the transaction's settings (app.business_ids,
  * set with set_config(..., true)) reach those workers. This test forces a parallel plan in which ONLY workers
  * evaluate app_business_ids() (no leader participation): if a worker did not see the setting, it would raise
- * "tenant scope not set" instead of counting rows. Throwaway schema, dropped afterwards.
+ * "tenant scope not set" instead of counting rows. Also runs the policy template from tenancy.sql's header,
+ * so the expression every policy copies is known to work and to call the functions once per query.
+ * Throwaway schema, dropped afterwards.
  */
 const appUrl = process.env.DATABASE_URL;
 const ownerUrl = process.env.MIGRATION_DATABASE_URL;
@@ -30,7 +34,7 @@ beforeAll(async () => {
     'DROP SCHEMA IF EXISTS rls_parallel CASCADE',
     'CREATE SCHEMA rls_parallel',
     `GRANT USAGE ON SCHEMA rls_parallel TO "${role.name}"`,
-    'CREATE TABLE rls_parallel.row_owner (business_id uuid NOT NULL)',
+    `CREATE TABLE rls_parallel.row_owner (business_id uuid NOT NULL, branch_id uuid NOT NULL DEFAULT '${BRANCH}')`,
     `INSERT INTO rls_parallel.row_owner (business_id)
        SELECT CASE WHEN i % 2 = 0 THEN '${BIZ_A}'::uuid ELSE '${BIZ_B}'::uuid END
        FROM generate_series(1, ${2 * ROWS_PER_BUSINESS}) AS i`,
@@ -47,6 +51,7 @@ afterAll(async () => {
 
 interface PlanNode {
   'Node Type': string;
+  'Parent Relationship'?: string;
   'Workers Launched'?: number;
   Filter?: string;
   Plans?: PlanNode[];
@@ -86,6 +91,34 @@ describe('RLS functions in parallel workers (PARALLEL SAFE proof)', () => {
     // The filter that calls the function sits below Gather, so the workers ran it.
     const scan = gather && findNode(gather, 'Seq Scan');
     expect(scan?.Filter).toMatch(/app_business_ids\(\)/);
+    expect(result.count).toBe(ROWS_PER_BUSINESS);
+  });
+});
+
+/** The policy lines in tenancy.sql's header comment, joined into one WHERE expression. */
+function policyTemplate(): string {
+  const sql = readFileSync(fileURLToPath(new URL('../sql/rls/tenancy.sql', import.meta.url)), 'utf8');
+  const lines = [...sql.matchAll(/^--[ \t]+(?:AND[ \t]+)?(\w+ = ANY .*?)(?:[ \t]+--.*)?$/gm)].map((m) => m[1]);
+  expect(lines).toHaveLength(2); // the business line and the branch line
+  return lines.join(' AND ');
+}
+
+describe('the policy template in tenancy.sql', () => {
+  it('works, and calls the functions once per query (an InitPlan), not once per row', async () => {
+    const where = policyTemplate();
+    const scope = { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH] };
+    const result = await runInTenantScope(app, scope, async () => {
+      // The template is a fixed string from our own source file, never input.
+      const [explained] = await currentClient().$queryRawUnsafe<{ 'QUERY PLAN': [{ Plan: PlanNode }] }[]>(
+        `EXPLAIN (FORMAT JSON) SELECT count(*) FROM rls_parallel.row_owner WHERE ${where}`,
+      );
+      const [counted] = await currentClient().$queryRawUnsafe<{ n: number }[]>(
+        `SELECT count(*)::int AS n FROM rls_parallel.row_owner WHERE ${where}`,
+      );
+      return { plan: explained?.['QUERY PLAN'][0].Plan, count: counted?.n };
+    });
+    const initPlans = result.plan?.Plans?.filter((p) => p['Parent Relationship'] === 'InitPlan') ?? [];
+    expect(initPlans).toHaveLength(2); // one per function
     expect(result.count).toBe(ROWS_PER_BUSINESS);
   });
 });

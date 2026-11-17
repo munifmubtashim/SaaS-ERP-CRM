@@ -7,10 +7,12 @@
 -- only through these functions, which RAISE when a value is missing or empty: an unscoped query must error,
 -- never return every row and never quietly return none.
 --
--- Use in a policy, each call wrapped in its own SELECT:
---   business_id = ANY ((SELECT app_business_ids()))
---   AND branch_id = ANY ((SELECT app_branch_ids()))   -- branch-scoped tables only
+-- Use in a policy, each call wrapped in its own SELECT and cast back to an array:
+--   business_id = ANY ((SELECT app_business_ids())::uuid[])
+--   AND branch_id = ANY ((SELECT app_branch_ids())::uuid[])   -- branch-scoped tables only
 -- Wrapped in SELECT, PostgreSQL runs the function once per query (an InitPlan), not once per row.
+-- The ::uuid[] is required: without it, ANY ((SELECT ...)) is read as "any row of a subquery" and fails
+-- with "operator does not exist: uuid = uuid[]". RlsParallel.int.test.ts runs these two lines.
 --
 -- Changing a function: add a new migration with CREATE OR REPLACE FUNCTION, and make the same edit here.
 -- RlsSqlSource.int.test.ts fails when this file and the migrations define different functions.
