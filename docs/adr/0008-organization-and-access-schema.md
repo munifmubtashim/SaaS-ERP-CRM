@@ -47,12 +47,19 @@ Constraints already decided elsewhere and not reopened here:
   composite foreign key from `business` makes it impossible for a business to point at another
   organization's legal entity.
 - `branch` is the only table here that is branch-scoped: its policy also checks
-  `id = ANY ((SELECT app_branch_ids())::uuid[])`.
+  `id = ANY ((SELECT app_branch_ids())::uuid[])`. **No branch is created through an RLS insert either:** a new
+  branch is not yet in the caller's `app_branch_ids()`, so `INSERT ... RETURNING` fails the `SELECT` policy
+  for the same reason as a business (next point). Branches use the provisioning path, and `erp_app` has no
+  `INSERT` on `branch` (section 4).
 - **`business` policy:** `USING (organization_id = (SELECT app_organization_id()) AND id = ANY ((SELECT app_business_ids())::uuid[]))`.
-  `WITH CHECK` on insert checks only the organization, because the new business is not yet in the caller's
-  list. Creating a business needs the Owner permission and is checked in the Manager. The very first
-  business of a new organization is created by provisioning (migration or seed, running as owner), not by a
-  request.
+  **No business is created through an RLS insert.** A new business is not yet in the caller's
+  `app_business_ids()`, and Prisma's `create` uses `INSERT ... RETURNING`, which Postgres checks against the
+  `SELECT` policy, so a request insert would fail. The first business of a new organization and every later
+  one are created by the provisioning path. `erp_app` has no `INSERT` on `business` (section 4).
+- **The provisioning path** creates businesses and branches. It runs **unscoped** (no tenant transaction),
+  and the Manager checks the Owner permission before calling it. It does not run as `erp_app`, which has no
+  `INSERT` on these tables. The database role it connects as, and how it fits ADR 0005's rule that only
+  `AuthQuery` and `HealthQuery` may query unscoped, are open question 6.
 - **Deactivation:** `is_active = false` keeps history and refuses new writes. Enforcement is two-layered:
   the Manager refuses with a clear message, and each branch-scoped table gets a `WITH CHECK` using
   `branch_is_active(branch_id)` as it is added. The tree tables themselves carry the flag only; the
@@ -61,14 +68,14 @@ Constraints already decided elsewhere and not reopened here:
 
 ### 2. Tables of access
 
-| Table             | Main columns                                                                                                                                      | RLS                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `app_user`        | `organization_id`, `email`, `phone`, `password_hash` (argon2id), `display_name`, `is_active`, `locked_until`, `failed_attempts`, `mfa_secret_enc` | organization                                 |
-| `role`            | `organization_id`, `code`, `name`, `is_system`                                                                                                    | organization                                 |
-| `permission`      | `code` (primary key), `description`                                                                                                               | none: global, seeded, read-only to `erp_app` |
-| `role_permission` | `role_id`, `permission_code`                                                                                                                      | through `role`                               |
-| `user_scope`      | `user_id`, `role_id`, `business_id` (nullable), `branch_id` (nullable)                                                                            | organization                                 |
-| `staff`           | `business_id`, `branch_id` (nullable), `user_id` (nullable), `name`, `phone`, `designation`, `is_active`                                          | business and branch                          |
+| Table             | Main columns                                                                                                                                      | RLS                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `app_user`        | `organization_id`, `email`, `phone`, `password_hash` (argon2id), `display_name`, `is_active`, `locked_until`, `failed_attempts`, `mfa_secret_enc` | none: read unscoped by `AuthQuery`, see below |
+| `role`            | `organization_id`, `code`, `name`, `is_system`                                                                                                    | none: read unscoped by `AuthQuery`, see below |
+| `permission`      | `code` (primary key), `description`                                                                                                               | none: global, seeded, read-only to `erp_app`  |
+| `role_permission` | `role_id`, `permission_code`                                                                                                                      | none: read unscoped by `AuthQuery`, see below |
+| `user_scope`      | `user_id`, `role_id`, `business_id` (nullable), `branch_id` (nullable)                                                                            | none: read unscoped by `AuthQuery`, see below |
+| `staff`           | `business_id`, `branch_id` (nullable), `user_id` (nullable), `name`, `phone`, `designation`, `is_active`                                          | business, and branch when set (section 4)     |
 
 Decisions inside this table:
 
@@ -76,16 +83,27 @@ Decisions inside this table:
   both null = whole group (Owner only); `business_id` only = one business; `branch_id` set = one branch
   (its `business_id` must also be set and must match the branch's business, by composite foreign key).
   A user can have several rows (for example Branch Manager of branch 1 and Cashier of branch 2).
-- **No separate `membership` table.** The plan listed one. With one organization per user (below) it would
+- **No separate `membership` table.** The first plan listed one; plan 2.1 and A4 now match this ADR. With one organization per user (below) it would
   repeat `app_user.organization_id`. If a person ever needs to belong to two organizations, it is added
   then with a migration and a new ADR.
 - **One organization per user.** `app_user.organization_id` is `NOT NULL`. Email is unique across the whole
   system (`lower(email)`), so login needs no organization picker. See open question 1.
 - **Group scope is Owner only.** A trigger on `user_scope` refuses a row with both columns null unless the
   role's `code` is `owner`. Another trigger refuses a role whose organization differs from the user's.
-- **`app_user` and `user_scope` are read by `tenantMiddleware`** to build `req.tenant`. That read runs before
-  a scope exists, so it goes through `AuthQuery` on the unscoped path (ADR 0005). No tenant Query reads
-  these tables to decide what the caller may see.
+- **No tenant RLS on `app_user`, `role`, `role_permission` and `user_scope`.** They are read before a scope
+  exists: login, and `tenantMiddleware` building `req.tenant`. That read goes through `AuthQuery` on the
+  unscoped path (ADR 0005), filtered by the authenticated user's own id. A tenant policy on these tables
+  would make that read fail, because the RLS functions raise when no scope is set.
+  - **Admin screens** (list users, edit roles, assign scopes) read and write these tables with an explicit
+    `organization_id = <req.tenant organization>` filter in every query, and isolation tests prove it
+    (section 6, tests 10 and 11).
+  - **Trade-off, accepted:** the database does not stop an `erp_app` query from reading another
+    organization's users, roles or scopes. A missing `organization_id` filter is a cross-organization leak
+    (names, emails, phones, password hashes), caught only by review and tests, not by RLS. We accept this
+    because the alternative (a `SECURITY DEFINER` lookup for login and scope) adds a privileged function
+    that ADR 0005 avoids until a concrete case needs one. Revisit if a second team writes Queries against
+    these tables, or if the isolation tests ever miss a case.
+  - `staff` keeps RLS: it is business-owned data read by tenant Queries, never by login.
 - **`staff` is not a user.** A technician or a salesperson can exist as a record and be assigned work with no
   login. `staff.user_id` links one when a login exists. Salary data does not live here; salary entries are
   Accounting records that point at a staff record (plan C2).
@@ -102,7 +120,16 @@ D-03, and the features doc; the queue's three-role line is replaced, plan C7).
 - Each module adds its own codes in its own PR. The seed is idempotent and only adds missing codes.
 - The default role-to-permission mapping is **provisional** until ADR 0001 row 8 (role names) is accepted.
   The default role mapping in ADR 0006 section 8 (Permissions) is the first input.
-- Cost price, profit and salary are hidden by permission codes (`cost.view`, `profit.view`, `salary.view`).
+- **Code format:** `module.entity.action`, as typed in `permissions.ts` (roadmap 5.1). Every code has
+  exactly three parts.
+- Codes this ADR defines (cost price, profit and salary are hidden fields):
+
+  | Code                     | What it allows                                       |
+  | ------------------------ | ---------------------------------------------------- |
+  | `product.cost.view`      | See cost price on products, stock and documents      |
+  | `report.profit.view`     | See profit and margin figures in reports and screens |
+  | `accounting.salary.view` | See salary entries and amounts                       |
+
   This ADR only defines the codes; hiding them in responses is the job of the shared field rule in plan 2.5.
 
 ### 4. RLS per table
@@ -113,8 +140,13 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
 - Organization-level tables: `organization_id = (SELECT app_organization_id())`.
 - Business-level tables: `business_id = ANY ((SELECT app_business_ids())::uuid[])`.
 - Branch-scoped tables: the business check plus `branch_id = ANY ((SELECT app_branch_ids())::uuid[])`.
+- `staff` (branch optional): the business check plus
+  `(branch_id IS NULL OR branch_id = ANY ((SELECT app_branch_ids())::uuid[]))`, so business-level staff
+  stay visible. Without the `IS NULL` case, `= ANY` is null for those rows and they disappear.
+- `app_user`, `role`, `role_permission`, `user_scope`: no RLS (section 2). `permission`: no RLS, global.
 - Every table: `ENABLE` and `FORCE ROW LEVEL SECURITY`; `REVOKE DELETE ... FROM erp_app` in the same migration,
-  because the default privileges in `01-app-role.sh` grant it. `permission` also revokes `INSERT` and `UPDATE`.
+  because the default privileges in `01-app-role.sh` grant it. `permission` also revokes `INSERT` and `UPDATE`;
+  `business` and `branch` also revoke `INSERT` (provisioning only, section 1).
 - A query with no scope set fails: the functions raise `tenant scope not set` (SQLSTATE `42501`) on a missing
   or empty value, never return null (ADR 0005, #19).
 
@@ -138,7 +170,7 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
 Integration, real Postgres, connected as `erp_app`:
 
 1. A user of business X cannot select, update or guess the id of business Y's branch or staff row.
-2. A group Owner of organization A sees nothing of organization B (tree, users, roles, staff).
+2. A group Owner of organization A sees nothing of organization B's tree or staff (RLS).
 3. A pooled connection fails with `tenant scope not set` until the scope is set again (the functions raise).
 4. `erp_app` cannot `DELETE` from any table in this ADR, and cannot touch the migration owner's objects.
 5. A business cannot reference a legal entity of another organization (composite foreign key).
@@ -147,6 +179,14 @@ Integration, real Postgres, connected as `erp_app`:
 7. A deactivated branch refuses a write through the Manager; its history is still readable.
 8. The seed creates exactly the five roles per organization and is safe to run twice.
 9. `permission` is readable and not writable by `erp_app`.
+10. Isolation, no RLS: every admin Query on `app_user`, `role`, `role_permission` and `user_scope`, called
+    for organization A, returns and changes nothing of organization B, including by guessed id.
+11. `AuthQuery`'s scope read for user U returns only U's own `user_scope` rows.
+12. `erp_app` cannot `INSERT` into `business`; the provisioning path can, after the Manager's Owner check.
+13. `erp_app` cannot `INSERT` into `branch` directly; the provisioning path can, after the Manager's Owner
+    check, and a non-Owner caller is refused before any insert.
+14. A `staff` row with no branch is visible to every scope of its business; a row of branch 1 is not
+    visible to a branch 2-only scope.
 
 Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); this ADR adds no routes.
 
@@ -154,8 +194,8 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 
 1. **A2:** this ADR, reviewed and accepted by both.
 2. **A4a (shared PR, merged first):** `permissions.ts` with the first codes and the five role codes.
-3. **A3:** organization tree tables, RLS, grants, tests 1, 2, 3, 4, 5, 7.
-4. **A4:** access tables, triggers, seed, tests 6, 8, 9.
+3. **A3:** organization tree tables, RLS, grants, provisioning path, tests 1, 2, 3, 4, 5, 7, 12, 13.
+4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14.
 5. Then the real `authMiddleware` (A5) and `tenantMiddleware` (A6, needs ADR 0007).
 
 ## Consequences
@@ -167,6 +207,10 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
   The tables above do not rule either out.
 - The Owner can be the only group-scope role. If a client later wants a group Accountant, the trigger
   and this ADR change together.
+- Users, roles and scopes rely on application filters, not RLS (section 2 trade-off). Every Query that touches
+  them needs an isolation test, and reviewers check the `organization_id` filter line by line.
+- Creating a business or a branch goes through the provisioning path, never a tenant-scoped insert. Every
+  later table whose new rows fall outside the caller's scope lists needs the same treatment.
 - Cross-owner back-relation edits are normal now. The cost is a one-line change in the other developer's
   schema file; the reviewer rule is what keeps it safe.
 - Undoing this plan: nothing outside these two migrations depends on the table names until Party lands.
@@ -178,10 +222,14 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
    serves two client organizations would need two logins.
 2. **Role mapping:** is ADR 0006's provisional mapping the starting point for all five roles, or should
    each module's ADR propose its own codes and this one only seeds the role names?
-3. **`business` insert policy:** is it acceptable that only provisioning creates the first business, and
-   later businesses are created by an Owner request that passes the organization check only?
+3. ~~`business` insert policy~~ Decided: every business and branch is created by the provisioning path
+   (section 1).
 4. **`branch_is_active()` in `WITH CHECK`:** enforce it in each module's migration, or add one generic
    trigger that every branch-scoped table attaches? Recommended: the function in the policy, so no write
    path can skip it.
 5. **Spec items still open** that touch these tables: ADR 0001 row 8 (role names), and whether MotoMart
    needs the five roles on day one or three is enough.
+6. **Provisioning path connection:** which database role it uses (the migration owner, or a separate
+   provisioning role with `INSERT` on `business` and `branch` only), and whether ADR 0005's unscoped rule
+   gains a named exception (for example a `ProvisioningQuery` listed in the lint rule). Recommended: a
+   separate least-privilege role and a named lint exception, decided before A3.

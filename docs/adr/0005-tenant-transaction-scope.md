@@ -89,14 +89,17 @@ rejection handler). If Controllers wrote the response themselves, it would leave
 **Login and public routes.** The identity and access tables are not tenant tables. They are read before a
 tenant is known, to log the user in and to build `req.tenant`:
 
-- `user`, `session`, `login_attempt`;
-- `membership`;
-- the role, permission and user-scope tables.
+- `app_user`, `session`, `login_attempt`;
+- the role, permission and user-scope tables (`role`, `role_permission`, `permission`, `user_scope`).
+
+There is no `membership` table: a user belongs to one organization (`app_user.organization_id`) and holds
+roles through `user_scope` (ADR 0008). These tables have no tenant RLS; the trade-off is in ADR 0008
+section 2.
 
 Only Auth and Health may query without a scope. They do it through a separately named base class,
 `UnscopedQuery`, and the lint rule lists `AuthQuery` and `HealthQuery` by name as the only classes allowed
-to extend or import it. Health runs `SELECT 1` and reads no table. Membership and scope reads always
-filter by the authenticated user's own id, so a user never sees another user's memberships. No
+to extend or import it. Health runs `SELECT 1` and reads no table. Scope reads always
+filter by the authenticated user's own id, so a user never sees another user's scopes. No
 `SECURITY DEFINER` function unless a concrete case needs one.
 
 **Files, PDFs and redirects** are out of scope for this ADR. A tenant route returns JSON. A PDF or export
@@ -215,7 +218,7 @@ statement_timeout` and `SET idle_in_transaction_session_timeout`.
   - api test: a commit failure returns an error, not a 2xx;
   - api test: the response is sent only after the commit;
   - isolation cases per tenant route;
-  - Auth test: a user cannot read another user's memberships.
+  - Auth test: a user cannot read another user's scopes.
 - **CLAUDE.md, once this ADR is accepted:**
   - Tenancy rules: replace "to be designed in a Phase 1 ADR" with "tenant routes run in `runInTenantScope`
     (ADR 0005); Queries get the transaction from `BaseQuery`, never from a constructor".
