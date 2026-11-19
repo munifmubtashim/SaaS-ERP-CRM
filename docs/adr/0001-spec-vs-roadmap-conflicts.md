@@ -1,11 +1,11 @@
 # 0001: Differences between the Acceptance Specification and the Roadmap
 
-| Field    | Value                                                                                                                                                           |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status   | **Partly accepted**: rows 1, 2, 7, 11 and 13 accepted (see Decision); all other rows Proposed, to be confirmed by Munif and Farhan before Phase 1 starts        |
-| Date     | 2026-11-14                                                                                                                                                      |
-| Deciders | Munif, Farhan                                                                                                                                                   |
-| Sources  | `docs/reference/ERP_Acceptance_Specification_v2.docx` (spec, v2.0, 14 Nov 2026); `docs/reference/ERP_CRM_Roadmap_Draft_v2.pdf` (roadmap, Draft v2, 14 Nov 2026) |
+| Field    | Value                                                                                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status   | **Partly accepted**: rows 1, 2, 7, 11 and 13 accepted (see Decision); all other rows Proposed, to be confirmed by Munif and Farhan before Phase 1 starts; "MotoMart decisions" (20 Nov) Proposed |
+| Date     | 2026-11-14; MotoMart decisions added 2026-11-20                                                                                                                                                  |
+| Deciders | Munif, Farhan                                                                                                                                                                                    |
+| Sources  | `docs/reference/ERP_Acceptance_Specification_v2.docx` (spec, v2.0, 14 Nov 2026); `docs/reference/ERP_CRM_Roadmap_Draft_v2.pdf` (roadmap, Draft v2, 14 Nov 2026)                                  |
 
 ## Context
 
@@ -46,14 +46,54 @@ business owner (spec section 19.2).
 
 Rows not listed here stay **Proposed**. Update the roadmap or CLAUDE.md for any row that changes what we build.
 
-| #   | Decision                                                                                                                                                                                                              | Status                                                   |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 1   | Add a `legal_entity` level: Organization > Legal entity > Business > Branch. A business belongs to one legal entity.                                                                                                  | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review) |
-| 2   | National ID is stored on Party (optional), encrypted at rest, visible only to permitted roles, every view logged. The vehicle pack only adds "required for a vehicle sale". Duplicate detection checks phone and NID. | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review) |
-| 7   | Service job statuses are the spec's five: Received, In progress, Awaiting parts, Ready, Delivered.                                                                                                                    | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review) |
-| 11  | Purchase orders get the Approved status now; the approval workflow stays Important (later).                                                                                                                           | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review) |
-| 13  | Negative stock is always blocked. No setting.                                                                                                                                                                         | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review) |
-| 15  | No decision yet: waiting for the owner's answer on instalments.                                                                                                                                                       | Proposed                                                 |
+| #   | Decision                                                                                                                                                                                                              | Status                                                                         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | Add a `legal_entity` level: Organization > Legal entity > Business > Branch. A business belongs to one legal entity.                                                                                                  | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review)                       |
+| 2   | National ID is stored on Party (optional), encrypted at rest, visible only to permitted roles, every view logged. The vehicle pack only adds "required for a vehicle sale". Duplicate detection checks phone and NID. | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review)                       |
+| 7   | Service job statuses are the spec's five: Received, In progress, Awaiting parts, Ready, Delivered.                                                                                                                    | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review)                       |
+| 11  | Purchase orders get the Approved status now; the approval workflow stays Important (later).                                                                                                                           | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review)                       |
+| 13  | Negative stock is always blocked. No setting.                                                                                                                                                                         | Accepted by Munif and Farhan, 15 Nov 2026 (PR #1 review)                       |
+| 14  | Two-factor sign-in is phase 3, against the spec's "mandatory for Owner and Accountant". See "MotoMart decisions", deviation D4.                                                                                       | Proposed: confirmed by Munif 20 Nov 2026, to confirm with the owner and Farhan |
+| 15  | The owner has answered: instalments and bank loans (S-14) are in release 1. See "MotoMart decisions", scope phases.                                                                                                   | Proposed: confirmed by Munif 20 Nov 2026, to confirm with the owner and Farhan |
+
+## MotoMart decisions (20 Nov 2026)
+
+MotoMart (the first customer) answered the owner questions of spec section 19.2, which is otherwise cancelled,
+and we looked at their current system (a vendor-hosted product). The details and open questions (Q15 to Q24)
+are in `docs/plans/feature-build-plan.md` section 1.5 (PR #20). Every line below is **Proposed: confirmed by
+Munif on 20 Nov 2026, to confirm with the owner and with Farhan.**
+
+### Scope phases
+
+These are MotoMart's release phases. They are not the roadmap's phases and not the plan's build phases A to F.
+With section 19 cancelled, they replace the "Conditional" rating for the items listed.
+
+| Release   | Items                                                                                                                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Release 1 | Instalments or bank loan (S-14, row 15); optional customer credit limit, default no limit (S-15); guarantor (CR-12); brand per model (P-10); "Share on WhatsApp" link button, no API (S-21) |
+| Phase 2   | Landed cost (F-10), with the slow money review for costing (invariant 7); Mushak 6.3 (A-25) and the VAT worksheet (A-26), only if the business is VAT registered                            |
+| Phase 3   | A second business pack (O-11; which business is open); automatic WhatsApp messages (CR-09, CR-10, SV-10); two-factor sign-in (U-07, row 14)                                                 |
+
+### Deviations from the spec
+
+Each line changes what a spec row asks for. The spec still wins on anything not listed.
+
+| #   | Spec                           | Spec says                                                                                    | We build                                                                                                                                                                       |
+| --- | ------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | A-09, S-06 (both **Critical**) | VAT payable and receivable tracked, a monthly VAT summary; VAT on a separate invoice line    | Phase 2, and only if the business is VAT registered (open: the owner asked for Mushak 6.3, but their current sales show no tax). Release 1 has no VAT line and no VAT summary. |
+| D2  | S-10, B-05                     | A reservation lapses after a configured period; bookings near expiry go to the Action Center | Expiry is optional and off by default. The Action Center lists bookings older than a number of days set per business: a reminder only, never an automatic release.             |
+| D3  | CR-09                          | SMS templates and log                                                                        | WhatsApp, not SMS. Release 1 has the link button only; automatic messages with templates and a log are phase 3, after checking the Meta Business API rules and cost.           |
+| D4  | U-07 (Important)               | Two-factor available, mandatory for Owner and Accountant                                     | Phase 3. Until then, login security (U-04) only.                                                                                                                               |
+| D5  | C-06                           | Key tables export to Excel and PDF                                                           | CSV that opens in Excel, and browser print to PDF.                                                                                                                             |
+
+### Registration liability
+
+- MotoMart's current system shows registration as an item and a "processing fee" line on a bike sale.
+- Spec section 7 (Registration/BRTA) is cancelled, but **A-10 and invariant 8 still apply**. Any amount
+  collected on behalf of a third party, such as a BRTA fee, is a liability, never revenue.
+- Only a fee that the showroom keeps as its own charge is revenue.
+- Until the owner says what the processing fee is and where it goes, the vehicle sale treats it as a
+  pass-through liability.
 
 ## Consequences
 
