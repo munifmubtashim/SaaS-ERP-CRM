@@ -103,6 +103,9 @@ Decisions inside this table:
     because the alternative (a `SECURITY DEFINER` lookup for login and scope) adds a privileged function
     that ADR 0005 avoids until a concrete case needs one. Revisit if a second team writes Queries against
     these tables, or if the isolation tests ever miss a case.
+  - **Only `AuthQuery` reads these four tables.** A dal test (section 6, test 15) fails if any other file in
+    dal names them. So the admin-screen reads and writes live in `AuthQuery` too, and a `PartyQuery` (for
+    example) can never join `app_user`.
   - `staff` keeps RLS: it is business-owned data read by tenant Queries, never by login.
 - **`staff` is not a user.** A technician or a salesperson can exist as a record and be assigned work with no
   login. `staff.user_id` links one when a login exists. Salary data does not live here; salary entries are
@@ -131,6 +134,14 @@ D-03, and the features doc; the queue's three-role line is replaced, plan C7).
   | `accounting.salary.view` | See salary entries and amounts                       |
 
   This ADR only defines the codes; hiding them in responses is the job of the shared field rule in plan 2.5.
+
+- **Party codes** (agreed with Farhan on this PR; ADR 0006 updates its table to match):
+  - Two entities: `party.customer.*` and `party.supplier.*` (`view`, `create`, `edit`, and so on), because
+    selling and buying are done by different roles.
+  - A party that is both a customer and a supplier (`is_customer` and `is_supplier`, ADR 0006) is
+    **visible to a user holding either** `party.customer.view` or `party.supplier.view`.
+  - **Each action needs the code for the role the party plays in it:** acting on the party as a customer
+    needs `party.customer.<action>`, as a supplier `party.supplier.<action>`.
 
 ### 4. RLS per table
 
@@ -161,7 +172,9 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
   columns, foreign keys in raw SQL) risks `db:migrate:check` reporting drift, and loses the relation types.
   This rule applies to every module that points at another owner's table.
 - Composite foreign keys `(business_id, id)` (the ADR 0006 pattern) need `@@unique([businessId, id])` on the
-  parent model. `business` and `branch` get it here so later modules can use it.
+  parent model. `business`, `branch` and `staff` get it here so later modules can use it. On `staff` it lets
+  `party.assigned_to` point at `staff (business_id, id)`, so a party cannot be assigned to another
+  business's staff (Farhan's follow-up migration after A4).
 - Migration order and collision rules are in plan section 6: A3 merges before Farhan's Party migration; A4
   can merge after it, and is regenerated if both land the same day.
 
@@ -188,6 +201,12 @@ Integration, real Postgres, connected as `erp_app`:
 14. A `staff` row with no branch is visible to every scope of its business; a row of branch 1 is not
     visible to a branch 2-only scope.
 
+Unit, dal, no database:
+
+15. A test scans the dal source (Queries, raw SQL, Prisma calls) and fails if any file other than
+    `AuthQuery.ts` reads `app_user`, `role`, `role_permission` or `user_scope` (by table name or Prisma
+    model name).
+
 Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); this ADR adds no routes.
 
 ### 7. Order of work
@@ -195,7 +214,7 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 1. **A2:** this ADR, reviewed and accepted by both.
 2. **A4a (shared PR, merged first):** `permissions.ts` with the first codes and the five role codes.
 3. **A3:** organization tree tables, RLS, grants, provisioning path, tests 1, 2, 3, 4, 5, 7, 12, 13.
-4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14.
+4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14, 15.
 5. Then the real `authMiddleware` (A5) and `tenantMiddleware` (A6, needs ADR 0007).
 
 ## Consequences
