@@ -86,9 +86,23 @@ same composite key when they reference a party (decided on #15: Munif's modules 
 | `party_contact`   | `party_id`, `name`, `role`, `phone_e164`, `email`                                                                                                                                                                                                                                                                           | Contact persons for companies.                                                                   |
 | `party_address`   | `party_id`, `label`, `address`, `area`, `is_default`                                                                                                                                                                                                                                                                        | Billing and delivery. One default per party (partial unique index).                              |
 | `party_group`     | `name`, `discount_pct`, `price_list_id`                                                                                                                                                                                                                                                                                     | Retail, dealer, corporate. Business-level. `price_list_id` waits for Product.                    |
-| `party_relation`  | `party_id`, `related_party_id`, `relation` (father, husband, guarantor)                                                                                                                                                                                                                                                     | Same business by the composite key. P1: build after the Phase 1 gate.                            |
+| `party_relation`  | `party_id`, `related_party_id`, `relation` (father, husband, guarantor)                                                                                                                                                                                                                                                     | Same business by the composite key. Release 1 (guarantor, CR-12): order of work, step 9.         |
 | `party_merge_log` | `kept_id`, `merged_id`, `merged_by`, `merged_at`, `snapshot` (JSONB of the merged record, NID excluded), `undone_at`, `undone_by`                                                                                                                                                                                           | Append-only (trigger). See section 5.                                                            |
 | `credit_hold`     | `party_id`, `reason`, `set_by`, `set_at`, `released_by`, `released_at`                                                                                                                                                                                                                                                      | Blocks credit sales. Used by Sales (S-12).                                                       |
+
+**`assigned_to` points at `staff`, not `app_user` (ADR 0008, agreed on #21).** A salesperson can be a staff
+record with no login; `staff.user_id` links a login when one exists. It uses the composite key
+`(business_id, assigned_to)` → `staff (business_id, id)`, so a party can never be assigned to another
+business's staff.
+
+**`created_by` is a plain `uuid` with no foreign key (ADR 0008, agreed on #21).** A foreign key only in raw
+SQL fails `db:migrate:check`, and a Prisma relation to `app_user` would let a Query `include` the whole user
+row, which ADR 0008 test 15 forbids. `app_user` rows are never deleted. The Manager sets `created_by` from the
+logged-in user, never from the request body (ADR 0008 test 16, with a Party case for every create route).
+
+**Order:** the first Party migration creates `created_by` and `assigned_to` as plain `uuid` columns, so it
+waits only for the organization tables (A3). A small follow-up migration adds only the `assigned_to` foreign
+key and its Prisma relation (with the back-relation on `staff`) right after the access tables (A4) merge.
 
 **Area is free text in v1** (`area`, up to 100 characters), as in the merged F1a schema. An `area` table
 (business-level) comes only if collection routes or area reports need fixed values. See open question 4.
@@ -129,7 +143,8 @@ same composite key when they reference a party (decided on #15: Munif's modules 
   request failed.
 - **Never in:** list responses, search results, the merge snapshot, exports, Pino logs (a redact rule for
   `nid`, `national_id`, `nidPlain`), error messages or test fixtures with real-looking numbers.
-- **Entering the NID when creating a party** needs only `party.create`: the create payload may carry it.
+- **Entering the NID when creating a party** needs only the create code for its kind
+  (`party.customer.create` or `party.supplier.create`): the create payload may carry it.
 - **Adding or changing the NID of an existing party** needs `party.nid.edit`, and the change is logged (old
   and new `nid_last4` only).
 
@@ -152,7 +167,8 @@ same composite key when they reference a party (decided on #15: Munif's modules 
 **Design only for now (decided on #15).** Merge and undo are built after 29 Nov. Before then, F2 needs only
 the duplicate-phone warning (section 4).
 
-- Needs `party.merge`. Both parties must be in the same business (the composite key makes any other case
+- Needs the merge code for the role it is done in (`party.customer.merge` or `party.supplier.merge`;
+  section 8). Both parties must be in the same business (the composite key makes any other case
   impossible), active, and not walk-in.
 - **Size cap (ADR 0005, agreed on #3 on 17 Nov).** Before changing anything, the Manager counts the documents and
   journal lines linked to the merged party. Above the cap, the merge is refused with the shared over-limit
@@ -203,21 +219,40 @@ the duplicate-phone warning (section 4).
 
 ### 8. Permissions
 
-Permission codes (roadmap 5.1 `permission`, seeded):
+Permission codes (roadmap 5.1 `permission`, seeded). Every code has three parts, `module.entity.action`
+(ADR 0008 section 3). Customers and suppliers get separate codes, because Sales and CRM staff and Purchase
+and Accounting staff are different roles:
 
-| Code                | What it allows                                        |
-| ------------------- | ----------------------------------------------------- |
-| `party.view`        | List, search, open a profile (NID masked)             |
-| `party.create`      | Create a party, including its NID                     |
-| `party.edit`        | Edit details, contacts, addresses                     |
-| `party.deactivate`  | Deactivate or reactivate                              |
-| `party.merge`       | Merge and undo a merge                                |
-| `party.nid.view`    | See the full NID (logged)                             |
-| `party.nid.edit`    | Add or change an existing party's NID (logged)        |
-| `party.credit.edit` | Change credit limit, pay terms, set or release a hold |
-| `party.import`      | Import customers and suppliers                        |
+| Code                                                     | What it allows                                        |
+| -------------------------------------------------------- | ----------------------------------------------------- |
+| `party.customer.view`, `party.supplier.view`             | List, search, open a profile (NID masked)             |
+| `party.customer.create`, `party.supplier.create`         | Create a party of that kind, including its NID        |
+| `party.customer.edit`, `party.supplier.edit`             | Edit details, contacts, addresses                     |
+| `party.customer.deactivate`, `party.supplier.deactivate` | Deactivate or reactivate                              |
+| `party.customer.merge`, `party.supplier.merge`           | Merge and undo a merge                                |
+| `party.customer.import`, `party.supplier.import`         | Import parties of that kind                           |
+| `party.nid.view`                                         | See the full NID (logged)                             |
+| `party.nid.edit`                                         | Add or change an existing party's NID (logged)        |
+| `party.credit.edit`                                      | Change credit limit, pay terms, set or release a hold |
 
-Default role mapping, **provisional until ADR 0001 row 8 (role names) is accepted**:
+The NID and credit codes stay per party, not per kind: they already have three parts and protect one field
+whatever the kind.
+
+**A party that is both a customer and a supplier:**
+
+- **Read:** visible with either view code. A list or search returns only the parties whose kind the user
+  may view; a supplier-only user never sees customer-only parties.
+- **Actions:** each action needs the code for the role it is done in. The request says which role (the
+  customer or the supplier screen): from the customer side it needs `party.customer.<action>`, from the
+  supplier side `party.supplier.<action>`. Adding the other role to an existing party needs that role's
+  create code (a customer becomes also a supplier with `party.supplier.create`).
+- Name, phones and addresses are one record, so an edit made from either side shows on both.
+
+Default role mapping, **provisional until ADR 0001 row C7 (the five roles) is accepted**. Each column is the
+action's code for both kinds (for example "create" = `party.customer.create` and `party.supplier.create`),
+the same grants as before the per-kind split. This ADR owns Party's codes and their default mapping (ADR 0008
+open question 2, decided 20 Nov), so splitting a role by kind (for example a customer-only Cashier) is a
+change to this table, not to ADR 0008:
 
 | Role             | view | create | edit | deactivate | merge | nid.view | nid.edit | credit.edit | import |
 | ---------------- | ---- | ------ | ---- | ---------- | ----- | -------- | -------- | ----------- | ------ |
@@ -227,7 +262,7 @@ Default role mapping, **provisional until ADR 0001 row 8 (role names) is accepte
 | Accountant       | yes  | yes    | yes  | yes        | no    | no       | no       | yes         | yes    |
 | Cashier          | yes  | yes    | no   | no         | no    | no       | no       | no          | no     |
 
-**Cashier (decided on #15):** a cashier may enter an NID when creating a party (`party.create`), but may not
+**Cashier (decided on #15):** a cashier may enter an NID when creating a party (the create code), but may not
 view (`nid.view`) or change (`nid.edit`) an existing one.
 
 ### 9. API (all `scope: 'tenant'`, each with an isolation case)
@@ -311,8 +346,10 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
    the NID duplicate check.
 8. After 29 Nov: merge and undo, with the size cap and `merged` added to `partyStatusSchema`, once the two
    open merge points in section 5 are settled.
-9. After the Phase 1 gate: `party_relation`, credit limit and BIN rules (S-15), `IPartyRequirement` wiring
-   with Sales.
+9. **Release 1 (MotoMart decision, ADR 0001 row 15 and "MotoMart decisions", #23):** credit limit (S-15) and
+   guarantor (`party_relation`, CR-12). The credit limit is optional: an empty `credit_limit` means no
+   limit, which is the default. Built after F2 (steps 4 to 6), no longer left until after the Phase 1 gate.
+10. After the Phase 1 gate: BIN rules (S-15) and `IPartyRequirement` wiring with Sales.
 
 ## Consequences
 
@@ -336,7 +373,7 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
    `business_id`. This asks only whether the owner needs a shared view, which would be a report.
 2. **Owner:** retention: when a customer asks to be forgotten, do we blank name, phone and NID and keep
    the ledger lines? Not in v1 unless the owner needs it.
-3. **Both:** confirm the role table once ADR 0001 row 8 (role names) is decided.
+3. **Both:** confirm the role table once ADR 0001 row C7 (the five roles) is decided.
 4. **Owner:** is a free-text area enough, or does the dealership collect dues by fixed areas or routes? A fixed
    list would mean an `area` table (business-level).
 
