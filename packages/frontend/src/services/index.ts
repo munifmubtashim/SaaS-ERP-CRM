@@ -2,7 +2,8 @@ import { HealthService, type IHealthService } from './healthService';
 import { HttpClient, type IHttpClient } from './HttpClient';
 import { AuthService, type IAuthService } from './authService';
 import { OrganizationService, type IOrganizationService } from './organizationService';
-import { ProductService, type IProductService } from './productService';
+import type { IProductService } from './productService';
+import { MockProductService } from './mock/MockProductService';
 import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
@@ -15,6 +16,7 @@ import { CrmService, type ICrmService } from './crmService';
 
 export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
 export type { IHealthService } from './healthService';
+export type { IProductService } from './productService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -39,7 +41,8 @@ export function createServices(http: IHttpClient = new HttpClient()): Services {
     health: new HealthService(http),
     auth: new AuthService(http),
     organization: new OrganizationService(http),
-    product: new ProductService(http),
+    // Mock until GET /v1/products exists (catalogue tables not yet planned); then new ProductService(http).
+    product: new MockProductService(),
     inventory: new InventoryService(http),
     accounting: new AccountingService(http),
     vehicle: new VehicleService(http),

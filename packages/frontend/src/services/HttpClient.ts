@@ -41,3 +41,13 @@ export class HttpClient implements IHttpClient {
     return schema.parse(json);
   }
 }
+
+/** "?a=1&b=x" from the filters that are set (undefined and empty values are left out), or "" if none are. */
+export function toQueryString(query: Readonly<Record<string, unknown>>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}

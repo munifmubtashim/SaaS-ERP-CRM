@@ -1,13 +1,21 @@
-import type { IHttpClient } from './HttpClient';
+import { productListResponseSchema, type ProductListQueryInput, type ProductListResponse } from '@erp/shared';
+import { toQueryString, type IHttpClient } from './HttpClient';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TODO(Munif): add one small method per use case (interface segregation)
-export interface IProductService {}
+/** What the product list needs from Product. One small method per use (interface segregation). */
+export interface IProductService {
+  /** One page of products in the active business. */
+  list(query: ProductListQueryInput): Promise<ProductListResponse>;
+}
 
 /**
  * Product module: frontend API calls, one method per endpoint. Owner: Munif.
- * TODO(Munif): products and catalogue (roadmap 5.4).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
+ * createServices uses MockProductService until GET /v1/products exists (catalogue tables not yet planned).
  */
 export class ProductService implements IProductService {
   constructor(protected readonly http: IHttpClient) {}
+
+  /** GET /v1/products. Only the filters that are set go into the query string. */
+  list(query: ProductListQueryInput): Promise<ProductListResponse> {
+    return this.http.getJson(`/v1/products${toQueryString(query)}`, productListResponseSchema);
+  }
 }

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router';
+import { ProductListPage } from '../features/product';
 import { AppShell, NAV } from './AppShell';
 import { HomePage } from './HomePage';
 import { NotBuiltPage } from './NotBuiltPage';
@@ -11,6 +12,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'inventory/products', element: <ProductListPage /> },
       // TODO(owner of each module): replace with the module's routes from features/<module>/.
       ...NAV.filter((n) => n.to !== '/').map((n) => ({ path: n.to.slice(1), element: <NotBuiltPage /> })),
     ],
