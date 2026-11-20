@@ -5,6 +5,8 @@
 -- inserts stay at the right-hand end of the B-tree. The rest comes from gen_random_uuid() (core since
 -- PostgreSQL 13, no extension), with the version nibble changed from 4 to 7. Its variant bits (10xx) are kept.
 --   bytes 1 to 6  <- int8send(milliseconds), bytes 3 to 8 (the low 48 bits)
+--   floor(), not a plain ::bigint cast: the cast rounds, which would stamp about half of all ids with a
+--   millisecond the clock has not reached yet. UuidV7.int.test.ts checks this.
 --   bits 52, 53   <- set to 1: version 0100 becomes 0111
 -- Keys created within the same millisecond are unique but not ordered among themselves.
 --
@@ -22,7 +24,7 @@ AS $$
     set_bit(
       set_bit(
         overlay(uuid_send(gen_random_uuid())
-                PLACING substring(int8send((extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3)
+                PLACING substring(int8send(floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3)
                 FROM 1 FOR 6),
         52, 1),
       53, 1),

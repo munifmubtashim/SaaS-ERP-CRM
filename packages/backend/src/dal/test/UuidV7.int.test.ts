@@ -54,18 +54,35 @@ describe('uuid_v7() as the application role', () => {
   });
 
   it('sorts a later millisecond after an earlier one', async () => {
-    const [row] = await app.$queryRaw<{ first: string; second: string }[]>`
-      WITH a AS (SELECT public.uuid_v7() AS id), pause AS (SELECT pg_sleep(0.01) FROM a)
-      SELECT (SELECT id FROM a)::text AS first, (SELECT public.uuid_v7() FROM pause)::text AS second`;
-    expect(row).toBeDefined();
-    expect(millisOf(row?.second ?? '')).toBeGreaterThan(millisOf(row?.first ?? ''));
-    expect((row?.second ?? '') > (row?.first ?? '')).toBe(true);
+    // Three separate statements, run one after the other: first id, a 10 ms pause, second id.
+    const [first] = await app.$queryRaw<{ id: string }[]>`SELECT public.uuid_v7()::text AS id`;
+    await app.$executeRaw`SELECT pg_sleep(0.01)`; // pg_sleep returns void, which $queryRaw cannot read
+    const [second] = await app.$queryRaw<{ id: string }[]>`SELECT public.uuid_v7()::text AS id`;
+    const firstId = first?.id ?? '';
+    const secondId = second?.id ?? '';
+    expect(millisOf(secondId)).toBeGreaterThan(millisOf(firstId));
+    expect(secondId > firstId).toBe(true);
   });
 
-  it('is executable by erp_app', async () => {
-    const [row] = await app.$queryRaw<{ ok: boolean }[]>`
-      SELECT has_function_privilege('erp_app', 'public.uuid_v7()', 'EXECUTE') AS ok`;
-    expect(row?.ok).toBe(true);
+  it('never stamps a millisecond that the clock has not reached (truncates, never rounds up)', async () => {
+    // In each row the id is made first, then the clock is read again. With truncation the id's millisecond is
+    // never later than that reading. Rounding would put about half of all ids 1 ms ahead.
+    const rows = await app.$queryRaw<{ id: string; after: string }[]>`
+      SELECT public.uuid_v7()::text AS id,
+             floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint::text AS after
+        FROM generate_series(1, 2000)`;
+    const ahead = rows.filter((r) => millisOf(r.id) > Number(r.after));
+    expect(ahead).toEqual([]);
+  });
+
+  it('is executable by erp_app, through the default PUBLIC grant', async () => {
+    const [row] = await app.$queryRaw<{ app: boolean; viaPublic: boolean }[]>`
+      SELECT has_function_privilege('erp_app', 'public.uuid_v7()', 'EXECUTE') AS app,
+             (p.proacl IS NULL
+              OR EXISTS (SELECT 1 FROM aclexplode(p.proacl) a
+                          WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE')) AS "viaPublic"
+        FROM pg_proc p WHERE p.oid = 'public.uuid_v7()'::regprocedure`;
+    expect(row).toEqual({ app: true, viaPublic: true });
   });
 });
 
@@ -83,14 +100,13 @@ describe('dal/sql/functions/uuid_v7.sql matches the migrations', () => {
     expect(latestMigrationFunctions().get('uuid_v7')).toBe(source().get('uuid_v7'));
   });
 
-  it('the migration that creates it grants EXECUTE to erp_app', () => {
-    const folder =
-      migrationFolders()
-        .filter((f) => functionsIn(migrationSql(f)).has('uuid_v7'))
-        .at(-1) ?? '';
-    expect(migrationSql(folder)).toMatch(
-      /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.uuid_v7\(\)\s+TO\s+erp_app;/,
-    );
+  it('truncates the millisecond with floor(), in the source and therefore in the migration', () => {
+    expect(source().get('uuid_v7')).toContain('floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint');
+  });
+
+  it('grants nothing to a role by name (PUBLIC already has EXECUTE on a new function)', () => {
+    const all = migrationFolders().map(migrationSql).join('\n');
+    expect(all).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.uuid_v7/i);
   });
 
   it('no table uses it as a default yet (A3b adds them)', () => {
