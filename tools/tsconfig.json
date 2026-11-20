@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // CI runs these scripts with plain Node (type stripping), with no build step and no npm ci, so imports
+    // name the .ts file and only syntax that Node can strip is allowed.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src", "scripts"]
+}
