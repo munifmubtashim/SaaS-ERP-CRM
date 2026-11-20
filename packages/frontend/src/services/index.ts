@@ -7,7 +7,9 @@ import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
 import { ReportService, type IReportService } from './reportService';
-import { PartyService, type IPartyService } from './partyService';
+import type { IPartyService } from './partyService';
+import { MockPartyService } from './mock/MockPartyService';
+import { activeBusinessStore } from '../store/activeBusinessStore';
 import { SalesService, type ISalesService } from './salesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
 import { ServiceService, type IServiceService } from './serviceService';
@@ -15,6 +17,7 @@ import { CrmService, type ICrmService } from './crmService';
 
 export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
 export type { IHealthService } from './healthService';
+export type { IPartyService } from './partyService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -44,7 +47,8 @@ export function createServices(http: IHttpClient = new HttpClient()): Services {
     accounting: new AccountingService(http),
     vehicle: new VehicleService(http),
     report: new ReportService(http),
-    party: new PartyService(http),
+    // Mock until GET /v1/parties exists (F2); then new PartyService(http).
+    party: new MockPartyService(() => activeBusinessStore.get()),
     sales: new SalesService(http),
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
