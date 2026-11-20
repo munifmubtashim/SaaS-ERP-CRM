@@ -9,5 +9,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "audit:check": "node scripts/checkAudit.ts"
+  },
+  "dependencies": {
+    "@erp/shared": "*"
   }
 }
