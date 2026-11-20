@@ -1,0 +1,13 @@
+{
+  "name": "@erp/tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Scripts that are not part of the running app: CI checks, importer, anonymiser, seed generators.",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "audit:check": "node scripts/checkAudit.ts"
+  }
+}

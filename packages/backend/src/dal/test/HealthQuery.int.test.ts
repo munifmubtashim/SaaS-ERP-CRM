@@ -6,7 +6,7 @@ import { HealthQuery } from '../query/HealthQuery.js';
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl)
   throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
-const db = createDbClient(databaseUrl);
+const db = createDbClient(databaseUrl, { poolMax: 10, txTimeoutMs: 10_000 });
 
 afterAll(async () => {
   await db.$disconnect();
@@ -25,7 +25,10 @@ describe('dal against a real database', () => {
   });
 
   it('reports the database as down instead of throwing when it cannot connect', async () => {
-    const broken = createDbClient('postgresql://nobody:wrong@127.0.0.1:1/none');
+    const broken = createDbClient('postgresql://nobody:wrong@127.0.0.1:1/none', {
+      poolMax: 1,
+      txTimeoutMs: 10_000,
+    });
     const result = await new HealthQuery(broken).ping();
     expect(result.databaseOk).toBe(false);
     await broken.$disconnect();
