@@ -69,6 +69,16 @@ jobs:
           APP_DB_USER: erp_app
           APP_DB_PASSWORD: erp_app_ci
         run: sh docker/postgres/init/01-app-role.sh
+      # Run twice: the second run proves the script is idempotent (safe on an existing volume).
+      - name: Create the provisioning role (same script docker compose runs; run twice)
+        env:
+          PGHOST: localhost
+          PGPASSWORD: erp_owner_ci
+          POSTGRES_USER: erp_owner
+          POSTGRES_DB: erp
+          PROVISIONER_DB_USER: erp_provisioner
+          PROVISIONER_DB_PASSWORD: erp_provisioner_ci
+        run: sh docker/postgres/init/02-provisioner-role.sh && sh docker/postgres/init/02-provisioner-role.sh
       - name: Apply migrations to an empty database
         run: npm run db:migrate:deploy
       - name: Migration check (schema files match the migrations)

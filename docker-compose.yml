@@ -14,6 +14,9 @@ services:
       # Used by docker/postgres/init/01-app-role.sh to create the non-superuser application role.
       APP_DB_USER: ${APP_DB_USER:-erp_app}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-erp_app_dev}
+      # Used by docker/postgres/init/02-provisioner-role.sh (ADR 0008 provisioning role).
+      PROVISIONER_DB_USER: ${PROVISIONER_DB_USER:-erp_provisioner}
+      PROVISIONER_DB_PASSWORD: ${PROVISIONER_DB_PASSWORD:-erp_provisioner_dev}
     ports:
       - '${POSTGRES_PORT:-5433}:5432'
     volumes:
