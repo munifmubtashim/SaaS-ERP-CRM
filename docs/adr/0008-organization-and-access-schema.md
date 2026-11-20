@@ -133,17 +133,20 @@ D-03, and the features doc; the queue's three-role line is replaced, plan C7).
 - Permission codes are defined once in `shared/src/utils/permissions.ts` (a separate small PR, merged
   first, because it is shared code). The seed reads that file, so code and database cannot drift.
 - Each module adds its own codes in its own PR. The seed is idempotent and only adds missing codes.
-- The default role-to-permission mapping is **provisional** until ADR 0001 row 8 (role names) is accepted.
-  The default role mapping in ADR 0006 section 8 (Permissions) is the first input.
+- **Each module's ADR owns its codes and their default role mapping** (Party: ADR 0006 section 8). This ADR
+  seeds the five roles and maps only its own three codes (table below). Every default mapping is
+  **provisional**: configurable per business later, and to confirm with the owner.
 - **Code format:** `module.entity.action`, as typed in `permissions.ts` (roadmap 5.1). Every code has
   exactly three parts.
 - Codes this ADR defines (cost price, profit and salary are hidden fields):
 
-  | Code                     | What it allows                                       |
-  | ------------------------ | ---------------------------------------------------- |
-  | `product.cost.view`      | See cost price on products, stock and documents      |
-  | `report.profit.view`     | See profit and margin figures in reports and screens |
-  | `accounting.salary.view` | See salary entries and amounts                       |
+  | Code                     | What it allows                                       | Default roles (provisional)         |
+  | ------------------------ | ---------------------------------------------------- | ----------------------------------- |
+  | `product.cost.view`      | See cost price on products, stock and documents      | Owner, Accountant, Business Manager |
+  | `report.profit.view`     | See profit and margin figures in reports and screens | Owner, Accountant, Business Manager |
+  | `accounting.salary.view` | See salary entries and amounts                       | Owner, Accountant                   |
+
+  Branch Manager and Cashier get none of the three.
 
   This ADR only defines the codes; hiding them in responses is the job of the shared field rule in plan 2.5.
 
@@ -248,6 +251,9 @@ Integration, real Postgres, continued:
     the request body sends another id. Each later module adds its own case.
 17. `erp_provisioner` cannot `UPDATE` or `DELETE` `business` or `branch`, cannot read or insert into
     `organization` or `legal_entity`, and cannot read, insert, update or delete any other table.
+18. The seed gives every organization the five roles and maps this ADR's codes as in section 3:
+    `product.cost.view` and `report.profit.view` to Owner, Accountant and Business Manager;
+    `accounting.salary.view` to Owner and Accountant; none of the three to Branch Manager or Cashier.
 
 Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); this ADR adds no routes.
 
@@ -256,7 +262,7 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 1. **A2:** this ADR, reviewed and accepted by both.
 2. **A4a (shared PR, merged first):** `permissions.ts` with the first codes and the five role codes.
 3. **A3:** organization tree tables, RLS, grants, provisioning path and `erp_provisioner`, tests 1, 2, 3, 4, 5, 7, 12, 13, 16, 17.
-4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14, 15, 16.
+4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14, 15, 16, 18.
 5. Then the real `authMiddleware` (A5) and `tenantMiddleware` (A6, needs ADR 0007).
 
 ## Consequences
@@ -279,17 +285,19 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 
 ## Open questions (both developers to answer before this is Accepted)
 
-1. **One organization per user, global unique email?** Recommended: yes for release 1. A consultant who
-   serves two client organizations would need two logins.
-2. **Role mapping:** is ADR 0006's provisional mapping the starting point for all five roles, or should
-   each module's ADR propose its own codes and this one only seeds the role names?
+1. ~~One organization per user, global unique email?~~ Decided (20 Nov): one organization per user
+   (`app_user.organization_id NOT NULL`), email unique across the system on `lower(email)` (section 2).
+2. ~~Role mapping~~ Decided (20 Nov): each module's ADR owns its codes and default mapping. This ADR seeds
+   the five roles and maps only its own three codes: `product.cost.view` and `report.profit.view` to Owner,
+   Accountant and Business Manager; `accounting.salary.view` to Owner and Accountant; Branch Manager and
+   Cashier get none. A provisional default, configurable per business later, to confirm with the owner
+   (section 3, test 18).
 3. ~~`business` insert policy~~ Decided: every business and branch is created by the provisioning path
    (section 1).
-4. **`branch_is_active()` in `WITH CHECK`:** enforce it in each module's migration, or add one generic
-   trigger that every branch-scoped table attaches? Recommended: the function in the policy, so no write
-   path can skip it.
-5. **Spec items still open** that touch these tables: ADR 0001 row 8 (role names), and whether Moto Mart
-   needs the five roles on day one or three is enough.
+4. ~~`branch_is_active()` in `WITH CHECK`~~ Decided (20 Nov): `branch_is_active(branch_id)` goes in each
+   branch-scoped table's `WITH CHECK`, and each module's migration checklist lists it (section 1, test 7).
+5. ~~Spec items still open~~ Decided (20 Nov): the five roles with the spec's names (ADR 0001 row 8, plan C7).
+   Moto Mart's job titles go to `staff.designation` or become custom roles.
 6. ~~Provisioning path connection~~ Decided (Munif and Farhan, 20 Nov): a separate least-privilege role,
    `erp_provisioner`, used only by `ProvisioningQuery`; a named exception in ADR 0005's unscoped rule. Grants,
    policies and tests in sections 1, 4 and 6.
