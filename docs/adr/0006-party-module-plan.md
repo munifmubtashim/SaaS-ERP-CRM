@@ -2,7 +2,7 @@
 
 | Field               | Value                                                                                                                                                            |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status              | **Proposed**                                                                                                                                                     |
+| Status              | **Accepted** (17 Nov 2026, Farhan and Munif, PR #15)                                                                                                             |
 | Date                | 2026-11-17                                                                                                                                                       |
 | Deciders            | Farhan (owner), Munif                                                                                                                                            |
 | Spec / roadmap refs | spec O-01, C-01, S-01, S-12, S-15, A-06, A-07, A-21, A-22, CR-01, CR-02, CR-06, import (spec section 2); roadmap 4.2, 5.3, Phase 1; ADR 0001 rows 1, 2; ADR 0005 |

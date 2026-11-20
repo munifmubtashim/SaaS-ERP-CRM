@@ -2,8 +2,8 @@
 
 | Field               | Value                                                                                          |
 | ------------------- | ---------------------------------------------------------------------------------------------- |
-| Status              | **Proposed**                                                                                   |
-| Date                | 2026-11-15                                                                                     |
+| Status              | **Accepted** (17 Nov 2026, Munif and Farhan, PR #3)                                            |
+| Date                | 2026-11-17 (accepted); proposed 2026-11-15                                                     |
 | Deciders            | Munif, Farhan                                                                                  |
 | Spec / roadmap refs | roadmap 4.2 (tenancy), 4.3 rule 4 (one transaction per posting); ADR 0001 row 1 (legal entity) |
 
@@ -135,6 +135,8 @@ its own schema with a spike runner (`test/support/tenantScope.spike.ts`). It sho
 - the same pooled connection holds no values once the request ends;
 - 20 interleaved requests for two businesses never see each other's rows;
 - a thrown error rolls back every write.
+
+Once #4 merges, the proof test runs on the real runner in `dal/config/tenantScope.ts`, and the spike is removed.
 
 ## Alternatives rejected
 
@@ -274,3 +276,10 @@ Answered later (settle before the task named):
   the first report route (M6).
 - **Q10, Prisma 8:** stay on Prisma 7 until PostgreSQL 17 (`transaction_timeout`) is available; then only
   PostgreSQL limits remain. Before any Prisma major upgrade.
+
+Open, to settle before (Farhan, on PR #3):
+
+1. **Where the active business comes from** (a request header or the session). Before M2, #12 (the
+   business switcher) and F1b.
+2. **Two requests with the same Idempotency-Key at once:** the second waits on the first's key row, up to
+   the 5 s statement limit. Before F3.
