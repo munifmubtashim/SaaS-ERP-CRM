@@ -1,11 +1,11 @@
 # 0008: Organization and access schema
 
-| Field               | Value                                                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Status              | **Proposed**                                                                                                            |
-| Date                | 2026-11-19                                                                                                              |
-| Deciders            | Munif, Farhan                                                                                                           |
-| Spec / roadmap refs | spec O-01 to O-10, C-01, U-01 to U-10, D-03; roadmap 4.2 (tenancy); ADR 0001 rows 1 and 8; ADR 0005; ADR 0006; plan 2.1 |
+| Field               | Value                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Status              | **Proposed**                                                                                                                |
+| Date                | 2026-11-19                                                                                                                  |
+| Deciders            | Munif, Farhan                                                                                                               |
+| Spec / roadmap refs | spec O-01 to O-10, C-01, U-01 to U-10, D-03; roadmap 4.2 (tenancy); ADR 0001 rows 1, 8 and C7; ADR 0005; ADR 0006; plan 2.1 |
 
 ## Context
 
@@ -135,7 +135,8 @@ D-03, and the features doc; the queue's three-role line is replaced, plan C7).
 - Each module adds its own codes in its own PR. The seed is idempotent and only adds missing codes.
 - **Each module's ADR owns its codes and their default role mapping** (Party: ADR 0006 section 8). This ADR
   seeds the five roles and maps only its own three codes (table below). Every default mapping is
-  **provisional**: configurable per business later, and to confirm with the owner.
+  **provisional** until ADR 0001 row C7 is accepted and the owner confirms who may see cost, profit and
+  salary; it becomes configurable per business later.
 - **Code format:** `module.entity.action`, as typed in `permissions.ts` (roadmap 5.1). Every code has
   exactly three parts.
 - Codes this ADR defines (cost price, profit and salary are hidden fields):
@@ -296,7 +297,8 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
    (section 1).
 4. ~~`branch_is_active()` in `WITH CHECK`~~ Decided (20 Nov): `branch_is_active(branch_id)` goes in each
    branch-scoped table's `WITH CHECK`, and each module's migration checklist lists it (section 1, test 7).
-5. ~~Spec items still open~~ Decided (20 Nov): the five roles with the spec's names (ADR 0001 row 8, plan C7).
+5. ~~Spec items still open~~ Decided (20 Nov): five roles seeded from day one, with the spec's names (Owner,
+   Business Manager, Branch Manager, Accountant, Cashier), per ADR 0001 row C7.
    Moto Mart's job titles go to `staff.designation` or become custom roles.
 6. ~~Provisioning path connection~~ Decided (Munif and Farhan, 20 Nov): a separate least-privilege role,
    `erp_provisioner`, used only by `ProvisioningQuery`; a named exception in ADR 0005's unscoped rule. Grants,
