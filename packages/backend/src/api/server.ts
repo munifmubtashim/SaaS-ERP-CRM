@@ -5,7 +5,12 @@ import { createLogger } from './config/logger.js';
 
 const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
-const { managers, close } = createManagers({ databaseUrl: env.DATABASE_URL, version: env.APP_VERSION });
+const { managers, close } = createManagers({
+  databaseUrl: env.DATABASE_URL,
+  version: env.APP_VERSION,
+  dbPoolMax: env.DB_POOL_MAX,
+  dbTxTimeoutMs: env.DB_TX_TIMEOUT_MS,
+});
 
 const server = createApp({ logger, managers }).listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'api listening');
