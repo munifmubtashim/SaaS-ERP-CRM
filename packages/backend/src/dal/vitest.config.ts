@@ -6,6 +6,18 @@ import { defineConfig } from 'vitest/config';
 const rootEnv = fileURLToPath(new URL('../../../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
+// Two projects: `unit` (no database, runs in `npm run check`) and `integration` (real Postgres).
 export default defineConfig({
-  test: { include: ['test/**/*.int.test.ts'], testTimeout: 20_000 },
+  test: {
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['test/**/*.test.ts'],
+          exclude: ['**/node_modules/**', 'test/**/*.int.test.ts'],
+        },
+      },
+      { test: { name: 'integration', include: ['test/**/*.int.test.ts'], testTimeout: 20_000 } },
+    ],
+  },
 });
