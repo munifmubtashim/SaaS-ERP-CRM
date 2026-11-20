@@ -4,7 +4,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import type { IReportService } from '../../services';
+import { ApiRequestError, type IReportService } from '../../services';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { OwnerDashboard } from './OwnerDashboard';
 
@@ -27,13 +27,20 @@ const dashboard: Dashboard = {
   ],
 };
 
+type Answer = Dashboard | Error | 'pending';
+
+/** Answers in order; the last answer repeats. */
 class FakeReportService implements IReportService {
   calls = 0;
-  constructor(private readonly answer: Dashboard | Error | 'pending') {}
+  private readonly answers: Answer[];
+  constructor(...answers: Answer[]) {
+    this.answers = answers;
+  }
   ownerDashboard(): Promise<Dashboard> {
+    const answer = this.answers[Math.min(this.calls, this.answers.length - 1)] as Answer;
     this.calls += 1;
-    if (this.answer === 'pending') return new Promise(() => {});
-    return this.answer instanceof Error ? Promise.reject(this.answer) : Promise.resolve(this.answer);
+    if (answer === 'pending') return new Promise(() => {});
+    return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
   }
 }
 
@@ -97,5 +104,32 @@ describe('OwnerDashboard', () => {
     renderDashboard(new FakeReportService(dashboard), 'bn');
     expect(await screen.findByText('৳ ১৬,২১,৮১৭.৫০')).toBeInTheDocument();
     expect(screen.getByText('মোট বকেয়া')).toBeInTheDocument();
+  });
+
+  it('says so, without figures, when the caller may not see them', async () => {
+    renderDashboard(new FakeReportService(new ApiRequestError(403, null)));
+    expect(await screen.findByText('You do not have permission to see these figures.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('refreshes on request and shows the new figures', async () => {
+    const newer = { ...dashboard, totals: { ...dashboard.totals, collectionsToday: '60000.00' } };
+    const report = new FakeReportService(dashboard, newer);
+    renderDashboard(report);
+    await screen.findByText('৳ 57,500.00');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByText('৳ 60,000.00')).toBeInTheDocument();
+    expect(report.calls).toBe(2);
+  });
+
+  it('keeps the figures on screen when a refresh fails, and says they may be out of date', async () => {
+    renderDashboard(new FakeReportService(dashboard, new TypeError('Failed to fetch')));
+    await screen.findByText('৳ 16,21,817.50');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Could not refresh. These figures may be out of date.',
+    );
+    expect(screen.getByText('৳ 16,21,817.50')).toBeInTheDocument();
   });
 });
