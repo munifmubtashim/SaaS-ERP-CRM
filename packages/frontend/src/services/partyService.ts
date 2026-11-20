@@ -1,15 +1,23 @@
-import { partyListResponseSchema, type PartyListQueryInput, type PartyListResponse } from '@erp/shared';
+import {
+  partyDetailSchema,
+  partyListResponseSchema,
+  type PartyDetail,
+  type PartyListQueryInput,
+  type PartyListResponse,
+} from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
 
-/** What the customer list needs from Party. One small method per use (interface segregation). */
+/** What the customer screens need from Party. One small method per use (interface segregation). */
 export interface IPartyService {
   /** One page of parties in the active business. The HTTP client adds the business header (ADR 0007). */
   list(query: PartyListQueryInput): Promise<PartyListResponse>;
+  /** One customer's profile; 404 when the party is not in the active business. */
+  get(id: string): Promise<PartyDetail>;
 }
 
 /**
  * Party module: frontend API calls, one method per endpoint. Owner: Farhan.
- * createServices uses MockPartyService until GET /v1/parties exists (F2).
+ * createServices uses MockPartyService until the Party routes exist (F2).
  */
 export class PartyService implements IPartyService {
   constructor(protected readonly http: IHttpClient) {}
@@ -22,5 +30,10 @@ export class PartyService implements IPartyService {
     }
     const qs = params.toString();
     return this.http.getJson(`/v1/parties${qs ? `?${qs}` : ''}`, partyListResponseSchema);
+  }
+
+  /** GET /v1/parties/:id. The shared schema drops every unknown key, so a full NID never gets through. */
+  get(id: string): Promise<PartyDetail> {
+    return this.http.getJson(`/v1/parties/${encodeURIComponent(id)}`, partyDetailSchema);
   }
 }

@@ -1,4 +1,4 @@
-import type { PartyListItem, PartyListQueryInput, PartyListResponse } from '@erp/shared';
+import type { PartyDetail, PartyListItem, PartyListQueryInput, PartyListResponse } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -51,6 +51,9 @@ class FakePartyService implements IPartyService {
     const start = query.cursor ? Number(query.cursor) : 0;
     const end = start + 2;
     return { items: matching.slice(start, end), nextCursor: end < matching.length ? String(end) : null };
+  }
+  get(): Promise<PartyDetail> {
+    return Promise.reject(new Error('The list page never asks for one customer.'));
   }
 }
 
