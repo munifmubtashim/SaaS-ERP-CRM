@@ -57,19 +57,20 @@ Constraints already decided elsewhere and not reopened here:
   `app_business_ids()`, and Prisma's `create` uses `INSERT ... RETURNING`, which Postgres checks against the
   `SELECT` policy, so a request insert would fail. The first business of a new organization and every later
   one are created by the provisioning path. `erp_app` has no `INSERT` on `business` (section 4).
-- **The provisioning path** creates businesses and branches (and, for a new client, the organization and
-  its legal entity, which is why its grants cover those two tables). It runs **unscoped** (no tenant transaction),
+- **The provisioning path** creates businesses and branches. It runs **unscoped** (no tenant transaction),
   and the Manager checks the Owner permission before calling it. It does not run as `erp_app`, which has no
   `INSERT` on these tables.
   - **It connects as a separate least-privilege role, `erp_provisioner`:** not the migration owner, not
     `BYPASSRLS`, owner of no table.
   - **`ProvisioningQuery` is the only code that connects as that role.** ADR 0005's unscoped rule names it
     as an exception next to `AuthQuery` and `HealthQuery` (amended there).
-  - **Grants:** `INSERT` and `SELECT` on `organization`, `legal_entity`, `business` and `branch` only.
+  - **Grants:** `INSERT` and `SELECT` on `business` and `branch` only.
     `SELECT` is needed because Prisma's `create` runs `INSERT ... RETURNING`. No `UPDATE` or `DELETE`, and
     nothing on any other table.
-  - **RLS stays forced.** The role gets its own `INSERT` and `SELECT` policies on those four tables
+  - **RLS stays forced.** The role gets its own `INSERT` and `SELECT` policies on those two tables
     (`TO erp_provisioner`), never `BYPASSRLS`. The policies are written in A3 with tests 12, 13 and 17.
+- **`organization` and `legal_entity` are seeded in release 1,** not created by any request or by the
+  provisioning path. Creating them from the provisioning path (onboarding a new client) is a later ADR.
 - **Deactivation:** `is_active = false` keeps history and refuses new writes. Enforcement is two-layered:
   the Manager refuses with a clear message, and each branch-scoped table gets a `WITH CHECK` using
   `branch_is_active(branch_id)` as it is added. The tree tables themselves carry the flag only; the
@@ -169,8 +170,9 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
 - Every table: `ENABLE` and `FORCE ROW LEVEL SECURITY`; `REVOKE DELETE ... FROM erp_app` in the same migration,
   because the default privileges in `01-app-role.sh` grant it. `permission` also revokes `INSERT` and `UPDATE`;
   `business` and `branch` also revoke `INSERT` (provisioning only, section 1).
-- `erp_provisioner`: `GRANT INSERT, SELECT` on `organization`, `legal_entity`, `business` and `branch`, and
-  its own `INSERT` and `SELECT` policies `TO erp_provisioner` on those four tables. Nothing else (section 1).
+- `erp_provisioner`: `GRANT INSERT, SELECT` on `business` and `branch`, and its own `INSERT` and `SELECT`
+  policies `TO erp_provisioner` on those two tables. Nothing on `organization`, `legal_entity` or any other
+  table (section 1).
 - A query with no scope set fails: the functions raise `tenant scope not set` (SQLSTATE `42501`) on a missing
   or empty value, never return null (ADR 0005, #19).
 
@@ -224,10 +226,10 @@ Integration, real Postgres, connected as `erp_app`:
     for organization A, returns and changes nothing of organization B, including by guessed id.
 11. `AuthQuery`'s scope read for user U returns only U's own `user_scope` rows.
 12. `erp_app` still cannot `INSERT` into `business`, with `erp_provisioner` and its policies in place; the
-    provisioning path can, after the Manager's Owner check.
+    provisioning path can, after the Manager's Owner check, as `erp_provisioner`.
 13. `erp_app` still cannot `INSERT` into `branch` directly, with `erp_provisioner` and its policies in
-    place; the provisioning path can, after the Manager's Owner check, and a non-Owner caller is refused
-    before any insert.
+    place; the provisioning path can, as `erp_provisioner`, after the Manager's Owner check, and a
+    non-Owner caller is refused before any insert.
 14. A `staff` row with no branch is visible to every scope of its business; a row of branch 1 is not
     visible to a branch 2-only scope.
 
@@ -244,8 +246,8 @@ Integration, real Postgres, continued:
 
 16. Per module, for every create route: the stored `created_by` equals the authenticated caller, even when
     the request body sends another id. Each later module adds its own case.
-17. `erp_provisioner` cannot `UPDATE` or `DELETE` `organization`, `legal_entity`, `business` or `branch`,
-    and cannot read, insert, update or delete any other table.
+17. `erp_provisioner` cannot `UPDATE` or `DELETE` `business` or `branch`, cannot read or insert into
+    `organization` or `legal_entity`, and cannot read, insert, update or delete any other table.
 
 Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); this ADR adds no routes.
 

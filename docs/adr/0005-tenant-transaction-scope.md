@@ -104,10 +104,11 @@ filter by the authenticated user's own id, so a user never sees another user's s
 
 **Named exception: `ProvisioningQuery`** (amended by ADR 0008, 20 Nov 2026).
 
-- It runs unscoped, to create an organization, legal entity, business or branch, after the Manager's Owner check.
+- It runs unscoped, to create a business or branch, after the Manager's Owner check. In release 1,
+  organizations and legal entities are seeded; creating them here is a later ADR.
   A new business or branch cannot be inserted through RLS, because it is not yet in the caller's scope.
 - It is the only code that connects as the least-privilege role `erp_provisioner`, not as `erp_app`. That
-  role has `INSERT` and `SELECT` on those four tables only, with its own RLS policies, never `BYPASSRLS`.
+  role has `INSERT` and `SELECT` on `business` and `branch` only, with its own RLS policies, never `BYPASSRLS`.
 - The lint rule names it next to `AuthQuery` and `HealthQuery` as the only unscoped classes. No other class
   may use that connection.
 
