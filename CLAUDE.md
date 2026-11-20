@@ -64,7 +64,8 @@ npm run docker:down         # stop services (data volumes are kept)
 ```
 
 One workspace: `npm run test -w @erp/api`, `npm run typecheck -w @erp/frontend`. Workspaces: `@erp/api`,
-`@erp/business-logic`, `@erp/dal`, `@erp/shared`, `@erp/frontend`. Never use pnpm or yarn; commit `package-lock.json`.
+`@erp/business-logic`, `@erp/dal`, `@erp/shared`, `@erp/frontend`, `@erp/tools` (`tools/`: CI and dev scripts,
+not part of the running app). Never use pnpm or yarn; commit `package-lock.json`.
 
 ## Repository tree (replaces roadmap 8.5)
 
