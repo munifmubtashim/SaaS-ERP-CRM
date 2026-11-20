@@ -1,5 +1,5 @@
 import type { HealthResponse } from '@erp/shared';
-import type { IHealthService, IProductService, Services } from '../services';
+import type { IHealthService, IInventoryService, IProductService, Services } from '../services';
 
 /** Fake IHealthService: returns a fixed answer or fails, with no network. */
 export class FakeHealthService implements IHealthService {
@@ -15,6 +15,11 @@ export const unusedProduct: IProductService = {
   list: () => Promise.reject(new Error('This test listed products without injecting a service.')),
 };
 
+/** IInventoryService for tests that never load stock: using it is a test bug, so it fails loudly. */
+export const unusedInventory: IInventoryService = {
+  stock: () => Promise.reject(new Error('This test loaded stock without injecting a service.')),
+};
+
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
 export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
@@ -22,7 +27,7 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     auth: {},
     organization: {},
     product: unusedProduct,
-    inventory: {},
+    inventory: unusedInventory,
     accounting: {},
     vehicle: {},
     report: {},
