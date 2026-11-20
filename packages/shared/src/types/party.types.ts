@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type {
+  partyDetailSchema,
   partyKindSchema,
   partyListItemSchema,
   partyListQuerySchema,
@@ -14,6 +15,7 @@ export type PartyKind = z.infer<typeof partyKindSchema>;
 export type PartyStatus = z.infer<typeof partyStatusSchema>;
 export type PartyRole = z.infer<typeof partyRoleSchema>;
 export type Party = z.infer<typeof partySchema>;
+export type PartyDetail = z.infer<typeof partyDetailSchema>;
 export type PartyListItem = z.infer<typeof partyListItemSchema>;
 /** What the caller may send (limit optional, as text or number). */
 export type PartyListQueryInput = z.input<typeof partyListQuerySchema>;
