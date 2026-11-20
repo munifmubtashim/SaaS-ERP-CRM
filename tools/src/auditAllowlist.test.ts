@@ -3,6 +3,7 @@ import {
   AuditInputError,
   dependentsInLockfile,
   evaluateAudit,
+  MAX_EXPIRY_DAYS,
   parseAllowlist,
   parseAuditReport,
   type AllowlistEntry,
@@ -131,6 +132,39 @@ describe('evaluateAudit', () => {
     expect(run(clean, [{ ...entry, expires: '2026-01-01' }]).ok).toBe(false);
   });
 
+  it('caps the expiry at 30 days after today', () => {
+    expect(MAX_EXPIRY_DAYS).toBe(30);
+  });
+
+  it('passes an entry that expires exactly 30 days after today', () => {
+    // TODAY is 2026-11-20; +30 days is 2026-12-20.
+    const result = run(report(), [{ ...entry, expires: '2026-12-20' }]);
+    expect(result.ok).toBe(true);
+    expect(result.ignored).toHaveLength(1);
+  });
+
+  it('fails an entry that expires 31 days after today', () => {
+    const result = run(report(), [{ ...entry, expires: '2026-12-21' }]);
+    expect(result.ok).toBe(false);
+    expect(result.ignored).toEqual([]);
+    expect(result.failures.map((f) => f.message)).toContain(
+      'allowlist entry GHSA-7589-6fvf-x4pw (effect) expires 2026-12-21, more than 30 days after today',
+    );
+  });
+
+  it('warns, but does not fail, for an in-date entry that matches no advisory', () => {
+    const clean = JSON.stringify({ auditReportVersion: 2, vulnerabilities: {}, metadata: {} });
+    const result = run(clean, [entry]);
+    expect(result.ok).toBe(true);
+    expect(result.failures).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('GHSA-7589-6fvf-x4pw');
+  });
+
+  it('gives no warning when every entry matches an advisory', () => {
+    expect(run(report(), [entry]).warnings).toEqual([]);
+  });
+
   it('fails when the allowlisted id is reached through another path', () => {
     const alsoRuntime = (pkg: string) => (pkg === 'effect' ? ['@prisma/config', 'some-runtime-lib'] : []);
     const result = run(report(), [entry], alsoRuntime);
@@ -241,6 +275,7 @@ describe('parseAllowlist', () => {
   it.each([
     ['not an array', JSON.stringify({ entries: [] })],
     ['a bad date', JSON.stringify([{ ...entry, expires: '20 Dec 2026' }])],
+    ['an impossible date (31 February)', JSON.stringify([{ ...entry, expires: '2026-02-31' }])],
     ['a missing owner', JSON.stringify([{ ...entry, owner: undefined }])],
     ['a bad id', JSON.stringify([{ ...entry, id: 'CVE-2026-1' }])],
   ])('fails on a malformed allowlist: %s', (_label, raw) => {

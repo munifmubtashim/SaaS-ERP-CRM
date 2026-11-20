@@ -50,6 +50,8 @@ export interface AuditResult {
   ok: boolean;
   ignored: { advisory: Advisory; entry: AllowlistEntry }[];
   failures: Failure[];
+  /** Printed, never fatal: for example an in-date entry whose advisory is no longer reported. */
+  warnings: string[];
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -116,6 +118,21 @@ export function parseAuditReport(raw: string): Advisory[] {
   return [...advisories.values()];
 }
 
+/** An entry may expire at most this many days after the day the gate runs (ADR 0002 decision 8). */
+export const MAX_EXPIRY_DAYS = 30;
+
+/** True for a real calendar day in YYYY-MM-DD. A round trip rejects dates that Date rolls over (2026-02-31). */
+function isRealDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
+/** `date` (YYYY-MM-DD, UTC) plus `days`, as YYYY-MM-DD. */
+function addDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 /** Reads tools/audit-allowlist.json. Every field is required; a bad entry throws. */
 export function parseAllowlist(raw: string): AllowlistEntry[] {
   const list = parseJson(raw, 'audit allowlist');
@@ -132,7 +149,7 @@ export function parseAllowlist(raw: string): AllowlistEntry[] {
       fields.map((field) => [field, item[field]]),
     ) as unknown as AllowlistEntry;
     if (!GHSA_ID.test(entry.id)) throw new AuditInputError(`${where}: id ${entry.id} is not a GHSA id`);
-    if (!ISO_DATE.test(entry.expires) || Number.isNaN(Date.parse(`${entry.expires}T00:00:00Z`))) {
+    if (!isRealDate(entry.expires)) {
       throw new AuditInputError(`${where}: expires ${entry.expires} is not a YYYY-MM-DD date`);
     }
     return entry;
@@ -165,13 +182,26 @@ export function evaluateAudit(input: {
 }): AuditResult {
   const { advisories, allowlist, dependents, today } = input;
   const failures: Failure[] = [];
+  const warnings: string[] = [];
   const ignored: AuditResult['ignored'] = [];
+  const latestExpiry = addDays(today, MAX_EXPIRY_DAYS);
+  const unusable = new Set<AllowlistEntry>();
 
   for (const entry of allowlist) {
     if (entry.expires < today) {
+      unusable.add(entry);
       failures.push({
         message: `allowlist entry ${entry.id} (${entry.package}) expired on ${entry.expires}; owner ${entry.owner} must remove or renew it`,
       });
+    } else if (entry.expires > latestExpiry) {
+      unusable.add(entry);
+      failures.push({
+        message: `allowlist entry ${entry.id} (${entry.package}) expires ${entry.expires}, more than ${MAX_EXPIRY_DAYS} days after today`,
+      });
+    } else if (!advisories.some((a) => a.id === entry.id && a.package === entry.package)) {
+      warnings.push(
+        `allowlist entry ${entry.id} (${entry.package}) matches no current advisory; remove it (owner ${entry.owner})`,
+      );
     }
   }
 
@@ -183,7 +213,7 @@ export function evaluateAudit(input: {
       failures.push({ message: `${label} is not allowlisted` });
       continue;
     }
-    if (entry.expires < today) continue; // already reported as expired above
+    if (unusable.has(entry)) continue; // already reported above: expired, or expiry beyond the cap
     const via = [...new Set([...dependents(advisory.package), ...advisory.npmDependents])].sort();
     const outside = via.filter((name) => name !== entry.path);
     if (via.length === 0 || outside.length > 0) {
@@ -196,5 +226,5 @@ export function evaluateAudit(input: {
     ignored.push({ advisory, entry });
   }
 
-  return { ok: failures.length === 0, ignored, failures };
+  return { ok: failures.length === 0, ignored, failures, warnings };
 }

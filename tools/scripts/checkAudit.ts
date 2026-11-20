@@ -43,7 +43,8 @@ function runNpmAudit(): string {
 
 function main(): number {
   const allowlist = parseAllowlist(readFileSync(allowlistPath(), 'utf8'));
-  const lockfile = readFileSync(new URL('package-lock.json', `file://${repoRoot}`), 'utf8');
+  // Built from import.meta.url, which is already a valid file URL, so a '#' or '%' in the checkout path is safe.
+  const lockfile = readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8');
   const advisories = parseAuditReport(runNpmAudit());
   const today = new Date().toISOString().slice(0, 10);
 
@@ -64,6 +65,7 @@ function main(): number {
         `Exception expires ${entry.expires}, owner ${entry.owner}. ${advisory.url}`,
     );
   }
+  for (const warning of result.warnings) console.warn(`WARN ${warning}`);
   for (const failure of result.failures) console.error(`FAIL ${failure.message}`);
 
   console.log(result.ok ? 'Audit gate passed.' : `Audit gate failed: ${result.failures.length} problem(s).`);
