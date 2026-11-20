@@ -61,6 +61,15 @@ describe('partyListItemSchema', () => {
     expect(partyListItemSchema.parse(sample).nameBn).toBeNull();
   });
 
+  it('requires the Bangla name key: a row without nameBn fails', () => {
+    const { nameBn: _omitted, ...withoutNameBn } = sample;
+    expect(partyListItemSchema.safeParse(withoutNameBn).success).toBe(false);
+  });
+
+  it('rejects an empty Bangla name: a blank one is sent as null', () => {
+    expect(partyListItemSchema.safeParse({ ...sample, nameBn: '' }).success).toBe(false);
+  });
+
   it('uses the same field rules as the full party', () => {
     const tooLongCode = { ...sample, code: 'C'.repeat(33) };
     expect(partySchema.safeParse(tooLongCode).success).toBe(false);
