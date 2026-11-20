@@ -56,6 +56,20 @@ describe('partyListItemSchema', () => {
     expect(parsed).toMatchObject({ id: sample.id, code: 'C-0001', phone: '+8801700000001' });
   });
 
+  it('carries the Bangla name, or null when there is none', () => {
+    expect(partyListItemSchema.parse({ ...sample, nameBn: 'নমুনা গ্রাহক' }).nameBn).toBe('নমুনা গ্রাহক');
+    expect(partyListItemSchema.parse(sample).nameBn).toBeNull();
+  });
+
+  it('requires the Bangla name key: a row without nameBn fails', () => {
+    const { nameBn: _omitted, ...withoutNameBn } = sample;
+    expect(partyListItemSchema.safeParse(withoutNameBn).success).toBe(false);
+  });
+
+  it('rejects an empty Bangla name: a blank one is sent as null', () => {
+    expect(partyListItemSchema.safeParse({ ...sample, nameBn: '' }).success).toBe(false);
+  });
+
   it('uses the same field rules as the full party', () => {
     const tooLongCode = { ...sample, code: 'C'.repeat(33) };
     expect(partySchema.safeParse(tooLongCode).success).toBe(false);
