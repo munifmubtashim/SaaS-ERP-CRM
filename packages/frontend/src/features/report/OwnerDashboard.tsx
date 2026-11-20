@@ -1,6 +1,7 @@
 import { formatDateTimeBD, formatMoneyBDT } from '@erp/shared';
 import { Button, Card } from '../../components/ui';
 import { useI18n } from '../../i18n';
+import { ApiRequestError } from '../../services';
 import { useOwnerDashboard } from './useOwnerDashboard';
 
 /**
@@ -21,7 +22,14 @@ export function OwnerDashboard() {
     );
   }
 
-  if (dashboard.isError) {
+  if (dashboard.isError && !dashboard.data) {
+    if (dashboard.error instanceof ApiRequestError && dashboard.error.status === 403) {
+      return (
+        <Card>
+          <p className="text-muted">{t('dashboard.forbidden')}</p>
+        </Card>
+      );
+    }
     return (
       <Card role="alert" className="space-y-4">
         <p>{t('dashboard.error')}</p>
@@ -50,14 +58,24 @@ export function OwnerDashboard() {
           <p className="text-[13px] text-muted">{t('dashboard.collectionsToday')}</p>
           <p className="num text-[22px] font-semibold">{taka(totals.collectionsToday)}</p>
         </div>
-        <p className="w-full text-[12px] text-muted">
-          {t('dashboard.asOf')} <time dateTime={asOf}>{formatDateTimeBD(asOf, format)}</time>
-        </p>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] text-muted">
+            {t('dashboard.asOf')} <time dateTime={asOf}>{formatDateTimeBD(asOf, format)}</time>
+          </p>
+          <Button disabled={dashboard.isFetching} onClick={() => void dashboard.refetch()}>
+            {dashboard.isFetching ? t('dashboard.refreshing') : t('dashboard.refresh')}
+          </Button>
+        </div>
+        {dashboard.isRefetchError && (
+          <p role="status" className="w-full text-[13px] text-warn-text">
+            {t('dashboard.refreshFailed')}
+          </p>
+        )}
       </Card>
       <Card className="p-0">
         <table className="w-full text-left">
           <caption className="px-6 pt-5 pb-2 text-left font-semibold">{t('dashboard.byBusiness')}</caption>
-          <thead className="text-[13px] text-muted">
+          <thead className="hidden text-[13px] text-muted md:table-header-group">
             <tr className="border-b border-row-border">
               <th scope="col" className="px-6 py-2 font-medium">
                 {t('dashboard.business')}
@@ -72,12 +90,23 @@ export function OwnerDashboard() {
           </thead>
           <tbody>
             {businesses.map((b) => (
-              <tr key={b.businessId} className="border-b border-row-border last:border-b-0">
-                <th scope="row" className="max-w-56 truncate px-6 py-3 font-medium">
+              <tr
+                key={b.businessId}
+                className="grid grid-cols-2 gap-x-4 border-b border-row-border px-6 py-3 last:border-b-0 md:table-row md:p-0"
+              >
+                <th scope="row" className="col-span-2 truncate font-medium md:max-w-56 md:px-6 md:py-3">
                   {b.name}
                 </th>
-                <td className="num px-6 py-3 text-right">{taka(b.dues)}</td>
-                <td className="num px-6 py-3 text-right">{taka(b.collectionsToday)}</td>
+                <td className="num md:px-6 md:py-3 md:text-right">
+                  <span className="block text-[12px] text-muted md:hidden">{t('dashboard.dues')}</span>
+                  {taka(b.dues)}
+                </td>
+                <td className="num text-right md:px-6 md:py-3">
+                  <span className="block text-[12px] text-muted md:hidden">
+                    {t('dashboard.collectedToday')}
+                  </span>
+                  {taka(b.collectionsToday)}
+                </td>
               </tr>
             ))}
           </tbody>
