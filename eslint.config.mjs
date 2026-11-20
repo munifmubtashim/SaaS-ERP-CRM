@@ -54,6 +54,17 @@ export const HAND_WRITTEN_TYPE = [
 ];
 export const syntax = (...rules) => ({ 'no-restricted-syntax': ['error', ...rules] });
 
+// Connections that bypass the tenant scope runner (ADR 0005), each reserved for named Queries.
+const UNSCOPED_ONLY = {
+  group: ['**/UnscopedQuery', '**/UnscopedQuery.js'],
+  message:
+    'ADR 0005: only AuthQuery and HealthQuery may extend UnscopedQuery. Tenant Queries extend BaseQuery.',
+};
+const PROVISIONER_ONLY = {
+  group: ['**/provisionerDb', '**/provisionerDb.js'],
+  message: 'ADR 0008: only ProvisioningQuery may use the erp_provisioner connection (config/provisionerDb).',
+};
+
 export const baseConfig = tseslint.config(
   {
     ignores: [
@@ -191,24 +202,27 @@ export default tseslint.config(
       ],
     },
   },
+  // ADR 0005: only AuthQuery and HealthQuery run without a tenant scope; every other Query extends BaseQuery.
+  // ADR 0008 (ADR 0005 named exception): only ProvisioningQuery may use the erp_provisioner connection.
+  // One rule config per file set, because a later block replaces an earlier one's patterns for the same rule.
   {
-    // ADR 0005: only AuthQuery and HealthQuery run without a tenant scope. Every other Query extends BaseQuery.
     files: ['packages/backend/src/dal/**/*.ts'],
-    ignores: ['**/dal/query/AuthQuery.ts', '**/dal/query/HealthQuery.ts'],
+    ignores: [
+      '**/dal/query/AuthQuery.ts',
+      '**/dal/query/HealthQuery.ts',
+      '**/dal/query/ProvisioningQuery.ts',
+    ],
     rules: {
-      '@typescript-eslint/no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/UnscopedQuery', '**/UnscopedQuery.js'],
-              message:
-                'ADR 0005: only AuthQuery and HealthQuery may extend UnscopedQuery. Tenant Queries extend BaseQuery.',
-            },
-          ],
-        },
-      ],
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [UNSCOPED_ONLY, PROVISIONER_ONLY] }],
     },
+  },
+  {
+    files: ['**/dal/query/AuthQuery.ts', '**/dal/query/HealthQuery.ts'],
+    rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [PROVISIONER_ONLY] }] },
+  },
+  {
+    files: ['**/dal/query/ProvisioningQuery.ts'],
+    rules: { '@typescript-eslint/no-restricted-imports': ['error', { patterns: [UNSCOPED_ONLY] }] },
   },
   { files: ['**/*.test.ts', '**/test/**'], rules: { 'no-restricted-syntax': 'off' } },
 );

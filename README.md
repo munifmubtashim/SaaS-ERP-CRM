@@ -116,4 +116,7 @@ naming pattern and rules: [CLAUDE.md](CLAUDE.md) and [ADR 0003](docs/adr/0003-re
 - **WSL2: `permission denied` on `npm run docker:up`:** your user is not in the `docker` group. Run
   `sudo usermod -aG docker $USER`, then close and reopen the Ubuntu terminal (found by Farhan, 15 Nov 2026).
 - **Prisma client errors after pulling:** `npm run db:generate`.
+- **`role "erp_provisioner" does not exist` on an existing database:** the init scripts run only when the
+  volume is first created. Run `npm run docker:up` (passes the new settings to the container; data is kept),
+  then `npm run db:provisioner-role` once. It is safe to run again.
 - **Start the database from scratch:** `docker compose down -v` (deletes local data), then `npm run docker:up` and `npm run db:migrate:deploy`.
