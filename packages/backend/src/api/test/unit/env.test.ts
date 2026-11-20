@@ -1,3 +1,4 @@
+import { isAbsolute, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadEnv } from '../../config/env.js';
 
@@ -23,5 +24,21 @@ describe('loadEnv: database limits (ADR 0005)', () => {
     ['DB_TX_TIMEOUT_MS', '2.5'],
   ])('fails fast on %s=%s', (name, value) => {
     expect(() => loadEnv({ ...base, [name]: value })).toThrow(name);
+  });
+});
+
+describe('loadEnv: STATIC_DIR', () => {
+  it('is unset by default, so development serves no frontend from the API', () => {
+    expect(loadEnv(base).STATIC_DIR).toBeUndefined();
+  });
+
+  it('reads the built frontend folder for the production image', () => {
+    expect(loadEnv({ ...base, STATIC_DIR: '/app/public' }).STATIC_DIR).toBe('/app/public');
+  });
+
+  it('resolves a relative folder to an absolute path, as res.sendFile requires (Farhan, #17)', () => {
+    const dir = loadEnv({ ...base, STATIC_DIR: './public' }).STATIC_DIR;
+    expect(dir).toBe(resolve('./public'));
+    expect(isAbsolute(dir ?? '')).toBe(true);
   });
 });

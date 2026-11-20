@@ -1,0 +1,23 @@
+# Never send secrets, real data or local state to the build.
+.env
+.env.*
+!.env.example
+data/
+.git/
+.claude/
+.adlc/
+.turbo/
+.vscode/
+**/.DS_Store
+
+# Rebuilt inside the image.
+**/node_modules/
+**/dist/
+packages/backend/src/dal/generated/
+coverage/
+
+# Not needed to build the app.
+design/
+docs/
+tools/
+docker/

@@ -1,12 +1,12 @@
-import { apiErrorSchema, healthResponseSchema } from '@erp/shared';
+import { apiErrorSchema, healthResponseSchema, livenessResponseSchema } from '@erp/shared';
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../../app.js';
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
 import { parseInput } from '../../middleware/validate.js';
-import { managersWithDatabase, silentLogger } from '../helpers.js';
+import { fakeManagers, managersWithDatabase, silentLogger } from '../helpers.js';
 
 const appWith = (databaseOk: boolean) =>
   createApp({ logger: silentLogger, managers: managersWithDatabase(databaseOk) });
@@ -29,6 +29,19 @@ describe('GET /health (HealthRoutes -> HealthController -> HealthManager)', () =
     expect(good.headers['x-request-id']).toBe('abc12345-trace');
     const bad = await request(appWith(true)).get('/health').set('X-Request-Id', 'bad id <script>');
     expect(bad.headers['x-request-id']).not.toContain('bad id');
+  });
+});
+
+describe('GET /health/live: liveness for the host, never the database (Farhan, #17)', () => {
+  it('returns 200 without asking the health manager, even when the database is down', async () => {
+    const getHealth = vi.fn(async () => {
+      throw new Error('liveness must not check the database');
+    });
+    const app = createApp({ logger: silentLogger, managers: fakeManagers({ getHealth }) });
+    const res = await request(app).get('/health/live');
+    expect(res.status).toBe(200);
+    expect(livenessResponseSchema.parse(res.body)).toEqual({ status: 'ok' });
+    expect(getHealth).not.toHaveBeenCalled();
   });
 });
 
