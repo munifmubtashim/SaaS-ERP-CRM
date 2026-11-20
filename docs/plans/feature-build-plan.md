@@ -434,7 +434,7 @@ Each item ends with the ADR to write. Numbers continue after 0007; renumber if a
 
 ### 2.3 Search by part
 
-- **Per module:** every list route accepts `q` (`GET /v1/parties?q=`), searching that module's own columns (name, Bangla name, phone, code, document number).
+- **Per module:** every list route accepts `search` (`GET /v1/parties?search=`, as `partyListQuerySchema` already has), searching that module's own columns (name, Bangla name, phone, code, document number).
 - **Across parts:**
   - `GET /v1/search?q=&parts=parties,sales,inventory`, on a `SearchController` in api that calls each requested module's Manager through a small `ISearchable { search(q, limit) }` contract (api → businessLogic only).
   - It runs as **one read-only tenant scope**, so RLS limits rows to the caller's businesses and branches.
@@ -752,7 +752,7 @@ the demo must say so (section 7).
 | B7  | `docs(adr): 0013 approvals`                                                    | F     | `feat/adr-0013-approvals`   | ADR                                                                          | none                                                                                     | **yes** |
 | B8  | `feat(platform): approval_rule, approval_request, self-approval check`         | F     | `feat/approvals`            | migration, Query, `ApprovalService`, routes                                  | creator cannot approve (DB and Manager); rule snapshot kept                              | 0013    |
 | B9  | `docs(adr): 0010 search`                                                       | F     | `feat/adr-0010-search`      | ADR                                                                          | none                                                                                     | **yes** |
-| B10 | `feat(party): q search with pg_trgm; GET /v1/search facade`                    | F     | `feat/search`               | migration (index), Party Query, api SearchController                         | Bangla name found; other business never returned; NID never matched                      | 0010    |
+| B10 | `feat(party): list search with pg_trgm; GET /v1/search facade`                 | F     | `feat/search`               | migration (index), Party Query, api SearchController                         | Bangla name found; other business never returned; NID never matched                      | 0010    |
 | B11 | `docs(adr): 0011 outbox, notifications, Action Center`                         | M     | `feat/adr-0011-outbox`      | ADR                                                                          | none                                                                                     | **yes** |
 | B12 | `feat(platform): outbox_event and notification tables, Notifier`               | M     | `feat/outbox`               | migration, dal, businessLogic                                                | event rolls back with its change; notification visible only to its user                  | 0011    |
 | B13 | `docs(adr): 0016 attachments and exports`                                      | M     | `feat/adr-0016-attachments` | ADR                                                                          | none                                                                                     | **yes** |
@@ -954,7 +954,7 @@ The features file is the whole roadmap (56 weeks for two people), not a first re
 - **Two-factor (U-07):** Moto Mart phase 3 (Q18). **Session list (U-08):** Important. Login security (U-04) stays Critical.
 - **Unusual activity flags (RP-08), saved views (RP-07), target and commission (RP-09, D-08):** after the standard pack.
 - **Technician report (SV-11), supplier warranty claims (SV-09), free service schedule (SV-07):** after the job card works.
-- **Cross-module search:** per-module search (`q`) is enough for release 1; the "all parts" facade is cheap later.
+- **Cross-module search:** per-module search (`search`) is enough for release 1; the "all parts" facade is cheap later.
 
 **Simplify:**
 
