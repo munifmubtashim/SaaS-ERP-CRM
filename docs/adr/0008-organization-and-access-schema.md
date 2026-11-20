@@ -29,7 +29,8 @@ Constraints already decided elsewhere and not reopened here:
 - Nothing in this ADR is ever deleted; records are deactivated. `erp_app` must end up with `SELECT, INSERT, UPDATE`
   only, but `docker/postgres/init/01-app-role.sh` grants it `SELECT, INSERT, UPDATE, DELETE` on every new table by
   default privileges, so each migration here revokes `DELETE` explicitly (section 4).
-- Login runs outside a tenant scope (ADR 0005, `UnscopedQuery` for Auth and Health only).
+- Login runs outside a tenant scope (ADR 0005, `UnscopedQuery` for Auth and Health only). Provisioning is
+  the one named exception, through `ProvisioningQuery` (section 1, amended in ADR 0005).
 - No role sees another organization. Group-wide scope is the Owner role only.
 
 ## Decision
@@ -56,10 +57,19 @@ Constraints already decided elsewhere and not reopened here:
   `app_business_ids()`, and Prisma's `create` uses `INSERT ... RETURNING`, which Postgres checks against the
   `SELECT` policy, so a request insert would fail. The first business of a new organization and every later
   one are created by the provisioning path. `erp_app` has no `INSERT` on `business` (section 4).
-- **The provisioning path** creates businesses and branches. It runs **unscoped** (no tenant transaction),
+- **The provisioning path** creates businesses and branches (and, for a new client, the organization and
+  its legal entity, which is why its grants cover those two tables). It runs **unscoped** (no tenant transaction),
   and the Manager checks the Owner permission before calling it. It does not run as `erp_app`, which has no
-  `INSERT` on these tables. The database role it connects as, and how it fits ADR 0005's rule that only
-  `AuthQuery` and `HealthQuery` may query unscoped, are open question 6.
+  `INSERT` on these tables.
+  - **It connects as a separate least-privilege role, `erp_provisioner`:** not the migration owner, not
+    `BYPASSRLS`, owner of no table.
+  - **`ProvisioningQuery` is the only code that connects as that role.** ADR 0005's unscoped rule names it
+    as an exception next to `AuthQuery` and `HealthQuery` (amended there).
+  - **Grants:** `INSERT` and `SELECT` on `organization`, `legal_entity`, `business` and `branch` only.
+    `SELECT` is needed because Prisma's `create` runs `INSERT ... RETURNING`. No `UPDATE` or `DELETE`, and
+    nothing on any other table.
+  - **RLS stays forced.** The role gets its own `INSERT` and `SELECT` policies on those four tables
+    (`TO erp_provisioner`), never `BYPASSRLS`. The policies are written in A3 with tests 12, 13 and 17.
 - **Deactivation:** `is_active = false` keeps history and refuses new writes. Enforcement is two-layered:
   the Manager refuses with a clear message, and each branch-scoped table gets a `WITH CHECK` using
   `branch_is_active(branch_id)` as it is added. The tree tables themselves carry the flag only; the
@@ -104,8 +114,9 @@ Decisions inside this table:
     that ADR 0005 avoids until a concrete case needs one. Revisit if a second team writes Queries against
     these tables, or if the isolation tests ever miss a case.
   - **Only `AuthQuery` reads these four tables.** A dal test (section 6, test 15) fails if any other file in
-    dal names them. So the admin-screen reads and writes live in `AuthQuery` too, and a `PartyQuery` (for
-    example) can never join `app_user`.
+    dal names them, or if any schema file other than `auth.prisma` declares a Prisma relation to them. So
+    the admin-screen reads and writes live in `AuthQuery` too, and a `PartyQuery` (for example) can never
+    join or `include` `app_user`.
   - `staff` keeps RLS: it is business-owned data read by tenant Queries, never by login.
 - **`staff` is not a user.** A technician or a salesperson can exist as a record and be assigned work with no
   login. `staff.user_id` links one when a login exists. Salary data does not live here; salary entries are
@@ -158,6 +169,8 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
 - Every table: `ENABLE` and `FORCE ROW LEVEL SECURITY`; `REVOKE DELETE ... FROM erp_app` in the same migration,
   because the default privileges in `01-app-role.sh` grant it. `permission` also revokes `INSERT` and `UPDATE`;
   `business` and `branch` also revoke `INSERT` (provisioning only, section 1).
+- `erp_provisioner`: `GRANT INSERT, SELECT` on `organization`, `legal_entity`, `business` and `branch`, and
+  its own `INSERT` and `SELECT` policies `TO erp_provisioner` on those four tables. Nothing else (section 1).
 - A query with no scope set fails: the functions raise `tenant scope not set` (SQLSTATE `42501`) on a missing
   or empty value, never return null (ADR 0005, #19).
 
@@ -170,11 +183,26 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
   `party.business_id → business` adds a field to `organization.prisma`. **Decision: accept one-line
   back-relation edits in another owner's schema file, with that owner as reviewer.** The alternative (plain
   columns, foreign keys in raw SQL) risks `db:migrate:check` reporting drift, and loses the relation types.
-  This rule applies to every module that points at another owner's table.
+  This rule applies to every module that points at another owner's table. Known back-relations so far:
+  `business` (from `party`), and `staff` (from `party.assigned_to`, below). The four auth tables never get
+  one outside `auth.prisma` (test 15).
+- **`created_by` is a plain uuid column with no foreign key,** on every table that has it, in every module.
+  The Manager sets it from the authenticated user, never from the request body (test 16). Why:
+  - `app_user` rows are never deleted. The constraints above say: "Nothing in this ADR is ever deleted;
+    records are deactivated." Section 4 adds "`REVOKE DELETE ... FROM erp_app` in the same migration". So a
+    `created_by` cannot be left pointing at a removed user.
+  - A foreign key that exists only in raw SQL fails `db:migrate:check`. Tested on 20 Nov 2026 with Prisma
+    7.10.1: `prisma migrate diff` reported "Removed foreign key on columns (created_by)" and exited 2. A
+    Prisma relation would avoid the drift, but any Query could then `include` the whole `app_user` row,
+    which test 15 forbids.
+  - The cost: the database does not prove that the id exists. Test 16 and review do.
+- **`party.assigned_to` is a normal Prisma composite relation to `staff`:** `(business_id, assigned_to)` →
+  `staff (business_id, id)`, so a party cannot be assigned to another business's staff. `staff` is not one
+  of the four auth tables, so test 15 allows it. It needs the `@@unique` below and a back-relation field on
+  `staff`.
 - Composite foreign keys `(business_id, id)` (the ADR 0006 pattern) need `@@unique([businessId, id])` on the
-  parent model. `business`, `branch` and `staff` get it here so later modules can use it. On `staff` it lets
-  `party.assigned_to` point at `staff (business_id, id)`, so a party cannot be assigned to another
-  business's staff (Farhan's follow-up migration after A4).
+  parent model. `business`, `branch` and `staff` get it here so later modules can use it. On `staff` it is
+  what `party.assigned_to` points at (Farhan's follow-up migration after A4).
 - Migration order and collision rules are in plan section 6: A3 merges before Farhan's Party migration; A4
   can merge after it, and is regenerated if both land the same day.
 
@@ -195,17 +223,29 @@ Integration, real Postgres, connected as `erp_app`:
 10. Isolation, no RLS: every admin Query on `app_user`, `role`, `role_permission` and `user_scope`, called
     for organization A, returns and changes nothing of organization B, including by guessed id.
 11. `AuthQuery`'s scope read for user U returns only U's own `user_scope` rows.
-12. `erp_app` cannot `INSERT` into `business`; the provisioning path can, after the Manager's Owner check.
-13. `erp_app` cannot `INSERT` into `branch` directly; the provisioning path can, after the Manager's Owner
-    check, and a non-Owner caller is refused before any insert.
+12. `erp_app` still cannot `INSERT` into `business`, with `erp_provisioner` and its policies in place; the
+    provisioning path can, after the Manager's Owner check.
+13. `erp_app` still cannot `INSERT` into `branch` directly, with `erp_provisioner` and its policies in
+    place; the provisioning path can, after the Manager's Owner check, and a non-Owner caller is refused
+    before any insert.
 14. A `staff` row with no branch is visible to every scope of its business; a row of branch 1 is not
     visible to a branch 2-only scope.
 
 Unit, dal, no database:
 
-15. A test scans the dal source (Queries, raw SQL, Prisma calls) and fails if any file other than
-    `AuthQuery.ts` reads `app_user`, `role`, `role_permission` or `user_scope` (by table name or Prisma
-    model name).
+15. A test with two checks:
+    - it scans the dal source (Queries, raw SQL, Prisma calls) and fails if any file other than
+      `AuthQuery.ts` reads `app_user`, `role`, `role_permission` or `user_scope` (by table name or Prisma
+      model name);
+    - it fails on any Prisma relation field to `AppUser`, `Role`, `RolePermission` or `UserScope` in a
+      schema file other than `auth.prisma`.
+
+Integration, real Postgres, continued:
+
+16. Per module, for every create route: the stored `created_by` equals the authenticated caller, even when
+    the request body sends another id. Each later module adds its own case.
+17. `erp_provisioner` cannot `UPDATE` or `DELETE` `organization`, `legal_entity`, `business` or `branch`,
+    and cannot read, insert, update or delete any other table.
 
 Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); this ADR adds no routes.
 
@@ -213,8 +253,8 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 
 1. **A2:** this ADR, reviewed and accepted by both.
 2. **A4a (shared PR, merged first):** `permissions.ts` with the first codes and the five role codes.
-3. **A3:** organization tree tables, RLS, grants, provisioning path, tests 1, 2, 3, 4, 5, 7, 12, 13.
-4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14, 15.
+3. **A3:** organization tree tables, RLS, grants, provisioning path and `erp_provisioner`, tests 1, 2, 3, 4, 5, 7, 12, 13, 16, 17.
+4. **A4:** access tables (no tenant RLS), `staff` with RLS, triggers, seed, tests 6, 8, 9, 10, 11, 14, 15, 16.
 5. Then the real `authMiddleware` (A5) and `tenantMiddleware` (A6, needs ADR 0007).
 
 ## Consequences
@@ -246,9 +286,8 @@ Add the matching rows to `api/test/isolation/cases.ts` when routes appear (A6); 
 4. **`branch_is_active()` in `WITH CHECK`:** enforce it in each module's migration, or add one generic
    trigger that every branch-scoped table attaches? Recommended: the function in the policy, so no write
    path can skip it.
-5. **Spec items still open** that touch these tables: ADR 0001 row 8 (role names), and whether MotoMart
+5. **Spec items still open** that touch these tables: ADR 0001 row 8 (role names), and whether Moto Mart
    needs the five roles on day one or three is enough.
-6. **Provisioning path connection:** which database role it uses (the migration owner, or a separate
-   provisioning role with `INSERT` on `business` and `branch` only), and whether ADR 0005's unscoped rule
-   gains a named exception (for example a `ProvisioningQuery` listed in the lint rule). Recommended: a
-   separate least-privilege role and a named lint exception, decided before A3.
+6. ~~Provisioning path connection~~ Decided (Munif and Farhan, 20 Nov): a separate least-privilege role,
+   `erp_provisioner`, used only by `ProvisioningQuery`; a named exception in ADR 0005's unscoped rule. Grants,
+   policies and tests in sections 1, 4 and 6.
