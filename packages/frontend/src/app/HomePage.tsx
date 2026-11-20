@@ -1,13 +1,19 @@
-import { HealthPanel } from '../features/health';
+import { Link } from 'react-router';
+import { OwnerDashboard } from '../features/report';
 import { useI18n } from '../i18n';
 
+/** Home: the owner dashboard first; the technical status check is one link away. */
 export function HomePage() {
   const { t } = useI18n();
   return (
     <>
-      <h1 className="mb-1 text-2xl font-semibold">{t('home.title')}</h1>
-      <p className="text-muted">{t('home.subtitle')}</p>
-      <HealthPanel />
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-2xl font-semibold">{t('dashboard.title')}</h1>
+        <Link to="/status" className="text-[13px] font-semibold text-accent-text underline">
+          {t('home.title')}
+        </Link>
+      </div>
+      <OwnerDashboard />
     </>
   );
 }

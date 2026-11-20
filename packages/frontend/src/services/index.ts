@@ -6,7 +6,8 @@ import { ProductService, type IProductService } from './productService';
 import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
-import { ReportService, type IReportService } from './reportService';
+import type { IReportService } from './reportService';
+import { MockReportService } from './mock/MockReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, type ISalesService } from './salesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
@@ -15,6 +16,7 @@ import { CrmService, type ICrmService } from './crmService';
 
 export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
 export type { IHealthService } from './healthService';
+export type { IReportService } from './reportService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -43,7 +45,8 @@ export function createServices(http: IHttpClient = new HttpClient()): Services {
     inventory: new InventoryService(http),
     accounting: new AccountingService(http),
     vehicle: new VehicleService(http),
-    report: new ReportService(http),
+    // Mock until GET /v1/reports/owner-dashboard exists (M6); then new ReportService(http).
+    report: new MockReportService(),
     party: new PartyService(http),
     sales: new SalesService(http),
     purchase: new PurchaseService(http),
