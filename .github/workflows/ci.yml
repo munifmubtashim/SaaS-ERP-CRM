@@ -6,7 +6,7 @@ on:
   push:
     branches: [main, 'dev-*', 'feat/**', 'hotfix/**']
   pull_request:
-    branches: [main]
+    branches: [main, feat/demo]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
