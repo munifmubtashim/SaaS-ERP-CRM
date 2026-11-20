@@ -30,9 +30,12 @@ us can revisit them with the reason in front of us.
    `{ basePath, scope: 'public' | 'tenant', router }`; a test walks every router and fails CI when a tenant
    route has no isolation case or a public route is not on the allowlist. That makes the "new route without an
    isolation test fails CI" rule (roadmap 10.1) true from Phase 0, before any tenant route exists.
-8. **`npm audit --audit-level=high` in CI.** On 14 Nov 2026 there are 7 moderate advisories, all from one
-   dev-only `minimatch` advisory (GHSA-g3hv-75wg-m249) inside typescript-eslint. Production dependencies: 0.
-   Re-check when typescript-eslint updates.
+8. **CI audit: fail on high or critical, with time-limited exceptions** (amended 20 Nov 2026, #25). CI runs
+   `tools/scripts/checkAudit.ts`, the same gate as `npm audit --audit-level=high` except for entries in
+   `tools/audit-allowlist.json`. Each entry names the advisory, the package, the only dependency path it may be
+   reached through, a reason, an owner and an expiry at most 30 days ahead, which the script enforces. Either
+   developer may propose one, it needs both reviewers, and the PR that ships the fix removes it. The path check
+   proves who depends on the package, not that the dependent stays dev-only; review checks that.
 9. **Branch protection without "require code owner review".** With one owner per module, a module owner's own
    PR could never get a code-owner approval. "1 approving review" already forces the other developer to approve.
 10. **Secret scan with the gitleaks binary (v8.30.1) over full history**, not the gitleaks GitHub Action, to avoid

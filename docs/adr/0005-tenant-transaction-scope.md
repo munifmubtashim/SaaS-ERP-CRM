@@ -89,15 +89,28 @@ rejection handler). If Controllers wrote the response themselves, it would leave
 **Login and public routes.** The identity and access tables are not tenant tables. They are read before a
 tenant is known, to log the user in and to build `req.tenant`:
 
-- `user`, `session`, `login_attempt`;
-- `membership`;
-- the role, permission and user-scope tables.
+- `app_user`, `session`, `login_attempt`;
+- the role, permission and user-scope tables (`role`, `role_permission`, `permission`, `user_scope`).
+
+There is no `membership` table: a user belongs to one organization (`app_user.organization_id`) and holds
+roles through `user_scope` (ADR 0008). These tables have no tenant RLS; the trade-off is in ADR 0008
+section 2.
 
 Only Auth and Health may query without a scope. They do it through a separately named base class,
 `UnscopedQuery`, and the lint rule lists `AuthQuery` and `HealthQuery` by name as the only classes allowed
-to extend or import it. Health runs `SELECT 1` and reads no table. Membership and scope reads always
-filter by the authenticated user's own id, so a user never sees another user's memberships. No
+to extend or import it. Health runs `SELECT 1` and reads no table. Scope reads always
+filter by the authenticated user's own id, so a user never sees another user's scopes. No
 `SECURITY DEFINER` function unless a concrete case needs one.
+
+**Named exception: `ProvisioningQuery`** (amended by ADR 0008, 20 Nov 2026).
+
+- It runs unscoped, to create a business or branch, after the Manager's Owner check. In release 1,
+  organizations and legal entities are seeded; creating them here is a later ADR.
+  A new business or branch cannot be inserted through RLS, because it is not yet in the caller's scope.
+- It is the only code that connects as the least-privilege role `erp_provisioner`, not as `erp_app`. That
+  role has `INSERT` and `SELECT` on `business` and `branch` only, with its own RLS policies, never `BYPASSRLS`.
+- The lint rule names it next to `AuthQuery` and `HealthQuery` as the only unscoped classes. No other class
+  may use that connection.
 
 **Files, PDFs and redirects** are out of scope for this ADR. A tenant route returns JSON. A PDF or export
 is produced by a background job, stored in object storage (MinIO), and handed back as JSON with a
@@ -193,7 +206,8 @@ each query pays for setting the scope again.
 - `dal/query/BaseQuery.ts`: the client comes from `currentClient()`.
 - `dal/query/UnscopedQuery.ts` (new): the injected root client, for `AuthQuery` and `HealthQuery` only.
 - `eslint.config.mjs`: a rule that lists `AuthQuery.ts` and `HealthQuery.ts` explicitly as the only files
-  that may import `UnscopedQuery`.
+  that may import `UnscopedQuery`, and `ProvisioningQuery.ts` as the only file that may use the
+  `erp_provisioner` connection (ADR 0008).
 - `dal/sql/tenancy.sql`, shipped in the first tenant migration: `app_organization_id()`,
   `app_business_ids()`, `app_branch_ids()` (all raise when unset), and the `legal_entity` table.
 - `shared/src/schemas/tenant.schema.ts`: `businessIds` needs at least one id; `branchId?` becomes
@@ -217,7 +231,7 @@ statement_timeout` and `SET idle_in_transaction_session_timeout`.
   - api test: a commit failure returns an error, not a 2xx;
   - api test: the response is sent only after the commit;
   - isolation cases per tenant route;
-  - Auth test: a user cannot read another user's memberships.
+  - Auth test: a user cannot read another user's scopes.
 - **CLAUDE.md, once this ADR is accepted:**
   - Tenancy rules: replace "to be designed in a Phase 1 ADR" with "tenant routes run in `runInTenantScope`
     (ADR 0005); Queries get the transaction from `BaseQuery`, never from a constructor".
