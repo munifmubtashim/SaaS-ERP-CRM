@@ -17,10 +17,8 @@ const TX_MAX_WAIT_MS = 2_000;
 
 /**
  * The Prisma client for the APPLICATION role (DATABASE_URL): NOSUPERUSER, NOBYPASSRLS, owns no table.
- * Never point this at the migration/owner URL.
- *
- * Tenancy rule (roadmap 4.2): once tenant tables exist, every request and job runs in ONE transaction
- * that starts with SET LOCAL app.organization_id / app.business_ids (never plain SET).
+ * Never point this at the migration/owner URL. Tenant Queries never use it directly: they run inside
+ * runInTenantScope (config/tenantScope.ts). Only UnscopedQuery holds it.
  */
 export function createDbClient(databaseUrl: string, { poolMax, txTimeoutMs }: DbClientOptions): PrismaClient {
   const adapter = new PrismaPg({ connectionString: databaseUrl, max: poolMax });

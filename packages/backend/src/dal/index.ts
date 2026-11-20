@@ -1,5 +1,6 @@
 // Public surface of @erp/dal. Only businessLogic imports it. Never re-export generated Prisma types.
 export { createDbClient, type DbClient, type DbClientOptions } from './config/db.js';
+export { runInTenantScope } from './config/tenantScope.js';
 export { BaseDTO, type BaseRow } from './dto/BaseDTO.js';
 export { HealthDTO } from './dto/HealthDTO.js';
 export { BaseQuery } from './query/BaseQuery.js';
