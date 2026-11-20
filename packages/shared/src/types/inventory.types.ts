@@ -1,9 +1,13 @@
 import type { z } from 'zod';
-import type { inventorySchema } from '../schemas/inventory.schema.js';
+import type {
+  stockListQuerySchema,
+  stockListResponseSchema,
+  stockRowSchema,
+} from '../schemas/inventory.schema.js';
 
-/**
- * Inventory module, types. Owner: Munif.
- * TODO(Munif): stock movements, balances, transfers, counts (roadmap 4.3, 5.5).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
- */
-export type Inventory = z.infer<typeof inventorySchema>;
+/** Inventory module, types inferred from the Zod schemas. Owner: Munif. */
+export type StockRow = z.infer<typeof stockRowSchema>;
+/** What the caller may send (limit optional, as text or number). */
+export type StockListQueryInput = z.input<typeof stockListQuerySchema>;
+export type StockListQuery = z.infer<typeof stockListQuerySchema>;
+export type StockListResponse = z.infer<typeof stockListResponseSchema>;
