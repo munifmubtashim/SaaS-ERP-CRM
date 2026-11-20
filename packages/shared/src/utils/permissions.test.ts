@@ -6,6 +6,8 @@ import {
   ROLE_CODES,
   ROLE_NAMES,
   roleCodeSchema,
+  type PermissionCode,
+  type RoleCode,
 } from './permissions.js';
 
 // ADR 0008 section 3: five seeded roles, `module.entity.action` codes, and the provisional default mapping of
@@ -95,6 +97,17 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
     for (const codes of Object.values(DEFAULT_ROLE_PERMISSIONS)) {
       for (const code of codes) expect(known.has(code)).toBe(true);
     }
+  });
+
+  it('can be asked about any role and code (compiles with role typed as RoleCode)', () => {
+    // A typecheck-level test: with an \`as const\` mapping, \`includes\` on a role chosen at run time does not
+    // compile (Branch Manager's \`readonly []\` collapses the argument type to never). The seed and requireRole
+    // need exactly this call.
+    const allows = (role: RoleCode, code: PermissionCode): boolean =>
+      DEFAULT_ROLE_PERMISSIONS[role].includes(code);
+    expect(allows('owner', 'accounting.salary.view')).toBe(true);
+    expect(allows('business_manager', 'accounting.salary.view')).toBe(false);
+    expect(allows('cashier', 'product.cost.view')).toBe(false);
   });
 
   it('maps Owner explicitly to every code in PERMISSIONS (no wildcard)', () => {

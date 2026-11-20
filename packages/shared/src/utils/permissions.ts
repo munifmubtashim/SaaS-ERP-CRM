@@ -36,11 +36,14 @@ export const ROLE_NAMES = {
  * Default role mapping, **provisional** until ADR 0001 row C7 is accepted and the owner confirms who may see
  * cost, profit and salary; configurable per business later. Owner is mapped explicitly to every code (no
  * wildcard), so each module's PR adds its codes to Owner here too; a test checks it.
+ *
+ * Typed as a plain record, not `as const`: callers ask `DEFAULT_ROLE_PERMISSIONS[role].includes(code)` with a
+ * role chosen at run time, which does not compile when each role has its own literal tuple type.
  */
-export const DEFAULT_ROLE_PERMISSIONS = {
+export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly PermissionCode[]>> = {
   owner: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
   business_manager: ['product.cost.view', 'report.profit.view'],
   branch_manager: [],
   accountant: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
   cashier: [],
-} as const satisfies Record<RoleCode, readonly PermissionCode[]>;
+};
