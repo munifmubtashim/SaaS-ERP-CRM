@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  partyDetailSchema,
   partyListItemSchema,
   partyListQuerySchema,
   partyListResponseSchema,
@@ -111,5 +112,65 @@ describe('partyListResponseSchema', () => {
     expect(partyListResponseSchema.safeParse({ items: [item], nextCursor: null }).success).toBe(true);
     expect(partyListResponseSchema.safeParse({ items: [item], nextCursor: 'abc' }).success).toBe(true);
     expect(partyListResponseSchema.safeParse({ items: [{ id: 'x' }], nextCursor: null }).success).toBe(false);
+  });
+});
+
+describe('partyDetailSchema (customer profile, ADR 0006)', () => {
+  const detail = {
+    ...sample,
+    nidLast4: '1234',
+    creditLimit: '50000.00',
+    payTermDays: 30,
+    onCreditHold: false,
+  };
+
+  it('accepts a complete profile', () => {
+    expect(partyDetailSchema.safeParse(detail).success).toBe(true);
+  });
+
+  it('accepts no credit limit, no pay terms and no NID on file', () => {
+    const result = partyDetailSchema.safeParse({
+      ...detail,
+      nidLast4: null,
+      creditLimit: null,
+      payTermDays: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('strips a full national ID, so only the last four digits can reach the screen', () => {
+    const parsed = partyDetailSchema.parse({ ...detail, nid: '1990000000001' });
+    expect(parsed).not.toHaveProperty('nid');
+  });
+
+  it('drops a full NID under any key name: the 13 digits appear nowhere in the parsed profile', () => {
+    const fullNid = '1990000000001';
+    for (const key of ['nid', 'nationalId', 'national_id', 'nidEncrypted', 'nid_number']) {
+      const parsed = partyDetailSchema.parse({ ...detail, [key]: fullNid });
+      expect(JSON.stringify(parsed)).not.toContain(fullNid);
+    }
+  });
+
+  it('accepts exactly four digits as nidLast4', () => {
+    for (const nidLast4 of ['123', '12345', 'abcd']) {
+      expect(partyDetailSchema.safeParse({ ...detail, nidLast4 }).success).toBe(false);
+    }
+  });
+
+  it('takes the credit limit as a money string, never a number or a negative amount', () => {
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: 50000 }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '50000' }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '-1.00' }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '0.00' }).success).toBe(true);
+  });
+
+  it('rejects negative or fractional pay terms', () => {
+    expect(partyDetailSchema.safeParse({ ...detail, payTermDays: -1 }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, payTermDays: 1.5 }).success).toBe(false);
+  });
+
+  it('keeps the rule that a party is a customer, a supplier or both', () => {
+    const result = partyDetailSchema.safeParse({ ...detail, isCustomer: false, isSupplier: false });
+    expect(result.success).toBe(false);
   });
 });

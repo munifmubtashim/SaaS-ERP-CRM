@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MONEY_PATTERN, ZERO, moneySchema, parseMoney } from '../utils/money.js';
 import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
 
 /**
@@ -41,10 +42,40 @@ export const partyBaseSchema = z.object({
   version: z.number().int().min(1),
 });
 
-export const partySchema = partyBaseSchema.refine((p) => p.isCustomer || p.isSupplier, {
+/** Object-level rule shared by every full party shape. */
+const isCustomerOrSupplier = (p: { isCustomer: boolean; isSupplier: boolean }) =>
+  p.isCustomer || p.isSupplier;
+const customerOrSupplierIssue = {
   message: 'A party must be a customer, a supplier or both.',
   path: ['isCustomer'],
-});
+};
+
+export const partySchema = partyBaseSchema.refine(isCustomerOrSupplier, customerOrSupplierIssue);
+
+/** A credit limit: a money string of zero or more. Null means no limit is set, so no check (C17). */
+const creditLimitSchema = moneySchema.refine(
+  // Zod runs a refine even when the regex failed, so the pattern is checked first.
+  (amount) => MONEY_PATTERN.test(amount) && parseMoney(amount) >= ZERO,
+  'A credit limit cannot be negative',
+);
+
+/**
+ * GET /v1/parties/:id, the customer profile (ADR 0006). The national ID appears only as its last four
+ * digits; the full NID has its own restricted route. Balance and dues are not here: they come from the
+ * ledger, through the dues route (`customerDuesSchema` in sales).
+ */
+export const partyDetailSchema = partyBaseSchema
+  .extend({
+    nidLast4: z
+      .string()
+      .regex(/^\d{4}$/)
+      .nullable(),
+    creditLimit: creditLimitSchema.nullable(),
+    /** Days a customer has to pay an invoice; null means the business default. */
+    payTermDays: z.number().int().min(0).max(365).nullable(),
+    onCreditHold: z.boolean(),
+  })
+  .refine(isCustomerOrSupplier, customerOrSupplierIssue);
 
 /** One row of a party list. Unknown keys are stripped, so nothing extra (such as an NID) can leak through. */
 export const partyListItemSchema = partyBaseSchema.pick({
