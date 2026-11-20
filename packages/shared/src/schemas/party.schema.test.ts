@@ -143,6 +143,14 @@ describe('partyDetailSchema (customer profile, ADR 0006)', () => {
     expect(parsed).not.toHaveProperty('nid');
   });
 
+  it('drops a full NID under any key name: the 13 digits appear nowhere in the parsed profile', () => {
+    const fullNid = '1990000000001';
+    for (const key of ['nid', 'nationalId', 'national_id', 'nidEncrypted', 'nid_number']) {
+      const parsed = partyDetailSchema.parse({ ...detail, [key]: fullNid });
+      expect(JSON.stringify(parsed)).not.toContain(fullNid);
+    }
+  });
+
   it('accepts exactly four digits as nidLast4', () => {
     for (const nidLast4 of ['123', '12345', 'abcd']) {
       expect(partyDetailSchema.safeParse({ ...detail, nidLast4 }).success).toBe(false);
