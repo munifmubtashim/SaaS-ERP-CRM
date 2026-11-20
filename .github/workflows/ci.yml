@@ -97,7 +97,9 @@ jobs:
         with:
           node-version: '22'
       # Fails on high or critical advisories. Moderate ones are reviewed by hand (docs/adr/0002).
-      - run: npm audit --audit-level=high
+      # Same gate as `npm audit --audit-level=high`, plus time-limited exceptions in tools/audit-allowlist.json:
+      # an entry applies only until its expiry date and only on its stated dependency path.
+      - run: node tools/scripts/checkAudit.ts
 
   secret-scan:
     runs-on: ubuntu-latest
