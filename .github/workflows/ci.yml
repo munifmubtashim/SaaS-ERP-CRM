@@ -56,6 +56,8 @@ jobs:
       # Same split as local: migrations as the owner, the app as a NOSUPERUSER NOBYPASSRLS role.
       MIGRATION_DATABASE_URL: postgresql://erp_owner:erp_owner_ci@localhost:5432/erp
       DATABASE_URL: postgresql://erp_app:erp_app_ci@localhost:5432/erp
+      # Read by ProvisionerRole.int.test.ts; the role step below creates the role under this name.
+      PROVISIONER_DB_USER: erp_provisioner
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

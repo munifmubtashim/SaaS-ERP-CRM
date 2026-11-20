@@ -10,7 +10,8 @@ import { createDbClient, type DbClient } from '../config/db.js';
 const appUrl = process.env.DATABASE_URL;
 if (!appUrl) throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
 
-const ROLE = 'erp_provisioner';
+/** Same variable as docker/postgres/init/02-provisioner-role.sh and docker-compose.yml. */
+const ROLE = process.env.PROVISIONER_DB_USER || 'erp_provisioner';
 const app: DbClient = createDbClient(appUrl, { poolMax: 2, txTimeoutMs: 10_000 });
 
 afterAll(async () => {
@@ -60,12 +61,13 @@ describe('erp_provisioner role (ADR 0008 section 1)', () => {
     expect(memberOf).toEqual([]);
   });
 
-  it('has no privilege on any table yet (business and branch grants come with A3b)', async () => {
+  it('has no table privilege of any kind yet (business and branch grants come with A3b)', async () => {
     const granted = await app.$queryRaw<{ name: string; privilege: string }[]>`
       SELECT c.relname AS name, p.privilege
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
-       CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) AS p(privilege)
+       CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'])
+               AS p(privilege)
        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm')
          AND has_table_privilege(${ROLE}, c.oid, p.privilege)`;
     expect(granted).toEqual([]);
