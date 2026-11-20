@@ -1,13 +1,20 @@
+import { myBusinessesResponseSchema, type MyBusinessesResponse } from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TODO(Munif): add one small method per use case (interface segregation)
-export interface IOrganizationService {}
+/** What the business and branch switcher needs from Organization. One small method per use. */
+export interface IOrganizationService {
+  /** The businesses, each with its branches, that the signed-in user may work in. */
+  myBusinesses(): Promise<MyBusinessesResponse>;
+}
 
 /**
  * Organization module: frontend API calls, one method per endpoint. Owner: Munif.
- * TODO(Munif): organizations, businesses, branches, roles, scopes, audit log (roadmap 4.2, 5.1, 5.2).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
+ * createServices uses MockOrganizationService until GET /v1/me/businesses exists (M2).
  */
 export class OrganizationService implements IOrganizationService {
   constructor(protected readonly http: IHttpClient) {}
+
+  myBusinesses(): Promise<MyBusinessesResponse> {
+    return this.http.getJson('/v1/me/businesses', myBusinessesResponseSchema);
+  }
 }

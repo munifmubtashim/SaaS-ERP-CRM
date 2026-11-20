@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router';
 import { useEffect } from 'react';
+import { ScopeSwitcher } from '../../features/organization';
 import { LOCALES, useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
 import { NAV } from './nav';
@@ -60,7 +61,10 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
+        <header className="flex flex-wrap items-center justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
+          <div className="mr-auto">
+            <ScopeSwitcher />
+          </div>
           <div
             role="group"
             aria-label={t('shell.language')}
