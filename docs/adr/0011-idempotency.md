@@ -89,8 +89,11 @@ with a field code instead, as the money helpers already do, so `ERROR_CODES` doe
 - `SELECT` and `INSERT`.
 - `UPDATE` only on `status_code` and `response_body`, and a trigger refuses any update of a row whose
   `status_code` is already set. A stored response never changes.
-- No `DELETE` and no `TRUNCATE`. Old rows are cleaned up later by the worker, as the owner role (deferred,
-  ADR 0003). Until then the table grows by one row per money action: small at shop volume.
+- No `DELETE` and no `TRUNCATE`, for any role. ADR 0008 (#27) gives the owner no `DELETE` policy on any tenant
+  table, and a `BEFORE TRUNCATE` trigger refuses `TRUNCATE` for every role. So old key rows are **kept**: the
+  table grows by one row per money action, which is small at shop volume. Cleaning up old rows of a tenant table
+  needs its own later ADR (ADR 0008), so the earlier plan, "cleaned up by the worker, as the owner", is
+  withdrawn.
 
 ### 6. Who checks that routes carry it
 
@@ -132,7 +135,7 @@ section 6 orders it after `organization_tree` (it points at `business`) and afte
 1. `409 CONFLICT` with a field code, or a new `IDEMPOTENCY_KEY_REUSED` code with 422, as the plan said?
 2. How to mark money and stock permission codes for the route walk: a separate list in `permissions.ts`, or a
    flag on each code?
-3. Should a replay also be refused after some age (for example 24 hours), or replay forever until the worker
-   cleans up? Recommended: replay while the row exists.
+3. Should a replay also be refused after some age (for example 24 hours), or replay for as long as the row
+   exists (rows are kept, section 5)? Recommended: replay while the row exists.
 4. Is per-user scoping right? It stops one cashier from replaying another's response with a guessed key, but a
    shared till login would make two people one user.
