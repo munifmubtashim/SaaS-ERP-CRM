@@ -79,8 +79,11 @@ Real Postgres, through `GET /v1/parties?search=`:
 4. `আব্দুর` finds `আব্দুর রহমান` by `name_bn`; `rahman` finds `Abdur Rahman` by `name`; `C-00` finds codes
    `C-000001` and `C-000002`.
 5. The same name in business Y is never returned to a user of business X.
-6. A party whose `nid_last4` is `4321` and whose phone has no `4321` is not found by `4321`.
-7. A search of `%` returns no party unless one has a `%` in a searched column.
+6. The NID is never searched: a party whose `nid_last4` is `4321`, with no `4321` in its phone, name or code,
+   is not found by `4321`; and a unit test over `PartyQuery`'s search clause checks that its SQL names no `nid_`
+   column at all, whichever path (phone-like or text) the search takes.
+7. A search of `%` alone is refused as too short (`search.too_short`); a search of `5%` finds only a party with
+   a literal `5%` in a searched column.
 8. Tests check only their own fresh ids, never table-wide counts.
 
 With the index (B10 part 2):
