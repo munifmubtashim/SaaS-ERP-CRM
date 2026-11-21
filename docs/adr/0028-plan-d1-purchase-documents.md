@@ -31,7 +31,7 @@ is in this PR.
 | Goods receipt (PU-02, 03) | `goods_receipt`                    | `receipt` in, at the PO price | Dr `inventory`, Cr `goods_received_not_invoiced`                                     |
 | Supplier bill (PU-04)     | `supplier_bill`                    | none                          | Dr `goods_received_not_invoiced` (+ `input_vat` if registered), Cr `payable` (party) |
 | Supplier payment (PU-05)  | `supplier_payment`                 | none                          | Dr `payable` (party) or `supplier_advance`, Cr the method's role                     |
-| Purchase return (PU-07)   | `purchase_return`                  | `purchase_return` out         | Dr `payable` (party), Cr `inventory`                                                 |
+| Purchase return (PU-07)   | `purchase_return`                  | `purchase_return` out         | Dr `payable` (party), Cr `inventory`; see section 3, open questions 7 and 8          |
 | Direct purchase (PU-12)   | receipt + bill numbers             | as the receipt                | as the receipt and the bill, in one transaction                                      |
 
 - **Account roles, not codes** (ADR 0012). New roles: `goods_received_not_invoiced`, `payable`,
@@ -80,6 +80,19 @@ RLS forced with `branch_is_active` in `WITH CHECK`, `TO` and `FOR` on every poli
 - **Return:** goes out through `IStockService.move` with a negative quantity, as a new movement kind
   `purchase_return` (ADR 0021 adds later kinds with their features); it can't take stock below zero
   (F-08), and a serial unit must still be `in_stock`.
+- **Two known problems with the return's journal** (Munif's rules to decide; not decided here):
+  - **Returning goods not yet billed.** "Dr `payable`" assumes the supplier has billed them. If not, nothing is
+    owed yet, and the debit leaves a false balance on the supplier. Proposed fix: debit
+    `goods_received_not_invoiced` for the unbilled quantity and `payable` only for the billed quantity. Open
+    question 7.
+  - **Stock value and journal amount can differ.** For non-serial products, ADR 0021 values stock going out at the
+    branch's weighted average, while the return line's `unit_cost` is the receipt cost. Crediting `inventory` at
+    the receipt cost would let the account drift from the stock valuation. Proposed fix: credit `inventory` with
+    the cost `IStockService.move` returns, and post any difference to the supplier's refund to
+    `purchase_price_variance`. Open question 8.
+- **Applying a supplier advance to a later bill** isn't planned yet: a payment with no bill posts to
+  `supplier_advance`, but nothing sets it against a bill. Sales has the same gap for customer advances, which
+  ADR 0016 leaves to the invoice work. Open question 9.
 - **Payables aging (PU-06, A-21):** from the ledger's `payable` lines per supplier (invariant 1), with the bills
   for the breakdown, as ADR 0026 does for dues.
 - **Approval (PU-08):** an order over a per-business amount waits for approval once approvals exist (plan 2.6,
@@ -91,6 +104,19 @@ RLS forced with `branch_is_active` in `WITH CHECK`, `TO` and `FOR` on every poli
 Every money or stock POST carries `{ idempotent: true }` (ADR 0011) and `X-Branch-Id`. New permission codes:
 `purchase.order.create`, `purchase.order.approve`, `purchase.receipt.create`, `purchase.bill.create`,
 `purchase.payment.create`, `purchase.return.create`, `purchase.document.view`, `purchase.document.void`.
+
+Default roles, added to `permissions.ts` (#26) in part 1, provisional like every mapping (as #64 and #65 do):
+
+| Code                      | Owner | Business Manager | Branch Manager | Accountant | Cashier |
+| ------------------------- | ----- | ---------------- | -------------- | ---------- | ------- |
+| `purchase.order.create`   | yes   | yes              | yes            | yes        | no      |
+| `purchase.order.approve`  | yes   | yes              | no             | no         | no      |
+| `purchase.receipt.create` | yes   | yes              | yes            | no         | no      |
+| `purchase.bill.create`    | yes   | yes              | no             | yes        | no      |
+| `purchase.payment.create` | yes   | yes              | no             | yes        | no      |
+| `purchase.return.create`  | yes   | yes              | yes            | no         | no      |
+| `purchase.document.view`  | yes   | yes              | yes            | yes        | no      |
+| `purchase.document.void`  | yes   | yes              | no             | yes        | no      |
 
 `POST /v1/purchase-orders`, `POST /v1/purchase-orders/:id/submit`, `…/approve`, `…/cancel` ·
 `POST /v1/goods-receipts` · `POST /v1/supplier-bills` · `POST /v1/supplier-payments` · `POST /v1/purchase-returns` ·
@@ -173,3 +199,10 @@ release 1 (bills entered without an order).
    in release 1; landed cost (phase 2) revisits it.
 5. **Order approval before B8:** `purchase.order.approve`, not by the creator? Recommended: yes.
 6. **Release 1 order:** supplier payables first (part 4 after part 3, bills without an order)? Recommended: yes.
+7. **Returning goods not yet billed** (section 3): debit `goods_received_not_invoiced` for the unbilled
+   quantity and `payable` only for the billed quantity? Proposed: yes.
+8. **The return's inventory credit** (section 3): the cost `IStockService.move` returns, with the difference to the
+   supplier's refund in `purchase_price_variance`? Proposed: yes, so the `inventory` account matches the stock
+   valuation.
+9. **Applying a supplier advance to a bill:** its own journal (Dr `payable`, Cr `supplier_advance`) when the
+   bill is posted or later, like the sales side in ADR 0016? Proposed: plan it with part 4 (D5).
