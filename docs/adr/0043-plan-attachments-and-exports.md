@@ -181,6 +181,15 @@ bn, never a silent failure.
      - Lint: `@aws-sdk/*` isn't on businessLogic's banned list, so nothing fails, and nothing stops other I/O
        creeping in either. Adding an `adapters/` folder rule would be new lint.
    - Either way, CLAUDE.md gets a one-line change in its own small PR, reviewed by both.
+   - **Munif's lean, 21 Nov: A**, with the dal rule reworded from "database" to "**external systems**": dal is the
+     only layer that talks to anything outside the process (the database, object storage, and later the WhatsApp
+     and email relay). Why:
+     - businessLogic stays pure rules, so its unit tests never need a network fake beyond the contracts it owns;
+     - every outside connection, its credentials and its timeouts sit in one layer, as the database's already do;
+     - the existing lint rules already keep api away from dal, so storage gets the same protection for free;
+     - B would make businessLogic the place where I/O creeps in next.
+
+     Still open until Farhan agrees; the CLAUDE.md wording change is its own small PR.
 3. ~~**Munif:** allowed types and size?~~ **Decided by Munif, 21 Nov:** JPEG, PNG, WebP and PDF up to 10 MB; the
    browser converts HEIC to JPEG. The devices and browsers to check are listed above.
 4. ~~**Munif:** PDF of a list?~~ **Decided by Munif, 21 Nov:** the browser's print to PDF.
