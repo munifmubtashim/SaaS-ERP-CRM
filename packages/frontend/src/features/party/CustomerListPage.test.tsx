@@ -108,6 +108,7 @@ describe('CustomerListPage (F1b, mock data)', () => {
           items: [{ ...customer(1), nid, nationalId: nid, nidCiphertext: nid }],
           nextCursor: null,
         }),
+      postJson: () => Promise.reject(new Error('not used')),
     };
     const party = new PartyService(http);
     const [row] = (await party.list({ role: 'customer' })).items;

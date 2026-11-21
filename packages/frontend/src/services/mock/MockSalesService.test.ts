@@ -1,4 +1,11 @@
-import { customerDuesSchema, formatMoney, parseMoney, subtractMoney, sumMoney } from '@erp/shared';
+import {
+  customerDuesSchema,
+  formatMoney,
+  parseMoney,
+  salesPaymentSchema,
+  subtractMoney,
+  sumMoney,
+} from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import { MockPartyService, SAMPLE_BUSINESS_IDS } from './MockPartyService';
 import { MockSalesService } from './MockSalesService';
@@ -38,5 +45,39 @@ describe('MockSalesService.dues (stands in for GET /v1/parties/:id/dues until A1
   it('answers 404 for a customer of another business', async () => {
     const [id] = await customerIds(A);
     await expect(salesFor(B).dues(id ?? '')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('MockSalesService.recordPayment (stands in for POST /v1/payments until A15)', () => {
+  const payment = (partyId: string) => ({
+    partyId,
+    invoiceId: null,
+    method: 'bkash' as const,
+    amount: '12500.00',
+    externalRef: 'TXN-0001',
+    note: null,
+  });
+
+  it('answers in the shared payment shape, posted, with a receipt number from the "server"', async () => {
+    const [id = ''] = await customerIds(A);
+    const paid = await salesFor(A).recordPayment(payment(id), 'key-1');
+    expect(salesPaymentSchema.safeParse(paid).success).toBe(true);
+    expect(paid).toMatchObject({ partyId: id, amount: '12500.00', method: 'bkash', status: 'posted' });
+    expect(paid.receiptNumber).toMatch(/^R-\d{6}$/);
+  });
+
+  it('returns the first result for a repeated Idempotency-Key, and a new receipt for a new key', async () => {
+    const [id = ''] = await customerIds(A);
+    const sales = salesFor(A);
+    const first = await sales.recordPayment(payment(id), 'key-1');
+    expect(await sales.recordPayment(payment(id), 'key-1')).toEqual(first);
+    const second = await sales.recordPayment(payment(id), 'key-2');
+    expect(second.id).not.toBe(first.id);
+    expect(second.receiptNumber).not.toBe(first.receiptNumber);
+  });
+
+  it('answers 404 for a customer of another business', async () => {
+    const [id = ''] = await customerIds(A);
+    await expect(salesFor(B).recordPayment(payment(id), 'key-1')).rejects.toMatchObject({ status: 404 });
   });
 });

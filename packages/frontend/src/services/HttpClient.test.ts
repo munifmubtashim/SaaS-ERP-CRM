@@ -29,4 +29,24 @@ describe('HttpClient', () => {
       ApiRequestError,
     );
   });
+
+  it('POSTs a JSON body with the Idempotency-Key header, and validates the reply', async () => {
+    stubFetch(201, healthy);
+    const body = { amount: '12500.00' };
+    await expect(
+      new HttpClient().postJson('/v1/payments', body, healthResponseSchema, { idempotencyKey: 'key-1' }),
+    ).resolves.toEqual(healthy);
+    expect(fetch).toHaveBeenCalledWith('/api/v1/payments', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': 'key-1' },
+      body: JSON.stringify(body),
+    });
+  });
+
+  it('throws ApiRequestError on a failed POST', async () => {
+    stubFetch(400, { code: 'VALIDATION_FAILED', message: 'Bad', fields: [], requestId: 'r2' });
+    await expect(new HttpClient().postJson('/x', {}, healthResponseSchema)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
 });

@@ -2,9 +2,12 @@ import {
   formatMoney,
   parseMoney,
   subtractMoney,
+  recordPaymentSchema,
   sumMoney,
   type CustomerDues,
   type OpenInvoice,
+  type RecordPaymentInput,
+  type SalesPayment,
 } from '@erp/shared';
 import type { ISalesService } from '../salesService';
 import { findSampleParty, notFound, sampleNumber } from './MockPartyService';
@@ -38,11 +41,17 @@ function sampleInvoices(n: number): OpenInvoice[] {
   });
 }
 
+/** The one sample branch every mock payment is received in; the real server takes it from the request. */
+const SAMPLE_BRANCH_ID = '0196f000-0000-7000-8000-0000000000c1';
+
 /**
  * Stands in for the Sales routes until A15. Answers like the API will: only the active business's
  * customers (the tenant scope, ADR 0007), and dues that add up.
  */
 export class MockSalesService implements ISalesService {
+  /** Payments by Idempotency-Key, so a repeat returns the first result (ADR 0011). */
+  private readonly payments = new Map<string, SalesPayment>();
+
   constructor(
     private readonly activeBusinessId: () => string,
     private readonly delayMs = 400,
@@ -60,5 +69,28 @@ export class MockSalesService implements ISalesService {
       advance: n % 6 === 0 ? '5000.00' : '0.00',
       openInvoices,
     };
+  }
+
+  /**
+   * Stands in for POST /v1/payments. Shapes only: it does not change the dues above, and posts no journal
+   * (A16, ADR 0016).
+   */
+  async recordPayment(input: RecordPaymentInput, idempotencyKey: string): Promise<SalesPayment> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    const earlier = this.payments.get(idempotencyKey);
+    if (earlier) return earlier;
+    const body = recordPaymentSchema.parse(input);
+    if (!findSampleParty(this.activeBusinessId(), body.partyId)) throw notFound();
+    const n = this.payments.size + 1;
+    const payment: SalesPayment = {
+      ...body,
+      id: `0196f000-0000-7000-8000-0000002${String(n).padStart(5, '0')}`,
+      receiptNumber: `R-${String(n).padStart(6, '0')}`,
+      branchId: SAMPLE_BRANCH_ID,
+      status: 'posted',
+      receivedAt: new Date().toISOString(),
+    };
+    this.payments.set(idempotencyKey, payment);
+    return payment;
   }
 }

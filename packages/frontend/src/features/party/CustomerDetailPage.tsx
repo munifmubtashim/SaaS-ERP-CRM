@@ -1,24 +1,11 @@
-import {
-  formatDateBD,
-  formatMoneyBDT,
-  isZero,
-  parseMoney,
-  type CustomerDues,
-  type PartyDetail,
-} from '@erp/shared';
+import { formatDateBD, isZero, parseMoney, type CustomerDues, type PartyDetail } from '@erp/shared';
 import { useId, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button, Card } from '../../components/ui';
-import { useI18n } from '../../i18n';
+import { useI18n, useTaka } from '../../i18n';
 import { ApiRequestError } from '../../services';
 import { useActiveBusinessId } from '../../store/activeBusinessStore';
 import { useCustomerDues, useCustomerProfile } from './useCustomerDetail';
-
-/** "৳1,37,500.00", with Bangla digits in Bangla. Formatting only: the amount stays a string. */
-function useTaka() {
-  const { locale } = useI18n();
-  return (amount: string) => `৳${formatMoneyBDT(amount, locale === 'bn' ? 'bn-BD' : 'en-BD')}`;
-}
 
 const actionLink =
   'inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:brightness-110';
