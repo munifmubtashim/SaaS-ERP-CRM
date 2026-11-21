@@ -292,25 +292,38 @@ review only.
 
 ### #89 ADR 0047: cash forecast (F5)
 
-| #      | Question                                                       | Who   | Recommendation                                              | Blocks building? |
-| ------ | -------------------------------------------------------------- | ----- | ----------------------------------------------------------- | ---------------- |
-| 0047-1 | Which day does a forecast week start?                          | Munif | Saturday (Saturday to Friday; Friday is the weekly holiday) | yes              |
-| 0047-2 | Who sees the forecast?                                         | Munif | Owner and Accountant only (totals would reveal salaries)    | yes              |
-| 0047-3 | Expected collections at 100 %, or weighted by payment history? | Munif | 100 % in release 1, with overdue dues on their own line     | no               |
+| #      | Question                              | Who   | Recommendation                                                                  | Blocks building? |
+| ------ | ------------------------------------- | ----- | ------------------------------------------------------------------------------- | ---------------- |
+| 0047-1 | Which day does a forecast week start? | Munif | **Decided by Munif, 21 Nov:** Saturday; **confirm with the owner** (visit list) | yes              |
+| 0047-2 | Who sees the forecast?                | Munif | **Decided by Munif, 21 Nov:** Owner and Accountant only                         | yes              |
+| 0047-3 | Expected collections at 100 %?        | Munif | **Decided by Munif, 21 Nov:** 100 %, labelled "Expected"                        | no               |
 
 ### #90 ADR 0048: plate, odometer, km warranty, reminders (E5, Vehicle pack)
 
-| #      | Question                                                                         | Who    | Recommendation                                   | Blocks building? |
-| ------ | -------------------------------------------------------------------------------- | ------ | ------------------------------------------------ | ---------------- |
-| 0048-1 | An odometer reading lower than the last: refuse, or allow with a note?           | Munif  | Allow with a note, kept with the reading         | yes              |
-| 0048-2 | Warranty km and service intervals per model: who enters them; any defaults?      | Munif  | The Owner, from the maker's booklet; no defaults | no (part 2)      |
-| 0048-3 | Does ADR 0029 take `IWarrantyLimit` from the pack, and hand part 5 to this plan? | Farhan | Yes to both                                      | yes              |
+| #      | Question                                               | Who    | Recommendation                                                  | Blocks building? |
+| ------ | ------------------------------------------------------ | ------ | --------------------------------------------------------------- | ---------------- |
+| 0048-1 | A lower odometer reading?                              | Munif  | **Decided by Munif, 21 Nov:** allowed with a note               | yes              |
+| 0048-2 | Who enters warranty km and service intervals?          | Munif  | **Decided by Munif, 21 Nov:** the Owner, per model, no defaults | no (part 2)      |
+| 0048-3 | ADR 0029 takes `IWarrantyLimit` and hands part 5 over? | Farhan | **Open, Farhan's decision**                                     | yes              |
 
 ### #91 ADR 0049: VAT accounts and the monthly summary (D12; conditional on Q15)
 
-| #      | Question                                        | Who               | Recommendation                                           | Blocks building? |
-| ------ | ----------------------------------------------- | ----------------- | -------------------------------------------------------- | ---------------- |
-| 0049-1 | Q15: is the business VAT registered?            | owner, accountant | Nothing is built until "yes"                             | yes (all of it)  |
-| 0049-2 | Q16: VAT rounding per line or per invoice?      | accountant        | Per line, as A8 computes                                 | yes (Sales)      |
-| 0049-3 | Q25: prices VAT-inclusive?                      | owner, accountant | Ask before Sales' VAT line                               | yes (Sales)      |
-| 0049-4 | Which VAT rates apply to motorcycles and parts? | accountant        | A rate per product, set by the Owner; nothing hard-coded | yes              |
+| #      | Question                                        | Who               | Recommendation                                                                     | Blocks building? |
+| ------ | ----------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------- | ---------------- |
+| 0049-1 | Q15: is the business VAT registered?            | owner, accountant | **Decided by Munif, 21 Nov:** nothing is built unless yes; on the owner visit list | yes (all of it)  |
+| 0049-2 | Q16: VAT rounding per line or per invoice?      | accountant        | On the owner visit list; recommended per line                                      | yes (Sales)      |
+| 0049-3 | Q25: prices VAT-inclusive?                      | owner, accountant | On the owner visit list                                                            | yes (Sales)      |
+| 0049-4 | Which VAT rates apply to motorcycles and parts? | accountant        | On the owner visit list; a rate per product, nothing hard-coded                    | yes              |
+
+## 15. Owner visit list
+
+Questions to ask the owner (and their accountant, where marked) on the next visit. Each answer goes back to the PR
+named.
+
+| #   | Question                                                                                        | Ask               | Answer goes to                        |
+| --- | ----------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------- |
+| V-1 | Q15: is the business VAT registered? (You asked for Mushak 6.3; your sale slips show no tax.)   | owner, accountant | #91 (nothing VAT is built unless yes) |
+| V-2 | Q16: if VAT registered, is VAT rounded per line or per invoice?                                 | accountant        | #91, Sales' invoice                   |
+| V-3 | Q25: are the prices you show customers (bikes and parts) VAT-inclusive, or is VAT added on top? | owner, accountant | #91, Sales' invoice                   |
+| V-4 | Which VAT rates apply to motorcycles, and which to parts?                                       | accountant        | #91                                   |
+| V-5 | Does your trading week start on Saturday (for the cash forecast's weeks)?                       | owner             | #89                                   |

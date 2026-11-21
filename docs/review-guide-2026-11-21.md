@@ -20,7 +20,75 @@ plan on 21 Nov. It's a snapshot; delete it once the queue is cleared.
   merged in before it can merge. Never a rebase.
 - **Reviewer:** Munif's PRs are for Farhan; Farhan's are for Munif.
 
-## All open PRs
+## 1. Review first for the demo (Munif's order, 21 Nov)
+
+In this exact order. "When agreed" is what gets built once the plan is agreed (or, for #29, what merging it
+unlocks). Minutes are for a careful read.
+
+| Order | PR  | What                                        | Reviewer | Min | When agreed, this gets built                                                                                                             |
+| ----- | --- | ------------------------------------------- | -------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | #29 | `uuid_v7()` function (a build, not a plan)  | Farhan   | 35  | Nothing new: merging it lets #80 (organization tree), #81 and #82 merge, and every later table default its ids to UUID v7                |
+| 2     | #45 | ADR 0018 sessions and login                 | Farhan   | 25  | The session table and `AuthQuery` session methods; login with argon2id, lockout and the IP limit; #11's screen on the real API           |
+| 3     | #37 | ADR 0011 Idempotency-Key (owner Farhan)     | Farhan   | 15  | Nothing on its own: it fixes the rule (claim the key first, replay a repeat, refuse a reused key) that #40 builds                        |
+| 4     | #38 | ADR 0012 module contracts                   | Farhan   | 20  | The `IPostingService` and `IStockService` contracts and the account-role list that every posting module uses                             |
+| 5     | #39 | ADR 0013 journal engine (A13)               | Farhan   | 30  | `account`, `journal`, `journal_line`, `account_role`; the balanced-at-commit and immutability triggers; `PostingService`; accounts setup |
+| 6     | #40 | ADR 0014 building idempotency (A14)         | Farhan   | 15  | The `idempotency_key` table and the route-wrapper option on #8                                                                           |
+| 7     | #41 | ADR 0015 number series (A14a)               | Farhan   | 20  | The `number_series` table and gapless allocator, with the business-wide `party_code` series that A11 part 3 needs                        |
+| 8     | #43 | ADR 0016 payment posting (owner Farhan)     | Farhan   | 20  | A payment and its balanced journal in one transaction, with each payment method as its own class                                         |
+| 9     | #58 | ADR 0020 product and bike unit tables       | Farhan   | 30  | `product`; `serial_unit` with its status trigger and `IUnitSale`; the Vehicle pack's `vehicle_unit`; #35 and #36 on real data            |
+| 10    | #59 | ADR 0021 stock ledger (amended 21 Nov)      | Farhan   | 40  | `stock_movement`, `stock_balance`, `stock_cost`, `StockService.move` with atomic decrements, and the business In transit rules           |
+| 11    | #60 | ADR 0022 sale posting (owner Farhan)        | Farhan   | 40  | Invoice schemas, `invoice` tables, `SalesManager.postInvoice` (invoice, journal and stock in one transaction), POS on the real route     |
+| 12    | #61 | ADR 0023 dashboard on real figures (A18)    | Farhan   | 20  | The `security_invoker` report view, `ReportManager` and route, and the dashboard swapped from mock to ledger figures                     |
+| 13    | #64 | ADR 0026 dues and payment routes (Farhan's) | Munif    | 30  | Payment permission codes; `sales_payment` and `PaymentQuery`; `POST /v1/payments` with A16's posting; #53's screen on the real API       |
+
+**About 5 hours for Farhan (items 1 to 12) and 30 minutes for Munif (item 13).** The money and stock plans (#39,
+#43, #59, #60) get the slow, line-by-line read CLAUDE.md asks for.
+
+## 2. After the demo: every other plan PR
+
+Agreed already, no review needed: **#27** ADR 0008 amendment, **#31** ADR 0009 organization tables (built as #80,
+#81), **#32** ADR 0010 provisioning path (part 1 built as #82).
+
+| PR  | Plan                                        | Purpose, in one line                                                                          |
+| --- | ------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| #14 | ADR 0005 and 0006 status                    | Marks the tenancy and Party ADRs Accepted                                                     |
+| #16 | ADR 0007 active business                    | The business and branch come from each request's headers                                      |
+| #20 | Feature build plan                          | The map of every feature, owner and PR                                                        |
+| #23 | ADR 0001 Moto Mart decisions                | Release phases, spec deviations, registration fees as a liability                             |
+| #44 | ADR 0017 day close                          | Branch day close and the day lock in the database                                             |
+| #52 | ADR 0006 updates (Farhan's)                 | `staff` for `assigned_to`, per-kind permission codes, credit limit and guarantor in release 1 |
+| #54 | ADR 0019 party table (Farhan's)             | The `party` table, create, edit and the duplicate-phone warning                               |
+| #62 | ADR 0024 credit limit (Farhan's)            | Customer credit limits and credit holds                                                       |
+| #63 | ADR 0025 guarantors (Farhan's)              | Guarantors and relations between parties                                                      |
+| #65 | ADR 0027 instalments (Farhan's)             | Instalment plans and bank financing                                                           |
+| #66 | ADR 0028 purchase documents (Farhan's)      | Purchase order, receipt, supplier bill, payment and return                                    |
+| #67 | ADR 0029 service jobs (Farhan's)            | Job cards, parts from stock, the service invoice and warranty                                 |
+| #68 | ADR 0030 approvals (Farhan's)               | Approval rules and requests, with no self-approval                                            |
+| #69 | ADR 0031 search (Farhan's)                  | Search by part, phone, chassis and number                                                     |
+| #70 | ADR-number map                              | Which ADR number each reserved plan row actually got                                          |
+| #71 | ADR 0032 activity record                    | The append-only `audit_event` log of who did what                                             |
+| #72 | ADR 0033 permissions and hidden fields      | A permission on every route; cost, profit and salary removed from responses and exports       |
+| #73 | ADR 0034 stock by location                  | Locations per branch, Showroom and Warehouse figures, one business In transit location        |
+| #74 | ADR 0035 month lock and integrity check     | Locking a month, and the nightly check that ledger and stock agree                            |
+| #75 | ADR 0036 chart of accounts, manual journals | The accounts screens and approved manual journals                                             |
+| #76 | ADR 0037 expenses                           | Expenses, approval limits and recurring expenses                                              |
+| #77 | ADR 0038 salary entries                     | Salary entries in their own table, viewing recorded                                           |
+| #78 | ADR 0039 financial statements               | Trial balance, profit and loss, balance sheet from the ledger                                 |
+| #79 | ADR 0040 stock adjustments and counts       | Approved adjustments and physical counts per location                                         |
+| #83 | ADR 0041 stock transfers                    | Transfers between branches, each branch confirming its own side                               |
+| #84 | ADR 0042 reorder rules                      | Per-branch reorder levels, Low and Out of stock, the `stock.low` event                        |
+| #85 | ADR 0043 attachments and exports            | Customer documents in storage, restricted NID copies, CSV and PDF exports                     |
+| #86 | ADR 0044 outbox and notifications           | The event outbox and per-user in-app notifications                                            |
+| #87 | ADR 0045 Action Center                      | Exceptions from every module, with assign, due date, resolve and history                      |
+| #88 | ADR 0046 standard reports                   | The report pack, each total checked against the ledger                                        |
+| #89 | ADR 0047 cash forecast                      | A weekly cash forecast from the ledger and what is due                                        |
+| #90 | ADR 0048 vehicle service extras             | Plate, odometer, km warranty and service reminders (Vehicle pack)                             |
+| #91 | ADR 0049 VAT summary                        | VAT accounts and the monthly summary, only if the business is VAT registered (Q15)            |
+
+Builds and screens that aren't plans (#8, #9, #11, #12, #13, #26, #28, #33 to #36, #42, #46, #47, #51, #53, #55,
+#56, #80 to #82) are in the table below, with their own risk and minutes.
+
+## 3. All open PRs (reference, as of the morning of 21 Nov)
 
 | #   | Title                                      | Author                 | Base   | Summary                                                                                                                | Risk                       | Min | Critical path?                                                          | Built on       | Needs update              |
 | --- | ------------------------------------------ | ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- | -------------------------- | --- | ----------------------------------------------------------------------- | -------------- | ------------------------- |
@@ -66,55 +134,7 @@ plan on 21 Nov. It's a snapshot; delete it once the queue is cleared.
 
 The demo PRs (#48, #49) are in their own section below.
 
-## Recommended order
-
-### 1. Must review today: unblocks the critical path
-
-In this order. Each item says what it unblocks.
-
-| Order | PR                                                                    | Reviewer | Min | Unblocks                                                                      |
-| ----- | --------------------------------------------------------------------- | -------- | --- | ----------------------------------------------------------------------------- |
-| 1     | #29 `uuid_v7()`                                                       | Farhan   | 35  | the default for every new key (A3, A11)                                       |
-| 2     | #27 ADR 0008 amendment                                                | Farhan   | 10  | A3 part 1 design                                                              |
-| 3     | #31 ADR 0009 (A3b plan)                                               | Farhan   | 25  | **A3: Munif can't start the organization tables until this is agreed**        |
-| 4     | #28 `erp_provisioner` role                                            | Farhan   | 35  | A3 part 2 (needs #27)                                                         |
-| 5     | #26 permission codes                                                  | Farhan   | 25  | A4 seed, and Party's codes in #52                                             |
-| 6     | #45 ADR 0018 sessions and login                                       | Farhan   | 25  | A4 part 3 and A5                                                              |
-| 7     | #16 ADR 0007, then #8 tenant wrapper, then #9                         | Farhan   | 90  | A5 and A6 (#9 needs #8 merged into it first)                                  |
-| 8     | #41 ADR 0015 number series (A14a plan)                                | Farhan   | 20  | **A11 part 3**: customer codes come from A14a's build, which must merge first |
-| 9     | #52 ADR 0006 updates (waiting on Farhan's fixes to six review points) | Munif    | 15  | A11                                                                           |
-| 10    | #42 BaseDTO helpers (waiting on Farhan's fixes to four review points) | Munif    | 15  | A11 DTOs                                                                      |
-| 11    | #54 ADR 0019 (A11 plan)                                               | Munif    | 25  | A11 (after #52)                                                               |
-| 12    | #33 customer list                                                     | Munif    | 35  | the customer list                                                             |
-
-About **4.5 hours** for Farhan (items 1 to 8) and about **1.5 hours** for Munif (items 9 to 12).
-
-**Critical-path order for A11 (updated 21 Nov):** #41's build (A14a, gapless numbers and the business-wide
-`party_code` series) must merge **before A11 part 3**, the party table. ADR 0019 (#54) now takes customer codes
-from it.
-
-### 2. Safe and quick
-
-Low risk, 15 minutes or less each, independent of each other:
-
-- **#30:** CLAUDE.md workspaces, 2 minutes. It's rules, so it needs both reviewers.
-- **#14:** ADR 0005 and 0006 status lines, 5 minutes. Merge before #52, since both touch ADR 0006.
-- **#13, then #46, then #56:** the dashboard stack on mocks, about 40 minutes in all. The demo uses it.
-- **#55:** product and stock filters, 10 minutes, after #36.
-- **#6:** the work queue. Close it if the feature plan (#20) replaces it.
-
-### 3. Can wait until after 29 Nov
-
-- **Plan ADRs for ledger and idempotency:** #37, #38, #39, #40, #43, #44 (#41 moved to group 1). Read them
-  together, in that order, about 2 hours. **Move them into group 1 if payments posting a journal is in the 29 Nov demo.**
-- **Product and stock screens:** #34, then #35, #36. Shared schemas, then the screens, about 85 minutes.
-- **Customer profile and payment screens:** #47, then #51, then #53. About 2 hours (Munif reviews).
-- **Login and switcher screens:** #11 and #12. Both need `main` merged first. They become critical when A5 and
-  A6 start, and they're needed for the demo, so review them before 28 Nov at the latest.
-- **#17** (demo hosting): only matters if the demo is hosted, not run locally.
-- **#20, #23, #32:** the plan, the Moto Mart ADR rows, and A3c. Reference and later work.
-
-## The demo branch
+## 4. The demo branch
 
 `feat/demo` is the integration branch for the 29 Nov demo. Nothing from it goes to `main` until it has been
 reviewed after the demo. CI runs on PRs into it since #50 (merged 20 Nov).
