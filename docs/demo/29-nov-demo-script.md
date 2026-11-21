@@ -10,7 +10,9 @@ branches; a cashier sells a bike; the owner's figures change, and the books stay
 
 ## Before the demo (30 minutes before)
 
-1. Reset the demo database and run the seed (seed script: still to build, see "Status" at the end). It prints:
+1. Recreate the demo database, then migrate and run the seed (seed script: still to build, see "Status" at the
+   end). **Reset means drop and create the database, never deleting rows.** No role may delete from the tenant
+   tables (ADR 0008, #27), so a half-cleared database can't happen. The seed prints:
    - the totals the dashboard should show;
    - two unsold chassis numbers in Mirpur-10, for steps 6 and 8.
 
