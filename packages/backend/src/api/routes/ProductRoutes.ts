@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { ProductController } from '../controllers/ProductController.js';
+import type { RouteWrappers } from './tenantRoute.js';
 import type { ModuleRoutes } from './types.js';
 
 /**
@@ -7,8 +8,8 @@ import type { ModuleRoutes } from './types.js';
  * TODO(Munif): products and catalogue (roadmap 5.4).
  * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
  */
-export function productRoutes(_controller: ProductController): ModuleRoutes {
+export function productRoutes(_controller: ProductController, _wrap: RouteWrappers): ModuleRoutes {
   const router = Router();
-  // TODO(Munif): router.get('/', _controller.list) ... then add an isolation case in test/isolation/cases.ts.
+  // TODO(Munif): router.get('/', _wrap.tenant((req) => _controller.list(req))) ... then add an isolation case in test/isolation/cases.ts.
   return { module: 'Product', basePath: '/v1/products', scope: 'tenant', router };
 }
