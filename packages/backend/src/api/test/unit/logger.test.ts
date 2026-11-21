@@ -49,6 +49,20 @@ describe('logger redaction (ADR 0018 test 10)', () => {
     }
   });
 
+  it('the login field never reaches a log line, as a phone or as an email, wherever it is logged (Farhan, #45)', () => {
+    const { lines, stream } = capture();
+    const logger = createLogger({ level: 'info', pretty: false }, stream);
+    logger.info({ req: { body: { login: 'owner-login@example.com', password: 'x' } } }, 'login by email');
+    logger.info({ req: { body: { login: '+8801712345678' } } }, 'login by phone');
+    logger.info({ attempt: { login: 'owner-login@example.com' } }, 'attempt by email');
+    logger.info({ attempt: { login: '+8801812345678' } }, 'attempt by phone');
+    const line = lines.join('');
+    expect(line).toContain('attempt by phone');
+    for (const secret of ['owner-login@example.com', '8801712345678', '8801812345678']) {
+      expect(line, secret).not.toContain(secret);
+    }
+  });
+
   it('redacts the password_hash and two-factor secret if a user row is ever logged', () => {
     const { lines, stream } = capture();
     createLogger({ level: 'info', pretty: false }, stream).info({
@@ -59,6 +73,8 @@ describe('logger redaction (ADR 0018 test 10)', () => {
 
   it('keeps the list of redacted paths explicit', () => {
     expect(REDACT_PATHS).toContain('req.body.password');
+    expect(REDACT_PATHS).toContain('req.body.login');
+    expect(REDACT_PATHS).toContain('*.login');
     expect(REDACT_PATHS).toContain('res.headers["set-cookie"]');
   });
 });
