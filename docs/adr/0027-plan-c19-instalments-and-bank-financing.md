@@ -76,7 +76,8 @@ Both start from a posted invoice with a balance: `financed_amount = invoice tota
   journal, `Idempotency-Key`.
 - **Which instalment it pays is computed, not stored:** payments on the invoice are applied to instalments in
   `seq` order. An instalment is paid, part paid or overdue by that rule. No payment row is changed.
-- The plan becomes `completed` when the invoice's due reaches zero, in the same transaction as the last payment.
+- An `instalment` plan becomes `completed` when the invoice's due reaches zero, in the same transaction as the
+  last payment. A `bank_loan` plan completes when the bank's due reaches zero (section 4, open question 6).
 
 ### 4. Bank loan: the receivable moves to the bank
 
@@ -94,6 +95,19 @@ A15 (ADR 0026) checks that a payment's invoice belongs to the paying party. For 
 accepts the plan's `bank_party_id` as the payer on that invoice, so the bank's payment isn't taken as an advance.
 Open question 5.
 
+**A known gap: dues after a bank loan.** ADR 0026 ([#64](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/64)) works out each open invoice's due from the documents
+(total minus its posted payments) and requires the sum to match the ledger. After the transfer journal, the
+ledger says the customer owes nothing, but the invoice has no new payment, so the documents still show the full
+financed amount as the customer's due. The two disagree, and this plan's own completion rule ("completed when the
+invoice's due reaches zero") can't be met until the bank pays.
+
+- **Proposed fix:** count an active or completed `bank_loan` plan's transfer as settling the customer's share
+  of the invoice. The customer's due on that invoice is total minus payments at the sale minus
+  `financed_amount`; the bank's due is `financed_amount` minus the bank's payments. A `bank_loan` plan is
+  completed when the bank's due reaches zero.
+- That needs a matching line in ADR 0026's dues rule ([#64](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/64)); this PR doesn't change ADR 0026. The accounting
+  rule is Munif's: open question 6.
+
 ### 5. Routes (all `scope: 'tenant'`, each with an isolation case)
 
 | Route                                  | Permission               | Notes                                              |
@@ -102,6 +116,10 @@ Open question 5.
 | `GET /v1/invoices/:id/instalment-plan` | `sales.financing.view`   | the plan, its schedule and each instalment's state |
 | `POST /v1/instalment-plans/:id/cancel` | `sales.financing.create` | with a reason; a new plan follows                  |
 | `GET /v1/instalments/due`              | `sales.financing.view`   | the due calendar, by date, for the Action Center   |
+
+New permission codes, added to `permissions.ts` (#26) with their default roles in part 1, provisional like every
+mapping: `sales.financing.create` (Owner, Business Manager, Branch Manager, Accountant; not Cashier, because a
+plan is a credit decision) and `sales.financing.view` (all five).
 
 ### 6. Interest and fees
 
@@ -169,3 +187,6 @@ Real Postgres:
 4. **Frequency:** monthly only in release 1? Recommended: yes.
 5. **The bank paying on the customer's invoice:** A15 accepts the plan's bank as the payer on a financed invoice
    (section 4)? Recommended: yes, a rule in A15's validation, tested there.
+6. **Dues after a bank loan** (section 4): count the transfer as settling the customer's share of the invoice, in
+   ADR 0026's dues rule ([#64](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/64), with a matching line there) and in this plan's completion rule, so the documents
+   and the ledger agree again? Recommended: yes; the bank then shows the financed amount as its own due.
