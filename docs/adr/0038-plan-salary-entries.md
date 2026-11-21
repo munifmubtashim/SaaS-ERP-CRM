@@ -27,7 +27,7 @@ This is a ledger, permissions and migration change, so CLAUDE.md requires an agr
 | `staff_id`    | composite foreign key to `staff (business_id, id)` (A4 part 4)                      |
 | `entry_date`  | business date; the month is the month of this date. **No unique on (staff, month)** |
 | `amount`      | `numeric(18,2)`, above zero. **Hidden** (`sensitive: 'salary'`, ADR 0033)           |
-| `method`      | `cash`, `bank`, or `accrued` (credit Salaries payable)                              |
+| `method`      | `cash` or `bank` (no `accrued` in release 1, decided by Munif, 21 Nov)              |
 | `journal_id`  | `NOT NULL`                                                                          |
 | `reversal_of` | nullable: a correction is a reversal plus a new entry, never an edit                |
 
@@ -35,8 +35,8 @@ The rules on #27 and #31 apply. It's append-only: owner `FOR SELECT, INSERT`; `e
 
 ### Posting, in one transaction
 
-- **The entry:** Dr `salaries_expense`; Cr `cash` or `bank`, or Cr `salaries_payable` when accrued. An accrual is
-  cleared later by an expense payment (ADR 0037). The entry is stored with its `journal_id` (invariant 4).
+- **The entry:** Dr `salaries_expense`; Cr `cash` or `bank`. The entry is stored with its `journal_id`
+  (invariant 4). Accruals (Cr `salaries_payable`) are a later change.
 - **Route:** `POST /v1/accounting/salary-entries`, idempotent (ADR 0011). It needs `accounting.salary.create`.
 - **Dates:** an `entry_date` in a closed day or locked month is refused (ADR 0017, 0035).
 - **Reading:** the list and any report show amounts only with `accounting.salary.view`. Without it the field is
@@ -52,7 +52,7 @@ lock), and permissions (hidden salary).
 ## Tests to write first
 
 1. Three entries for one staff member in one month are all accepted; each posts a balanced journal.
-2. An accrued entry credits `salaries_payable`; a cash entry credits `cash`.
+2. A cash entry credits `cash`, a bank entry `bank`; `accrued` is refused in release 1.
 3. A correction is a reversal that points at the original, plus a new entry; an entry can't be updated or deleted
    (the RLS path and the trigger path).
 4. Without `accounting.salary.view`, `amount` is absent from the list, the export and the activity record;
@@ -63,7 +63,7 @@ lock), and permissions (hidden salary).
 ## Dependencies
 
 - A4 part 4 (`staff`, ADR 0009, #31), ADR 0013 (#39), ADR 0033 (#72), ADR 0035 (#74), ADR 0011 (#37),
-  ADR 0037 (#76) for clearing accruals.
+  ADR 0037 (#76), later, for clearing accruals.
 
 ## Size and PR split
 
@@ -78,9 +78,10 @@ lock), and permissions (hidden salary).
 - **Harder:** the cash forecast's salary line uses averages (plan 3.3), not a fixed amount.
 - **Undo:** before go-live, drop the table in a new migration.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Munif:** allow "accrued" in release 1, or cash and bank only? Recommended: cash and bank only; accruals later.
-2. **Munif:** who may enter salaries? Recommended: Owner and Accountant.
-3. **Munif:** is a salary entry also an expense (ADR 0037), or its own table? Recommended: its own table, as
-   planned, because of the hidden field and the per-staff reports.
+1. ~~Allow "accrued" in release 1?~~ **Decided by Munif, 21 Nov:** no. Cash and bank only; accruals later.
+2. ~~Who may enter salaries?~~ **Decided by Munif, 21 Nov:** Owner and Accountant.
+3. ~~Salary as an expense or its own table?~~ **Decided by Munif, 21 Nov:** its own table.
+4. **Decided by Munif, 21 Nov:** the Activity Log records **who viewed salary data**. Every response that includes
+   salary amounts writes one `view_sensitive` event (ADR 0032) with the viewer and the entity, never the amounts.
