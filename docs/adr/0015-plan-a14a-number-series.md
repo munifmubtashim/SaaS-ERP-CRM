@@ -185,5 +185,6 @@ Part 1 can merge before the journal engine, which is the point of splitting it o
 4. **Farhan:** does A15 need any kind beyond `receipt`, for example a separate series for booking advances?
 5. **Owner or accountant:** must VAT invoice numbers run per branch or per business? Unconfirmed. The table
    supports both (section 1a); until answered, `invoice` stays per branch.
-6. **Farhan (from #54):** is a business-wide `party_code` series what A11 needs, so ADR 0019's question 1 can
-   pick it over a separate counter table? Recommended: yes.
+6. ~~**Farhan (from #54):** is a business-wide `party_code` series what A11 needs, so ADR 0019's question 1 can
+   pick it over a separate counter table?~~ **Farhan, 21 Nov: a business-wide series is what A11 needs** (on #41),
+   since a party belongs to the business, not to a branch. ADR 0019 (#54) takes customer codes from it.
