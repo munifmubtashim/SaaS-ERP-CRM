@@ -210,8 +210,9 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
    kind (unique with `NULLS NOT DISTINCT`), taken with `next('party_code', null)`. A11 would add the
    `party_code` kind. #41 is still a draft, and its question 6 asks whether this is what A11 needs.
    - Recommended: the business-wide `party_code` series from A14a, with prefix `C-` and #41's default width 6,
-     so codes read `C-000001`. Not width 4: `lpad` cuts a longer value, so code 10000 would print as `C-1000`.
-     Part 3 then needs A14a merged first.
+     so codes read `C-000001`. Part 3 then needs A14a merged first. A number wider than the width would be cut
+     only if the formatting were done with SQL `lpad`. ADR 0015 formats in TypeScript (`NumberSeries`, its
+     section 5), where nothing is cut, so the 1,000,000th code reads `C-1000000`.
    - Only if A14a hasn't merged when part 3 is ready: a simple per-business counter, one row per business, taken
      with an atomic `UPDATE … SET next_value = next_value + 1 … RETURNING` (invariant 6, never read-then-write).
      That is a second small table in A11's migration (see question 6). Gaps don't matter for a party code.
