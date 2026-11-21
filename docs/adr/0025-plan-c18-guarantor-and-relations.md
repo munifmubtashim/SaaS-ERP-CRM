@@ -57,11 +57,14 @@ The guarantor's NID is optional, as on every party. Requiring it for a guarantor
 
 ### 3. Routes (all `scope: 'tenant'`, each with an isolation case)
 
-| Route                              | Permission            | What it does                                          |
-| ---------------------------------- | --------------------- | ----------------------------------------------------- |
-| `GET /v1/parties/:id/relations`    | `party.customer.view` | open relations both ways, with each party's name only |
-| `POST /v1/parties/:id/relations`   | `party.customer.edit` | adds one (`relatedPartyId`, `relation`, `note`)       |
-| `POST /v1/party-relations/:id/end` | `party.customer.edit` | ends it                                               |
+| Route                              | Permission           | What it does                                          |
+| ---------------------------------- | -------------------- | ----------------------------------------------------- |
+| `GET /v1/parties/:id/relations`    | the role's view code | open relations both ways, with each party's name only |
+| `POST /v1/parties/:id/relations`   | the role's edit code | adds one (`relatedPartyId`, `relation`, `note`)       |
+| `POST /v1/party-relations/:id/end` | the role's edit code | ends it                                               |
+
+"The role's code" follows ADR 0006 section 8 (#52): `party.customer.view` or `.edit` from the customer side,
+`party.supplier.view` or `.edit` from the supplier side; a party that is both may be reached from either.
 
 The list returns names and codes only, never the related party's NID or phone. Opening the related party
 goes through its own profile route and its own permission.
@@ -83,7 +86,8 @@ Real Postgres:
 4. Ending changes only `ended_by` and `ended_at`; any other change raises from the trigger. As the owner (no
    superuser, no `BYPASSRLS`), a `DELETE` removes 0 rows and the rows remain; `TRUNCATE` is refused.
 5. Isolation: business Y gets 404 on X's party relations by id, on every route.
-6. A user without `party.customer.edit` gets 403 on the two write routes.
+6. A user without the role's edit code gets 403 on the two write routes: a supplier-only user can't add a
+   relation from the customer side, and the other way round.
 7. The list response never contains an NID or a phone number of the related party.
 8. Tests check only their own fresh ids, never table-wide counts (ADR 0008).
 
@@ -125,5 +129,9 @@ businessLogic:
    customer, or add an `is_guarantor` role to `party` (a shared schema change and an A11 change)? Recommended:
    mark as a customer in release 1; the customer list can filter out parties with no sales later.
 2. **Where the guarantee lives:** on the instalment plan (ADR 0027) rather than on the invoice? Recommended: yes.
-3. **Relation kinds:** is `guarantor`, `father`, `mother`, `spouse`, `other` enough for release 1 (ADR 0006 lists
+3. **Ending a guarantor while an instalment plan names them:** an active plan (ADR 0027) keeps its own
+   `guarantor_party_id`. Refuse to end the relation while such a plan is active, or allow it and show the plan's
+   guarantor as "relation ended"? Recommended: refuse with `409 CONFLICT`, field code `relation.in_use`, until
+   the plan is completed or cancelled.
+4. **Relation kinds:** is `guarantor`, `father`, `mother`, `spouse`, `other` enough for release 1 (ADR 0006 lists
    father, husband, guarantor)? Recommended: yes, with `spouse` instead of `husband`, so the word stays neutral.
