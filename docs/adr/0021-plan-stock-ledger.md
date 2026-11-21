@@ -62,6 +62,34 @@ holds the branch's weighted average (invariant 7), so locations in one branch sh
 `erp_app`: `SELECT`, `INSERT`, `UPDATE (on_hand, version, updated_at)` on `stock_balance`, and
 `UPDATE (avg_cost, version, updated_at)` on `stock_cost`. Only `StockQuery` writes them; a dal test fails if another file names `stock_balance` (the pattern ADR 0008 test 15 uses).
 
+### 1b. The business In transit location (amended 21 Nov; decided by Munif for ADR 0041 question 4)
+
+A transfer's stock on the road sits in **one In transit location per business, which belongs to no branch** (ADR
+0034, amended). So each branch writes only its own side of a transfer (ADR 0041). That one location needs these
+exceptions, and nothing else changes:
+
+- **`stock_movement.branch_id` may be null**, only for a transfer movement: `CHECK (branch_id IS NOT NULL OR
+(kind = 'transfer' AND source_type = 'stock_transfer'))`. The kinds gain `transfer` (ADR 0041) and `relocation`
+  (a move inside one branch, ADR 0041 question 2).
+- **Which location:** every movement also gets a foreign key `(business_id, location_id)` → `location (business_id,
+id)`. The `(branch_id, location_id)` key doesn't check rows whose `branch_id` is null, so a `BEFORE INSERT`
+  trigger requires `location.branch_id IS NOT DISTINCT FROM NEW.branch_id`: a branch movement can't use In transit,
+  and a branchless movement can use only In transit.
+- **`stock_balance`:** the key `(business_id, branch_id, product_id, location_id)` is `UNIQUE NULLS NOT DISTINCT`
+  (PostgreSQL 16), so the business has one In transit row per product. `CHECK (on_hand >= 0)` stays, so the
+  database itself refuses receiving more than is on the road.
+- **Cost:** In transit has no `stock_cost` row; its movements carry the transfer line's `unit_cost` (the sending
+  branch's average at send).
+- **RLS for the branchless rows:**
+  - `stock_movement`: `INSERT` and `SELECT` when the business is in scope **and** the transfer it names is visible
+    to the caller, through `stock_transfer_party_in_scope(source_id)`: `SQL STABLE`, `SECURITY INVOKER`, fixed
+    `search_path`, reading `stock_transfer` under the caller's own RLS (visible when either branch is in scope).
+    Which side may write which leg is the transfer's status machine in the Manager (ADR 0041).
+  - `stock_balance`: `SELECT` and `UPDATE (on_hand, version, updated_at)` when the business is in scope, through
+    `StockQuery` only (test 12).
+- The nightly check (C-13) adds one comparison: In transit on hand per product equals the open transfers' sent
+  minus received minus written-off quantities.
+
 ### 2. Moving stock: `StockService.move` (ADR 0012), inside the caller's transaction
 
 Movements are applied **sorted by `(product_id, branch_id)`**, so two documents touching the same items can't
@@ -133,6 +161,9 @@ ADR 0020 section 3).
 12. Only `StockQuery` names `stock_balance` (dal source test).
 13. **Locations** (ADR 0034): on hand per location equals the sum of that location's movements; a POS sale takes
     from the branch's default `sales_floor` location; two locations in one branch share one average cost.
+14. **In transit** (section 1b): a branchless movement with a kind other than `transfer` is refused; a branch
+    movement using In transit, or a branchless one using a branch location, is refused by the trigger; a user of a
+    third branch can't insert an In transit movement for a transfer they can't see; In transit can't go below zero.
 
 ## Migration steps (written here, applied in the PR, not now)
 
@@ -175,3 +206,5 @@ ADR 0020 section 3).
 2. **Both:** the weighted average rounds to paisa at each receipt. Accept the small drift, or store `avg_cost`
    with more decimals? Recommended: paisa, as the accountant will see it.
 3. **Farhan:** is `sale_return` needed for release 1 (C14), or can it wait with returns?
+4. ~~**Munif:** where does a transfer's stock sit on the road?~~ **Decided by Munif, 21 Nov (ADR 0041 question
+   4):** one In transit location per business, belonging to no branch, with the exceptions in section 1b.
