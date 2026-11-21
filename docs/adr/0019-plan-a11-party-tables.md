@@ -114,7 +114,8 @@ Prisma relations and back-relations (ADR 0008 section 5):
   tenant table (ADR 0008, [#27](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/27), `290ac55`): RLS doesn't apply to `TRUNCATE`.
 - `party` is edited in place, not append-only, so the owner keeps its `UPDATE` policy (ADR 0008 limits only
   append-only tables to `SELECT` and `INSERT`).
-- The source file and the migration must define the same policies (the `RlsSqlSource` pattern).
+- The source file and the migration must define the same policies and the same `TRUNCATE` trigger (the
+  `RlsSqlSource` pattern).
 
 ### 4. Shared code first (both reviewers)
 
@@ -132,7 +133,8 @@ Prisma relations and back-relations (ADR 0008 section 5):
 
 - **`PartyQuery`** (dal): `create`, `get`, `list` (cursor, filters from `partyListQuerySchema`), `update` with
   a conditional `UPDATE … WHERE id = $1 AND version = $2` (invariant 6; 0 rows means a stale version),
-  `setStatus` the same way, and `findByPhones(phones, exceptId)` for the duplicate check. Every method uses
+  `setStatus` the same way, `findByPhones(phones, exceptId)` for the duplicate check, and `ensureWalkIn()` (the
+  walk-in `INSERT … ON CONFLICT DO NOTHING`, then a read; see `PartyManager` below). Every method uses
   `currentClient()`, so it fails outside a tenant scope. `PartyDTO.fromRow` reads `credit_limit` with A10a's
   `moneyFromDecimal` and keeps `name_bn` null.
 - **`PartyManager`** (businessLogic), behind `IPartyQuery`:
@@ -189,14 +191,14 @@ API (Supertest, real Postgres):
 
 ### 7. Order of work (each a separate PR, under ~400 lines)
 
-| Part | Branch                    | Contents                                                                                                                                   | Needs merged first                                   |
-| ---- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| 1    | `feat/party-payloads`     | phone normaliser, create and update payloads, `PARTY_POSSIBLE_DUPLICATE`                                                                   | this ADR (shared code: both review)                  |
-| 2    | `feat/party-manager`      | `IPartyQuery`, `PartyManager`, tests 10 to 14 against a fake Query                                                                         | part 1                                               |
-| 3    | `feat/party-table`        | `party.prisma`, back-relations on `Business` and `Branch` (Munif reviews), migration `party`, `sql/rls/party.sql`, `PartyQuery`, tests 1–9 | A3b part 1 (#31), #29, #27, A10a (#42); merge `main` |
-| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 19                                                                          | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
-| 5    | `feat/party-service-live` | frontend: `createServices` uses `PartyService(http)` instead of the mock                                                                   | part 4                                               |
-| 6    | `feat/party-assigned-to`  | follow-up migration: `assigned_to` FK → `staff (business_id, id)`, back-relation on `Staff` (Munif reviews)                                | A4 part 4 (`staff`), merge `main` and tell Munif     |
+| Part | Branch                    | Contents                                                                                                                                                             | Needs merged first                                   |
+| ---- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 1    | `feat/party-payloads`     | phone normaliser, create and update payloads, `PARTY_POSSIBLE_DUPLICATE`                                                                                             | this ADR (shared code: both review)                  |
+| 2    | `feat/party-manager`      | `IPartyQuery`, `PartyManager` (with `ensureWalkIn()`), tests 10 to 14 against a fake Query                                                                           | part 1                                               |
+| 3    | `feat/party-table`        | `party.prisma`, back-relations on `Business` and `Branch` (Munif reviews), migration `party`, `sql/rls/party.sql`, `PartyQuery` (with the walk-in insert), tests 1–9 | A3b part 1 (#31), #29, #27, A10a (#42); merge `main` |
+| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 19                                                                                                    | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
+| 5    | `feat/party-service-live` | frontend: `createServices` uses `PartyService(http)` instead of the mock                                                                                             | part 4                                               |
+| 6    | `feat/party-assigned-to`  | follow-up migration: `assigned_to` FK → `staff (business_id, id)`, back-relation on `Staff` (Munif reviews)                                                          | A4 part 4 (`staff`), merge `main` and tell Munif     |
 
 Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Before part 3 and part 6, merge
 `main` and tell Munif a migration is in flight (CLAUDE.md).
@@ -211,8 +213,8 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
   succeed. That is accepted (CR-02 asks for a warning).
 - Every later module that references a party points `(business_id, party_id)` at the party's
   `UNIQUE (business_id, id)`.
-- **Keep true:** no `DELETE` on `party`; the business comes from the scope; `created_by` comes from the user;
-  no NID column on `party`.
+- **Keep true:** no `DELETE` or `TRUNCATE` on `party`; the business comes from the scope; `created_by` comes from
+  the user (`NULL` only for a seeded walk-in party); no NID column on `party`.
 - **Undo:** before go-live, drop the table in a new migration and remove the routes. Nothing else depends on it
   until Sales (A15) references `party`.
 
@@ -235,7 +237,7 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 2. **Where is the walk-in party created?** ADR 0006 section 6 (decided on #15) says that when a business is
    created, Organization calls a Party interface that creates it. But a business is created by
    `erp_provisioner`, which may insert only into `business` and `branch` (ADR 0008 test 17). The options:
-   - **Right after the business is created, in a new scope** (Munif's approach, ADR 0010 at `31044ac` on
+   - **Right after the business is created, in a new scope** (Munif's approach, ADR 0010 at `7efa5f4` on
      [#32](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/32), and ADR 0005's exception on #27). The `provisioning` route commits the business, then opens
      a new `runInTenantScope` for the new business and creates the walk-in party as `erp_app`, through Party's
      interface. `INSERT … ON CONFLICT DO NOTHING` on the partial unique index `(business_id) WHERE is_walk_in`,
