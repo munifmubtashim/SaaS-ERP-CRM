@@ -37,12 +37,21 @@ this PR.
 | `kind`        | text: `receipt`, `invoice`, `journal` (others added by their modules)                                                       |
 | `prefix`      | text, e.g. `RC-UTT-`; set when the series is created                                                                        |
 | `next_value`  | bigint, starts at 1                                                                                                         |
-| `width`       | int, zero-padding of the number (default 6)                                                                                 |
+| `width`       | int, the **minimum** number of digits (default 6): shorter values are zero-padded, longer ones print in full                |
 | `created_at`  |                                                                                                                             |
 
 Unique on `(business_id, branch_id, kind)`, **`NULLS NOT DISTINCT`** (PostgreSQL 15 and later; we run 16). So
 there is one business-wide series per kind as well as one per branch: a plain unique index would let any number
-of null-branch rows through. Formatted number: `prefix + lpad(value, width)`, e.g. `RC-UTT-000123`.
+of null-branch rows through. Formatted number: the prefix, then the value zero-padded to **at least** `width`
+digits, e.g. `RC-UTT-000123`.
+
+**Formatting never cuts a number** (found by Farhan on #54, 21 Nov).
+
+- PostgreSQL's `lpad` truncates a value longer than the width: `lpad('1000000', 6, '0')` is `'100000'`. A branch
+  past its millionth receipt would then print numbers it had already used.
+- So the database never formats. The Query returns the raw value, and `NumberSeries` (businessLogic, section 5)
+  builds the string with TypeScript's `padStart`, which pads but never cuts: `` `${prefix}${value.padStart(width, '0')}` ``.
+- A value longer than the width prints in full: 1,000,000 at width 6 is `RC-UTT-1000000`.
 
 **Prisma and drift.** Prisma declares `@@unique([businessId, branchId, kind])`; the migration SQL adds
 `NULLS NOT DISTINCT`, which Prisma can't express. The build PR checks that `db:migrate:check` doesn't report
@@ -54,7 +63,7 @@ book reads in order. Open question 1.
 
 #### 1a. Business-wide series (asked by Farhan on #54)
 
-Some numbers belong to the business, not to a branch. The first is the customer code `C-0001` (A11, ADR 0019),
+Some numbers belong to the business, not to a branch. The first is the customer code `C-000001` (A11, ADR 0019),
 because a party has no branch.
 
 - `branch_id` is null; the prefix has no branch code (for example `C-`).
@@ -105,7 +114,8 @@ picks one of the two statements; it never uses `IS NOT DISTINCT FROM`, which can
 
 - **dal:** `NumberSeriesQuery.take(branchId, kind)` (the statement above) and `create(...)`.
 - **businessLogic:**
-  - `NumberSeries implements INumberSeries` (ADR 0012) formats the number.
+  - `NumberSeries implements INumberSeries` (ADR 0012) formats the number: the Query returns `value` as a
+    decimal string (bigint), and `NumberSeries` pads it with `padStart`. Never SQL `lpad` (section 1).
   - The contract: `next(kind, branchId: string | null): Promise<string>`; `null` takes the business-wide series.
   - Built once in `createManagers` and injected into `PostingService` and the Sales Manager.
 - **Documents store the formatted number** with their own unique `(business_id, number)` constraint. That's a
@@ -120,7 +130,9 @@ picks one of the two statements; it never uses `IS NOT DISTINCT FROM`, which can
 5. `erp_app` can't delete, truncate, change `prefix`, or move `next_value` by anything but +1.
 6. No series for a kind → `409` with `number_series.missing`; nothing written.
 7. Fifty parallel takes in one branch give exactly 1 to 50 (load test, small).
-8. Unit (fake Query): formatting pads to the width and keeps the prefix.
+8. Unit (fake Query): formatting pads to the width and keeps the prefix (`123` at width 6 is `RC-UTT-000123`), and
+   **a value longer than the width prints in full: 1,000,000 at width 6 is `RC-UTT-1000000`**, not cut to
+   `RC-UTT-100000` (Farhan's finding on #54).
 9. **Business-wide series:**
    - two parallel takes from `party_code` (branch null) give consecutive numbers;
    - a second business-wide `party_code` row for the same business is refused by the `NULLS NOT DISTINCT`
