@@ -36,16 +36,19 @@ This plan follows the feature plan. It needs both developers' agreement, and a C
 
 ### 1. The figures, from the ledger only (invariant 1, spec C-05)
 
-| Figure             | Definition                                                                                                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dues`             | per business: the balance (debits − credits) of the accounts mapped to `receivable` (ADR 0012, 0013)                                                                     |
-| `collectionsToday` | per business: the debits on `cash`, `bank`, `mobile_money` and `card_clearing` in journals with `source_type = 'sales_payment'` and `journal_date` = today in Asia/Dhaka |
-| totals             | the sum of the business rows, through `sumMoney` in the Manager                                                                                                          |
-| `asOf`             | the time the query ran (live figures)                                                                                                                                    |
+| Figure             | Definition                                                                                                                                                                                                                                                                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dues`             | per business: the balance (debits − credits) of the accounts mapped to `receivable` (ADR 0012, 0013)                                                                                                                                                                                                        |
+| `collectionsToday` | per business: debits **minus credits** on `cash`, `bank`, `mobile_money` and `card_clearing`, in journals with `source_type = 'sales_payment'` and in reversals whose `reversal_of` is a `sales_payment` journal, with `journal_date` = today in Asia/Dhaka (Farhan's point on #61, agreed by Munif 22 Nov) |
+| totals             | the sum of the business rows, through `sumMoney` in the Manager                                                                                                                                                                                                                                             |
+| `asOf`             | the time the query ran (live figures)                                                                                                                                                                                                                                                                       |
 
 - **Advances** (`customer_advance`, a liability) aren't dues and aren't subtracted from them. They can be a
   separate figure later.
 - **"Today"** is the Dhaka business date, from the shared business-date helper (plan B15).
+- **A voided payment comes off.** A void posts a reversal (ADR 0016 section 5, ADR 0013), so a payment voided
+  the same day nets to zero in `collectionsToday`. A payment voided on a later day stays in its own day's figure,
+  and the reversal lowers the figure on the day of the void, by its `journal_date`.
 
 ### 2. One view, one route
 
@@ -73,7 +76,12 @@ This plan follows the feature plan. It needs both developers' agreement, and a C
 ## Tests to write first (real Postgres; run to see them fail)
 
 1. **Figures equal the ledger** (C-05): after seeded journals, each business's `dues` equals its `receivable`
-   balance, and `collectionsToday` equals today's payment debits. The totals equal the sum of the rows.
+   balance, and `collectionsToday` equals today's payment debits minus today's payment-reversal credits. The
+   totals equal the sum of the rows.
+   - **Voided the same day:** a ৳50,000.00 payment by `mobile_money`, voided ten minutes later, leaves
+     `collectionsToday` where it was before the payment (Farhan's example on #61).
+   - **Voided the next day:** the payment counts ৳50,000.00 on its own day; on the day of the void,
+     `collectionsToday` is ৳50,000.00 lower than that day's other payments.
 2. **Today is Dhaka's day:** a payment at 23:30 UTC on 20 Nov counts on 21 Nov.
 3. **Isolation:**
    - an Owner of organization A sees only A's businesses;
