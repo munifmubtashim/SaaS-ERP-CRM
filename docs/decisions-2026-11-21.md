@@ -107,3 +107,68 @@ review only.
   decisions.
 - **Owner and accountant** (feature plan section 8): Q2, Q8, Q15, Q16, Q17, Q19 to Q25. None blocks the plans
   above.
+
+## 11. Plans drafted later on 21 Nov (Munif's modules)
+
+"Blocks building" means the question must be answered before that plan's first PR starts.
+
+### #58 ADR 0020: products and bike units
+
+| #      | Question                                             | Who    | Recommendation                                        | Blocks building? |
+| ------ | ---------------------------------------------------- | ------ | ----------------------------------------------------- | ---------------- |
+| 0020-1 | Brand and category as text, or tables?               | Munif  | Text now; tables when a screen manages them           | yes              |
+| 0020-2 | `serial_no` unique per business or per organization? | both   | Per business                                          | yes              |
+| 0020-3 | Must a bike sale name a customer?                    | Farhan | Yes, for serial units                                 | no (ADR 0022)    |
+| 0020-4 | Does the status flow end at `registered` (plan Q2)?  | both   | Not until Q2 is answered                              | no               |
+| 0020-5 | Where is "Vehicle pack on" stored?                   | Munif  | A `packs` text array on `business` (touches ADR 0009) | yes              |
+
+### #59 ADR 0021: stock ledger
+
+| #      | Question                                       | Who    | Recommendation             | Blocks building? |
+| ------ | ---------------------------------------------- | ------ | -------------------------- | ---------------- |
+| 0021-1 | Stock by location                              | Munif  | Answered by ADR 0034 (#73) | yes              |
+| 0021-2 | Average cost rounded to paisa at each receipt? | both   | Yes                        | yes              |
+| 0021-3 | `sale_return` in release 1?                    | Farhan | Wait with returns (C14)    | no               |
+
+### #60 ADR 0022: sale posting (owner Farhan)
+
+| #      | Question                                                | Who    | Recommendation              | Blocks building? |
+| ------ | ------------------------------------------------------- | ------ | --------------------------- | ---------------- |
+| 0022-1 | Revenue net of discount, or gross plus a discount line? | Farhan | Net                         | yes              |
+| 0022-2 | Payments at the sale always through ADR 0016's path?    | Farhan | Yes                         | yes              |
+| 0022-3 | Named customer for a serial unit?                       | Farhan | Yes                         | yes              |
+| 0022-4 | "Sold, not delivered" in the demo?                      | Farhan | Deliver at once in the demo | no               |
+| 0022-5 | Refuse pass-through lines until plan Q17?               | Farhan | Yes                         | no               |
+
+### #61 ADR 0023: dashboard on real figures
+
+| #      | Question                                                      | Who    | Recommendation                          | Blocks building? |
+| ------ | ------------------------------------------------------------- | ------ | --------------------------------------- | ---------------- |
+| 0023-1 | Live queries (feature plan) or `report_snapshot` (CLAUDE.md)? | both   | Live, and amend CLAUDE.md in its own PR | yes              |
+| 0023-2 | Business Manager sees it for own businesses?                  | Munif  | Yes                                     | no               |
+| 0023-3 | Do collections today include advances?                        | Farhan | Yes                                     | yes              |
+
+### #71 ADR 0032: activity record
+
+| #      | Question                                    | Who    | Recommendation                                       | Blocks building? |
+| ------ | ------------------------------------------- | ------ | ---------------------------------------------------- | ---------------- |
+| 0032-1 | Who may open the Activity Log?              | Munif  | Owner, Business Manager (own businesses), Accountant | no (part 2)      |
+| 0032-2 | Partition by month now?                     | both   | No, later                                            | no               |
+| 0032-3 | Viewing a full NID writes `view_sensitive`? | Farhan | Yes                                                  | no               |
+
+### #72 ADR 0033: permissions and hidden fields
+
+| #      | Question                                          | Who    | Recommendation                  | Blocks building? |
+| ------ | ------------------------------------------------- | ------ | ------------------------------- | ---------------- |
+| 0033-1 | Every tenant route declares a permission?         | both   | Yes                             | yes              |
+| 0033-2 | Hidden field absent or `null`?                    | both   | Absent                          | yes              |
+| 0033-3 | Role mapping fixed from #26 in release 1?         | Munif  | Yes; per-business editing later | no               |
+| 0033-4 | Party's per-kind codes need more than this check? | Farhan | No                              | no               |
+
+### #73 ADR 0034: stock by location
+
+| #      | Question                                       | Who              | Recommendation                                                   | Blocks building? |
+| ------ | ---------------------------------------------- | ---------------- | ---------------------------------------------------------------- | ---------------- |
+| 0034-1 | Bins in release 1?                             | Munif, Moto Mart | No; locations only                                               | no               |
+| 0034-2 | Which location does a POS sale take from?      | Munif            | A default `sales_floor` location per branch, changeable per line | yes              |
+| 0034-3 | Amend ADR 0021 (#59) to include `location_id`? | Munif            | Yes, once both are agreed                                        | yes              |
