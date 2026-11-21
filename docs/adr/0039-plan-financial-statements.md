@@ -70,11 +70,11 @@ figures mean, and because profit is a hidden figure (ADR 0033). No migration.
 - **Harder:** large periods are computed live; a summary table can come later if they get slow.
 - **Undo:** remove the routes; no schema change.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Accountant:** is the balance sheet's equity section "capital + retained profit + current profit"? Recommended:
-   yes, with a year-end close later.
-2. **Munif:** P&L by branch in release 1? Recommended: yes, as a column option, since the dashboard already shows
-   profit by branch.
-3. **Munif:** which roles see the statements? Recommended: Owner and Accountant; Business Manager the trial balance
-   only.
+1. ~~Equity section?~~ **Decided by Munif, 21 Nov:** simple **capital plus retained earnings**, with current profit
+   shown as part of retained earnings until a year-end close exists. ⚠ **Flagged for the owner's accountant** to
+   confirm before go-live.
+2. ~~P&L by branch in release 1?~~ **Decided by Munif, 21 Nov:** yes, as a column option.
+3. ~~Which roles see the statements?~~ **Decided by Munif, 21 Nov:** Owner and Accountant see all statements;
+   Business Manager the trial balance only.
