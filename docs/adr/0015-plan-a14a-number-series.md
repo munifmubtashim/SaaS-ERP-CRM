@@ -29,31 +29,53 @@ this PR.
 
 ### 1. Table `number_series` (migration `number_series`, `accounting.prisma`)
 
-| Column        | Notes                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------ |
-| `id`          | uuid, `uuid_v7()`                                                                          |
-| `business_id` | RLS on it                                                                                  |
-| `branch_id`   | composite foreign key `(branch_id, business_id)`; one series per branch, per document kind |
-| `kind`        | text: `receipt`, `invoice`, `journal` (others added by their modules)                      |
-| `prefix`      | text, e.g. `RC-UTT-`; set when the series is created                                       |
-| `next_value`  | bigint, starts at 1                                                                        |
-| `width`       | int, zero-padding of the number (default 6)                                                |
-| `created_at`  |                                                                                            |
+| Column        | Notes                                                                                                                       |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | uuid, `uuid_v7()`                                                                                                           |
+| `business_id` | RLS on it                                                                                                                   |
+| `branch_id`   | **nullable**: composite foreign key `(branch_id, business_id)` when set; **null means a business-wide series** (section 1a) |
+| `kind`        | text: `receipt`, `invoice`, `journal` (others added by their modules)                                                       |
+| `prefix`      | text, e.g. `RC-UTT-`; set when the series is created                                                                        |
+| `next_value`  | bigint, starts at 1                                                                                                         |
+| `width`       | int, zero-padding of the number (default 6)                                                                                 |
+| `created_at`  |                                                                                                                             |
 
-Unique on `(business_id, branch_id, kind)`. Formatted number: `prefix + lpad(value, width)`, e.g.
-`RC-UTT-000123`.
+Unique on `(business_id, branch_id, kind)`, **`NULLS NOT DISTINCT`** (PostgreSQL 15 and later; we run 16). So
+there is one business-wide series per kind as well as one per branch: a plain unique index would let any number
+of null-branch rows through. Formatted number: `prefix + lpad(value, width)`, e.g. `RC-UTT-000123`.
 
-**Per branch, not per business.** Two branches don't wait on one counter, and a branch's receipt book reads
-in order. Open question 1.
+**Prisma and drift.** Prisma declares `@@unique([businessId, branchId, kind])`; the migration SQL adds
+`NULLS NOT DISTINCT`, which Prisma can't express. The build PR checks that `db:migrate:check` doesn't report
+that as drift. If it does, the fallback is two partial unique indexes in raw SQL:
+`(business_id, branch_id, kind) WHERE branch_id IS NOT NULL` and `(business_id, kind) WHERE branch_id IS NULL`.
+
+**Per branch, not per business, for receipts.** Two branches don't wait on one counter, and a branch's receipt
+book reads in order. Open question 1.
+
+#### 1a. Business-wide series (asked by Farhan on #54)
+
+Some numbers belong to the business, not to a branch. The first is the customer code `C-0001` (A11, ADR 0019),
+because a party has no branch.
+
+- `branch_id` is null; the prefix has no branch code (for example `C-`).
+- Created like the others (section 4), by the module that needs the kind: A11 adds `party_code`.
+- A kind is set up at one level only, business-wide or per branch, never both. The setup action enforces that; the
+  database only enforces one row per level.
+- **VAT invoices: unconfirmed.** Whether VAT invoice numbers must run per branch or per business is not confirmed.
+  It needs the owner or the accountant (open question 5). The table supports both, so the answer changes only
+  which level the `invoice` series is created at, not the schema. Until then, `invoice` stays per branch.
 
 ### 2. Taking a number: one atomic statement, no read-then-write (invariant 6)
 
 ```sql
 UPDATE number_series
    SET next_value = next_value + 1
- WHERE business_id = $1 AND branch_id = $2 AND kind = $3
+ WHERE business_id = $1 AND branch_id = $2 AND kind = $3   -- branch series
 RETURNING prefix, next_value - 1 AS value, width;
 ```
+
+A business-wide series uses the same statement with `branch_id IS NULL` in place of `branch_id = $2`. The Query
+picks one of the two statements; it never uses `IS NOT DISTINCT FROM`, which can't use the index.
 
 - **Row lock until commit.** The row stays locked until the calling transaction commits or rolls back. A
   second payment in the same branch waits a few milliseconds, then gets the next number.
@@ -84,7 +106,7 @@ RETURNING prefix, next_value - 1 AS value, width;
 - **dal:** `NumberSeriesQuery.take(branchId, kind)` (the statement above) and `create(...)`.
 - **businessLogic:**
   - `NumberSeries implements INumberSeries` (ADR 0012) formats the number.
-  - The contract: `next(kind, branchId): Promise<string>`.
+  - The contract: `next(kind, branchId: string | null): Promise<string>`; `null` takes the business-wide series.
   - Built once in `createManagers` and injected into `PostingService` and the Sales Manager.
 - **Documents store the formatted number** with their own unique `(business_id, number)` constraint. That's a
   second guard against a duplicate.
@@ -99,6 +121,13 @@ RETURNING prefix, next_value - 1 AS value, width;
 6. No series for a kind → `409` with `number_series.missing`; nothing written.
 7. Fifty parallel takes in one branch give exactly 1 to 50 (load test, small).
 8. Unit (fake Query): formatting pads to the width and keeps the prefix.
+9. **Business-wide series:**
+   - two parallel takes from `party_code` (branch null) give consecutive numbers;
+   - a second business-wide `party_code` row for the same business is refused by the `NULLS NOT DISTINCT`
+     unique;
+   - the same kind business-wide in business Y is independent of X's;
+   - `next('party_code', null)` never touches a branch's series.
+10. Unit (fake Query): `next(kind, null)` sends the business-wide statement, and a branch id the branch one.
 
 ## Migration steps (written here, applied in the PR, not now)
 
@@ -137,8 +166,12 @@ Part 1 can merge before the journal engine, which is the point of splitting it o
 
 1. **Both:** series per branch (recommended) or one per business? The spec doesn't say; Moto Mart's current
    system numbers per location.
-2. **Munif:** `branch` needs a short code for prefixes. Add `short_code` to `branch` in A3b part 1 (ADR 0009),
-   or keep prefixes per series and type them in the setup action?
+2. ~~**Munif:** `branch` needs a short code for prefixes.~~ Answered on #31 (ADR 0009): `branch.short_code` in A3b
+   part 1, uppercase, unique per business, never changed. Munif's answer (21 Nov), open until Farhan agrees there.
 3. **Accountant:** do numbers restart each fiscal year (July to June in Bangladesh)? If yes, add
    `fiscal_year` to the unique key and a year in the prefix. Recommended for release 1: no restart.
 4. **Farhan:** does A15 need any kind beyond `receipt`, for example a separate series for booking advances?
+5. **Owner or accountant:** must VAT invoice numbers run per branch or per business? Unconfirmed. The table
+   supports both (section 1a); until answered, `invoice` stays per branch.
+6. **Farhan (from #54):** is a business-wide `party_code` series what A11 needs, so ADR 0019's question 1 can
+   pick it over a separate counter table? Recommended: yes.
