@@ -52,6 +52,13 @@ export type { IServiceQuery } from './contracts/IServiceQuery.js';
 export type { ICrmQuery } from './contracts/ICrmQuery.js';
 export type { IProvisioningQuery } from './contracts/IProvisioningQuery.js';
 export type { IRoleSource } from './contracts/IRoleSource.js';
+export type { IIdempotencyQuery, ClaimInput, StoredKey } from './contracts/IIdempotencyQuery.js';
+export {
+  IdempotencyGuard,
+  canonicalHash,
+  type ClaimResult,
+  type IdempotentRequest,
+} from './IdempotencyGuard.js';
 export type { ProvisioningCaller } from './OrganizationManager.js';
 export { DenyAllRoleSource };
 export {
