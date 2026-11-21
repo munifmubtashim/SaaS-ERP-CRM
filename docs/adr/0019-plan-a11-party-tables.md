@@ -208,7 +208,9 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 1. **Party code.** Where does `code` (such as `C-000001`) come from? ADR 0015 ([#41](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/41)) at `40f3a0c` adds
    **business-wide series**: `branch_id` is null, the prefix has no branch code (`C-`), one row per business and
    kind (unique with `NULLS NOT DISTINCT`), taken with `next('party_code', null)`. A11 would add the
-   `party_code` kind. #41 is still a draft, and its question 6 asks whether this is what A11 needs.
+   `party_code` kind. #41 is still a draft; to its question 6 (is this what A11 needs?), Farhan answered yes on
+   [#41](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/41#issuecomment-7060858910), since a party belongs to
+   the business, not to a branch.
    - Recommended: the business-wide `party_code` series from A14a, with prefix `C-` and #41's default width 6,
      so codes read `C-000001`. Part 3 then needs A14a merged first. A number wider than the width would be cut
      only if the formatting were done with SQL `lpad`. ADR 0015 formats in TypeScript (`NumberSeries`, its
