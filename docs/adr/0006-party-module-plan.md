@@ -346,7 +346,7 @@ ADR 0005 is merged (#3). The migration still waits for the RLS functions (`app_b
    the NID duplicate check.
 8. After 29 Nov: merge and undo, with the size cap and `merged` added to `partyStatusSchema`, once the two
    open merge points in section 5 are settled.
-9. **Release 1 (MotoMart decision, ADR 0001 row 15 and "MotoMart decisions", #23):** credit limit (S-15) and
+9. **Release 1 (Moto Mart decision, ADR 0001 row 15 and "Moto Mart decisions", #23):** credit limit (S-15) and
    guarantor (`party_relation`, CR-12). The credit limit is optional: an empty `credit_limit` means no
    limit, which is the default. Built after F2 (steps 4 to 6), no longer left until after the Phase 1 gate.
 10. After the Phase 1 gate: BIN rules (S-15) and `IPartyRequirement` wiring with Sales.
