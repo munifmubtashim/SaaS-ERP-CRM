@@ -149,21 +149,48 @@ average), tenancy (two branches in one write).
 ## Consequences
 
 - **Easier:** every unit is always somewhere on the ledger, including on the road; a shortage can't disappear.
-- **Harder:** a receive writes to two branches, so the receiving user needs both in scope (open question 1).
+- **Harder:** a receive writes to two branches, so the receiving user needs both in scope (open question 1),
+  unless question 4's business-level In transit location is adopted.
 - **Undo:** before go-live, drop the two tables in a new migration; the `inter_branch` role stays harmless.
 
-## Open questions (with recommended answers)
+## Open questions
 
-1. **Munif:** a receive writes to both branches (out of the sending branch's `in_transit`, into the destination),
-   and RLS only allows the caller's own branches. Who can receive?
-   - **Recommended:** a user whose scope covers both branches (Owner, Business Manager, or a Branch Manager given
-     both). The receiving branch's staff can see the transfer and print the delivery note, and the screen says who
-     can confirm.
-   - Alternative: the receiving branch's staff record what arrived (no stock moves), and a two-branch user posts
-     it. Two steps, and the stock waits for the second person.
-2. **Munif:** a move between two locations of the **same** branch (showroom to store): a transfer with approval,
-   or a plain move? **Recommended:** a plain move, one step, no approval and no journal (`kind = 'relocation'`),
-   with its activity event. I-07 asks for approval only between branches.
-3. **Both:** is `inter_branch` one account per business, or one per pair of branches? **Recommended:** one account;
-   each journal's `branch_id` already says which branch owes. Per-pair accounts can come with C5 if the
-   accountant asks.
+1. ~~**Munif:** who can confirm a receive, when it writes to both branches?~~ **Decided by Munif, 21 Nov:** a user
+   whose scope covers both branches (Owner, Business Manager, or a Branch Manager given both). The receiving
+   branch's staff see the transfer and print the delivery note, and the screen says who can confirm. Question 4
+   proposes a design that removes this limit.
+2. ~~**Munif:** a move between two locations of the same branch?~~ **Decided by Munif, 21 Nov:** a plain move, one
+   step, no approval and no journal (`kind = 'relocation'`), with its activity event.
+3. ~~**Both:** one `inter_branch` account per business, or one per pair of branches?~~ **Decided by Munif, 21
+   Nov:** one account per business; each journal's `branch_id` says which branch owes.
+4. **Munif (new, preferred): a business-level In transit location, so each branch writes only its own side.**
+
+   **Asked by Munif:** would an "in transit" location let each branch write only its own side? **With a location
+   that belongs to a branch, no.** Whichever branch owns it, one of the two steps writes that branch's rows: if it's
+   the sender's, the receive must take stock out of it; if it's the receiver's, the send must put stock into it.
+   **With one In transit location per business that belongs to no branch, yes:**
+
+   | Step                 | Who (scope)           | Movements                                    | Journal (one branch)                            |
+   | -------------------- | --------------------- | -------------------------------------------- | ----------------------------------------------- |
+   | Send                 | sending branch only   | source location −10; business In transit +10 | sending: Dr `inter_branch`, Cr `inventory`      |
+   | Receive (8 of 10)    | receiving branch only | business In transit −8; destination +8       | receiving: Dr `inventory`, Cr `inter_branch`    |
+   | Short 2, written off | sending branch only   | business In transit −2 (ADR 0040 adjustment) | sending: Dr `inventory_loss`, Cr `inter_branch` |
+   - Each transaction is whole and balanced, and the stock is always somewhere on the ledger. Across the business,
+     `inter_branch` equals the value still on the road.
+   - **RLS for the In transit rows:** a movement in or out of the business In transit location is allowed only when
+     it names a transfer (`source_type = 'stock_transfer'`) whose **matching side** is in the caller's scope: the
+     send leg needs `from_branch_id`, the receive leg needs `to_branch_id`. A `SECURITY INVOKER` helper,
+     `transfer_side_in_scope(transfer_id, side)`, reads the transfer under the caller's own RLS.
+   - **What it changes in agreed-or-pending plans:**
+     - ADR 0034 (#73): each branch keeps its `damaged` location, but `in_transit` becomes **one per business**, with
+       `location.branch_id` null for that type only.
+     - ADR 0021 (#59): `stock_movement.branch_id` and `stock_balance.branch_id` may be null for that location
+       only (a `CHECK` ties null to the In transit type); the in-transit stock carries the line's `unit_cost`, not a
+       branch average.
+     - This ADR: the send posts the sending branch's journal (instead of nothing); the receive posts only the
+       receiving branch's.
+   - **Cost:** one more RLS rule and helper, tested like ADR 0008's tests; the branch-scoped RLS pattern gets one
+     named exception.
+   - **Recommended:** adopt it before ADR 0021 and 0034 are built, so no migration changes later, and then
+     question 1's limit goes away: branch staff confirm their own receipts (O-06, "the sending and the receiving
+     branch both confirm"). If Munif prefers fewer moving parts, question 1's decision stands.
