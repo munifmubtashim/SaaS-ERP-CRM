@@ -1,5 +1,5 @@
 import { AppError } from '@erp/shared';
-import type { Request, RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import type { HttpResult } from '../controllers/BaseController.js';
 import type { ITenantScopeRunner } from '../controllers/contracts/index.js';
 
@@ -36,19 +36,27 @@ export function createRouteWrappers(runner: ITenantScopeRunner): RouteWrappers {
               'Tenant route without a tenant scope: tenantMiddleware must set it.',
             );
           }
-          const { status, body } = await runner.run(tenant, () => handler(req), { readOnly });
-          res.status(status).json(body);
+          const result = await runner.run(tenant, () => handler(req), { readOnly });
+          // The transaction has committed. If sending fails from here on (for example a body that can't be
+          // serialized), the client gets an error for a write that WAS saved, and may retry it. Money and stock
+          // routes are safe to retry through Idempotency-Key (ADR 0011); other routes must tolerate a repeat.
+          send(res, result);
         } catch (err) {
           next(err);
         }
       },
     public: (handler) => async (req, res, next) => {
       try {
-        const { status, body } = await handler(req);
-        res.status(status).json(body);
+        send(res, await handler(req));
       } catch (err) {
         next(err);
       }
     },
   };
+}
+
+/** Sets the result's headers, then sends its status and body. The only place a route writes the response. */
+function send(res: Response, { status, body, headers }: HttpResult): void {
+  if (headers) res.set(headers);
+  res.status(status).json(body);
 }

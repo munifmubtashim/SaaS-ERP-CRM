@@ -12,7 +12,7 @@ export type TxClient = Prisma.TransactionClient;
 
 const storage = new AsyncLocalStorage<TxClient>();
 
-export interface TenantScopeOptions {
+export interface TenantRunOptions {
   /**
    * The transaction runs READ ONLY, so PostgreSQL refuses any write in it. Required for a scope with several
    * businesses: every write runs with exactly one active business (ADR 0005, Q2).
@@ -31,7 +31,7 @@ export function runInTenantScope<T>(
   db: DbClient,
   scope: TenantScope,
   fn: () => Promise<T>,
-  { readOnly = false }: TenantScopeOptions = {},
+  { readOnly = false }: TenantRunOptions = {},
 ): Promise<T> {
   if (storage.getStore()) {
     return Promise.reject(
@@ -69,7 +69,7 @@ export function runInTenantScope<T>(
 export class TenantScopeRunner {
   constructor(private readonly db: DbClient) {}
 
-  run<T>(scope: TenantScope, fn: () => Promise<T>, options?: TenantScopeOptions): Promise<T> {
+  run<T>(scope: TenantScope, fn: () => Promise<T>, options?: TenantRunOptions): Promise<T> {
     return runInTenantScope(this.db, scope, fn, options);
   }
 }

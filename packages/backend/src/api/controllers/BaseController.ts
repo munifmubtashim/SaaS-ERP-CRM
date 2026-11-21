@@ -5,6 +5,11 @@ import { parseInput } from '../middleware/validate.js';
 export interface HttpResult<T = unknown> {
   status: number;
   body: T;
+  /**
+   * Response headers the route needs (login's Set-Cookie, a 201's Location, an Idempotent-Replayed flag, an export's
+   * Content-Disposition). The wrapper sets them with the body, after the commit, so no route writes to res directly.
+   */
+  headers?: Record<string, string>;
 }
 
 /**

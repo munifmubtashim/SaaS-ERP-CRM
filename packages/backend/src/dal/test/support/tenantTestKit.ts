@@ -1,6 +1,6 @@
 import type { TenantScope } from '@erp/shared';
 import { createDbClient, type DbClient } from '../../config/db.js';
-import { runInTenantScope, type TenantScopeOptions } from '../../config/tenantScope.js';
+import { runInTenantScope, type TenantRunOptions } from '../../config/tenantScope.js';
 
 /**
  * Shared helper for integration tests that run inside a tenant scope (ADR 0005, Q8). Module tests use it
@@ -55,7 +55,7 @@ export function inScope<T>(
   db: DbClient,
   businessIds: string[],
   fn: () => Promise<T>,
-  options?: TenantScopeOptions,
+  options?: TenantRunOptions,
 ): Promise<T> {
   const scope: TenantScope = { organizationId: ORG, businessIds, branchIds: [BRANCH] };
   return runInTenantScope(db, scope, fn, options);

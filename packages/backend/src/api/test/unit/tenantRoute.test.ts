@@ -127,3 +127,35 @@ describe('public route wrapper', () => {
     expect(runner.events).toEqual([]);
   });
 });
+
+describe('response headers on route results (Farhan, #8 item 4)', () => {
+  const withHeaders = async (): Promise<HttpResult> => ({
+    status: 201,
+    body: { id: 'p-1' },
+    headers: { Location: '/v1/payments/p-1', 'Set-Cookie': 'erp_sid=abc; HttpOnly' },
+  });
+
+  it('a tenant route sends its headers with the body, after the commit', async () => {
+    const runner = new FakeRunner();
+    const res = await request(appWith(runner, withHeaders)).post('/t');
+    expect(res.status).toBe(201);
+    expect(res.headers.location).toBe('/v1/payments/p-1');
+    expect(res.headers['set-cookie']).toEqual(['erp_sid=abc; HttpOnly']);
+    expect(runner.events).toEqual(['begin', 'handler resolved', 'commit', 'response sent']);
+  });
+
+  it('a failed commit sends none of the handler headers', async () => {
+    const res = await request(appWith(new FakeRunner(true), withHeaders)).post('/t');
+    expect(res.status).toBe(409);
+    expect(res.headers.location).toBeUndefined();
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('a public route sends its headers too', async () => {
+    const app = express();
+    app.post('/p', createRouteWrappers(new FakeRunner()).public(withHeaders));
+    const res = await request(app).post('/p');
+    expect(res.status).toBe(201);
+    expect(res.headers.location).toBe('/v1/payments/p-1');
+  });
+});
