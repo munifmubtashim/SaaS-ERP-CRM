@@ -166,6 +166,12 @@ export default tseslint.config(
     files: ['packages/backend/src/dal/index.ts'],
     rules: syntax(NEW_QUERY_MANAGER, NEW_CONTROLLER, NOT_SUPPORTED, ...PRISMA_REEXPORT),
   },
+  {
+    // ADR 0010 (Farhan's decision on #32): createProvisioningQuery() builds the provisioner client and the
+    // Query together, so the client never leaves dal. The one Query constructed outside createManagers.
+    files: ['packages/backend/src/dal/query/ProvisioningQuery.ts'],
+    rules: syntax(NEW_CONTROLLER, NOT_SUPPORTED),
+  },
   { files: ['packages/shared/src/types/**/*.ts'], rules: syntax(...HAND_WRITTEN_TYPE) },
   {
     // Controllers depend on api-owned contracts (I<Module>Manager), never on businessLogic classes.

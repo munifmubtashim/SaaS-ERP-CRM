@@ -25,3 +25,29 @@ describe('loadEnv: database limits (ADR 0005)', () => {
     expect(() => loadEnv({ ...base, [name]: value })).toThrow(name);
   });
 });
+
+describe('loadEnv: PROVISIONING_DATABASE_URL (ADR 0010, Munif 20 Nov on #32)', () => {
+  const url = 'postgresql://erp_provisioner:x@localhost:5433/erp';
+
+  it('is optional in development and tests (provisioning then answers 503)', () => {
+    expect(loadEnv(base).PROVISIONING_DATABASE_URL).toBeUndefined();
+    expect(loadEnv({ ...base, NODE_ENV: 'test' }).PROVISIONING_DATABASE_URL).toBeUndefined();
+  });
+
+  it('is read when set', () => {
+    expect(loadEnv({ ...base, PROVISIONING_DATABASE_URL: url }).PROVISIONING_DATABASE_URL).toBe(url);
+  });
+
+  it('is required in production: start-up fails without it', () => {
+    expect(() => loadEnv({ ...base, NODE_ENV: 'production' })).toThrow('PROVISIONING_DATABASE_URL');
+    expect(loadEnv({ ...base, NODE_ENV: 'production', PROVISIONING_DATABASE_URL: url }).NODE_ENV).toBe(
+      'production',
+    );
+  });
+
+  it('must be a URL when set', () => {
+    expect(() => loadEnv({ ...base, PROVISIONING_DATABASE_URL: 'not a url' })).toThrow(
+      'PROVISIONING_DATABASE_URL',
+    );
+  });
+});
