@@ -51,6 +51,7 @@ export const partyListItemSchema = partyBaseSchema.pick({
   id: true,
   code: true,
   name: true,
+  nameBn: true,
   kind: true,
   isCustomer: true,
   isSupplier: true,
