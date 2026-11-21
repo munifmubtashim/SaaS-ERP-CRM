@@ -2,7 +2,7 @@
 
 | Field               | Value                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------- |
-| Status              | Proposed                                                                                          |
+| Status              | Accepted (approved by Farhan on #31, 21 Nov)                                                      |
 | Date                | 2026-11-20                                                                                        |
 | Deciders            | Munif, Farhan                                                                                     |
 | Spec / roadmap refs | ADR 0008 (merged) and its amendment (#27); ADR 0005; plan rows A3, A4, section 6; spec O-01, U-10 |
@@ -76,14 +76,14 @@ Both parts are **dal only**, plus the dal integration tests:
     the activity record show business names, so two businesses with one name, even years apart, would be
     ambiguous. To reuse a name, the Owner first renames the old business, for example "Demo Motors (closed
     2026)".
-- **`version` on `business` and `branch`** (Munif's answer, 21 Nov; open until Farhan agrees): `int NOT NULL
+- **`version` on `business` and `branch`** (Munif's answer, 21 Nov; agreed by Farhan, 21 Nov): `int NOT NULL
 DEFAULT 1`. CLAUDE.md asks for it where rows are edited concurrently.
   - **How it goes up:** no trigger. The edit's Query runs `UPDATE … SET …, version = version + 1 WHERE id = $1
 AND version = $read`. Zero rows updated means someone else changed it first: `409 CONFLICT`, field code
     `version.stale`.
   - **Who tests it:** A3b only sets the default (test case 2). The stale-version test belongs to the first PR
     that edits a business or a branch. A3c (#32) only creates rows, so that's a later admin-screen PR.
-- **`branch.short_code`** (Munif's answer, 21 Nov, open until Farhan agrees; raised by ADR 0015 for receipt prefixes such as `RC-UTT-000123`):
+- **`branch.short_code`** (Munif's answer, 21 Nov, agreed by Farhan, 21 Nov; raised by ADR 0015 for receipt prefixes such as `RC-UTT-000123`):
   - `text NOT NULL`, short and uppercase: 2 to 6 characters, a letter first, then letters or digits.
   - A `CHECK (short_code ~ '^[A-Z][A-Z0-9]{1,5}$')` in raw SQL, because Prisma can't express it. The PR confirms
     `db:migrate:check` doesn't report the `CHECK` as drift.
@@ -181,7 +181,7 @@ is_active, version, updated_at)`.
 
 Test 16 (`created_by` is the caller) applies to later modules' create routes, not to these tables (#27).
 
-#### Test fixtures (Munif's answer, 21 Nov, open until Farhan agrees)
+#### Test fixtures (Munif's answer, 21 Nov, agreed by Farhan, 21 Nov)
 
 - **Who inserts them:** integration tests insert and delete fixtures as the migration owner
   (`MIGRATION_DATABASE_URL`), because `erp_app` has no `INSERT` on these tables. Only the shared test helper
@@ -299,20 +299,19 @@ Fixtures: `erp_app` cannot insert a business, so the tests insert the tree as th
 
 1. ~~**(Munif and Farhan) Numbering**~~ Decided by Munif on #31 (20 Nov): keep ADR 0008 section 7's split.
    The access tables are A4 (parts 3 and 4); A3b is parts 1 and 2.
-2. **(A3b) `INSERT` on `organization` and `legal_entity` for `erp_app`.** Munif's answer (21 Nov), **open until
-   Farhan agrees:** revoked. `erp_provisioner` doesn't cover them; the owner or the seed creates them until onboarding is
+2. **(A3b) `INSERT` on `organization` and `legal_entity` for `erp_app`.** Munif's answer (21 Nov), **agreed by Farhan, 21 Nov:** revoked. `erp_provisioner` doesn't cover them; the owner or the seed creates them until onboarding is
    designed. See "Grants and RLS", test case 1.
-3. **(A3b) `version` on `business` and `branch`.** Munif's answer (21 Nov), **open until Farhan agrees:** added
+3. **(A3b) `version` on `business` and `branch`.** Munif's answer (21 Nov), **agreed by Farhan, 21 Nov:** added
    now, raised by the edit's Query. See "Table
    details", test case 2.
 4. **(A4) `lower(email)` uniqueness.** Is an expression index drift for `db:migrate:check`? If it is: a generated
    `email_normalised` column, `citext`, or the Manager lower-cases before writing, with a plain unique index.
 5. ~~**(A3b) Party timing.**~~ Decided by Farhan on #31 (21 Nov): yes, Farhan's A11 migration goes right after
    part 1 merges, before part 2.
-6. **(A3b and A4) Test fixtures as the owner.** Munif's answer (21 Nov), **open until Farhan agrees:** yes, through the shared test
+6. **(A3b and A4) Test fixtures as the owner.** Munif's answer (21 Nov), **agreed by Farhan, 21 Nov:** yes, through the shared test
    helper, which sets the `app.*` values and writes through the owner's own `TO CURRENT_USER` policies. See
    "Test fixtures", test cases 3 and 6.
-7. **(A3b) `branch.short_code`** (raised by ADR 0015, #41). Munif's answer (21 Nov), **open until Farhan agrees:**
+7. **(A3b) `branch.short_code`** (raised by ADR 0015, #41). Munif's answer (21 Nov), **agreed by Farhan, 21 Nov:**
    added now, short and uppercase, unique per business, and never changed after insert. See "Table details", test case 4.
 
 ## Consequences
