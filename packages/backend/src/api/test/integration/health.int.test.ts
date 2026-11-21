@@ -1,4 +1,4 @@
-import { createManagers } from '@erp/business-logic';
+import { createManagers, DenyAllRoleSource } from '@erp/business-logic';
 import { healthResponseSchema } from '@erp/shared';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ const { managers, close } = createManagers({
   version: 'integration',
   dbPoolMax: 10,
   dbTxTimeoutMs: 10_000,
+  roleSource: new DenyAllRoleSource(),
 });
 
 afterAll(async () => {

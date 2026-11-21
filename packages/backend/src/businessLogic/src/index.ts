@@ -14,6 +14,7 @@ import {
   PurchaseQuery,
   ServiceQuery,
   CrmQuery,
+  createProvisioningQuery,
 } from '@erp/dal';
 import { HealthManager } from './HealthManager.js';
 import { AuthManager } from './AuthManager.js';
@@ -29,6 +30,8 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import { DenyAllRoleSource } from './DenyAllRoleSource.js';
+import type { IRoleSource } from './contracts/IRoleSource.js';
 
 export type { IClock } from './contracts/IClock.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
@@ -44,6 +47,10 @@ export type { ISalesQuery } from './contracts/ISalesQuery.js';
 export type { IPurchaseQuery } from './contracts/IPurchaseQuery.js';
 export type { IServiceQuery } from './contracts/IServiceQuery.js';
 export type { ICrmQuery } from './contracts/ICrmQuery.js';
+export type { IProvisioningQuery } from './contracts/IProvisioningQuery.js';
+export type { IRoleSource } from './contracts/IRoleSource.js';
+export type { ProvisioningCaller } from './OrganizationManager.js';
+export { DenyAllRoleSource };
 export {
   HealthManager,
   AuthManager,
@@ -84,6 +91,16 @@ export interface ManagerConfig {
   /** Pool size and transaction timeout (ADR 0005); the defaults live in the api's env.ts. */
   dbPoolMax: number;
   dbTxTimeoutMs: number;
+  /**
+   * The erp_provisioner URL (ADR 0010). Optional outside production (env.ts enforces it there); without it,
+   * creating a business or branch answers 503 provisioning.not_configured.
+   */
+  provisioningDatabaseUrl?: string;
+  /**
+   * The caller's roles (ADR 0010 part 2). Required: createManagers throws without one and never defaults to
+   * "allowed". Until A5, pass a DenyAllRoleSource.
+   */
+  roleSource: IRoleSource;
 }
 
 /**
@@ -92,14 +109,22 @@ export interface ManagerConfig {
  * here that dal satisfies the contracts businessLogic owns, without dal importing businessLogic.
  */
 export function createManagers(config: ManagerConfig): { managers: Managers; close: () => Promise<void> } {
+  if (!config.roleSource) {
+    throw new Error('createManagers needs a role source (ADR 0010); pass DenyAllRoleSource until A5.');
+  }
   const db = createDbClient(config.databaseUrl, {
+    poolMax: config.dbPoolMax,
+    txTimeoutMs: config.dbTxTimeoutMs,
+  });
+  // Built in dal together with its own client (ADR 0010), so this file never holds the provisioner connection.
+  const provisioning = createProvisioningQuery(config.provisioningDatabaseUrl, {
     poolMax: config.dbPoolMax,
     txTimeoutMs: config.dbTxTimeoutMs,
   });
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(new AuthQuery(db)),
-    organization: new OrganizationManager(new OrganizationQuery()),
+    organization: new OrganizationManager(new OrganizationQuery(), provisioning, config.roleSource),
     product: new ProductManager(new ProductQuery()),
     inventory: new InventoryManager(new InventoryQuery()),
     accounting: new AccountingManager(new AccountingQuery()),
@@ -111,5 +136,5 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
-  return { managers, close: () => db.$disconnect() };
+  return { managers, close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])) };
 }
