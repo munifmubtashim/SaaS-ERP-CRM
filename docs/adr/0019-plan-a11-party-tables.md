@@ -32,10 +32,10 @@ fake of `IPartyQuery` (plan, "If A3 or A13 slips").
 
 ## Decision
 
-### 1. A11 creates one table: `party`
+### 1. The tables A11 creates
 
-Only the columns F2 needs, so nothing waits on an unfinished design. Every other Party table comes with the
-step that uses it (ADR 0006 section 12):
+A11 creates one table (`party`), or two if question 1 picks the counter. Only the columns F2 needs, so nothing
+waits on an unfinished design. Every other Party table comes with the step that uses it (ADR 0006 section 12):
 
 | Table             | Comes with                                                   |
 | ----------------- | ------------------------------------------------------------ |
@@ -190,8 +190,9 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 
 ## Consequences
 
-- F2 gets one small table and one migration. The other Party tables each come with their own feature, so none
-  is designed before it is needed. The cost is several small Party migrations instead of one.
+- F2 gets one table (`party`), or two if question 1 picks the counter, in one migration. The other Party tables
+  each come with their own feature, so none is designed before it is needed. The cost is several small Party
+  migrations instead of one.
 - `onCreditHold` is a constant `false` until `credit_hold` exists. The profile screen shows no hold until then.
 - The duplicate check is a warning, not a unique index: two parallel creates with the same phone can both
   succeed. That is accepted (CR-02 asks for a warning).
