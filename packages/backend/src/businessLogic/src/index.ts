@@ -53,6 +53,17 @@ export type { ICrmQuery } from './contracts/ICrmQuery.js';
 export type { IProvisioningQuery } from './contracts/IProvisioningQuery.js';
 export type { IRoleSource } from './contracts/IRoleSource.js';
 export type { IIdempotencyQuery, ClaimInput, StoredKey } from './contracts/IIdempotencyQuery.js';
+export type { INumberSeriesQuery, TakenNumber } from './contracts/INumberSeriesQuery.js';
+export type { INumberSeries } from './contracts/provided/INumberSeries.js';
+export type {
+  IPostingService,
+  JournalDraft,
+  JournalLineDraft,
+  AccountRole,
+  PostedJournal,
+} from './contracts/provided/IPostingService.js';
+export type { IStockService, StockMovementDraft } from './contracts/provided/IStockService.js';
+export { NumberSeries } from './NumberSeries.js';
 export {
   IdempotencyGuard,
   canonicalHash,
