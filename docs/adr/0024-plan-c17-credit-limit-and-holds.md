@@ -50,8 +50,9 @@ posting call:
 4. **No limit set** (`credit_limit` is null): no further check.
 5. **Over the limit:** if exposure after the sale is above `credit_limit`, the sale is refused with
    `409 CONFLICT`, field code `credit.over_limit`, and the response names the limit and the exposure.
-   In release 1 this is a hard block; once approvals exist (plan 2.6, B7 and B8) it can wait for a
-   `credit_over_limit` approval instead (open question 2).
+   In release 1 this is a hard block; once approvals are built (B7 and B8, planned in ADR 0030, [#68](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/68), with
+   `credit_over_limit` among its release-1 kinds) it can wait for a `credit_over_limit` approval instead (open
+   question 2).
 
 Money is compared only with `shared/src/utils/money.ts` (`compareMoney`, `addMoney`).
 
@@ -84,7 +85,7 @@ Money is compared only with `shared/src/utils/money.ts` (`compareMoney`, `addMon
 | `POST /v1/credit-holds/:id/release` | `party.credit.edit`   | releases it                                                    |
 | `GET /v1/parties/:id/credit-holds`  | `party.customer.view` | the hold history, newest first                                 |
 
-The credit limit leaves `PATCH /v1/parties/:id`, so changing it needs `party.credit.edit` and nothing else
+The credit limit is never in `PATCH /v1/parties/:id` (ADR 0019's update payload has no `creditLimit`), so changing it needs `party.credit.edit` and nothing else
 (open question 4). Each change writes an activity record row when the activity record exists (plan 2.2).
 
 ### 5. Pay terms and overdue
@@ -154,7 +155,7 @@ Real Postgres:
    party, from journal lines), and does A15's dues route (ADR 0026) use the same read? Recommended: yes, one
    interface for both.
 2. **Over the limit in release 1:** hard block now, approval later? Recommended: block, with the error naming
-   the limit and the exposure, until B8 exists.
-3. **Overdue invoices:** warn only in release 1? Recommended: warn; block or approval with B8.
+   the limit and the exposure, until B8 (ADR 0030, [#68](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/68)) is built.
+3. **Overdue invoices:** warn only in release 1? Recommended: warn; block or approval with B8 (ADR 0030, `overdue_credit_sale`).
 4. **Route shape:** ADR 0006 section 9 lists the hold routes but not `credit-terms`. Is a separate
    `PUT /v1/parties/:id/credit-terms` with `party.credit.edit` acceptable, so `PATCH` never needs two codes?
