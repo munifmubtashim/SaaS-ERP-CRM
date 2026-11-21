@@ -132,4 +132,17 @@ describe('OwnerDashboard', () => {
     );
     expect(screen.getByText('৳ 16,21,817.50')).toBeInTheDocument();
   });
+
+  it('lists businesses by dues, largest first, each with its share of all dues', async () => {
+    renderDashboard(new FakeReportService({ ...dashboard, businesses: [...dashboard.businesses].reverse() }));
+    const rows = (await screen.findAllByRole('row')).slice(1);
+    expect(within(rows[0] as HTMLElement).getByText('Demo Motors')).toBeInTheDocument();
+    expect(within(rows[0] as HTMLElement).getByText('76.12% of all dues')).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText('23.88% of all dues')).toBeInTheDocument();
+  });
+
+  it('shows the share in Bangla digits', async () => {
+    renderDashboard(new FakeReportService(dashboard), 'bn');
+    expect(await screen.findByText('সব বকেয়ার ৭৬.১২%')).toBeInTheDocument();
+  });
 });

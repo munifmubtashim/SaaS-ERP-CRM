@@ -46,6 +46,7 @@ export const bn: Record<MessageKey, string> = {
   'dashboard.refresh': 'হালনাগাদ করুন',
   'dashboard.refreshing': 'হালনাগাদ হচ্ছে…',
   'dashboard.refreshFailed': 'হালনাগাদ করা যায়নি। এই হিসাব পুরোনো হতে পারে।',
+  'dashboard.shareOfDues': 'সব বকেয়ার {share}%',
   'page.notBuilt': 'এই মডিউলটি এখনও তৈরি হয়নি। পরের ধাপে আসবে।',
   'error.title': 'কিছু একটা সমস্যা হয়েছে',
   'error.home': 'হোমে ফিরে যান',
