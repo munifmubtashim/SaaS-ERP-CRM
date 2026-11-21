@@ -19,7 +19,7 @@ What A11 builds on, and where each piece is:
 
 - **On `main`:** the RLS functions `app_business_ids()` and `app_branch_ids()` (#19), `runInTenantScope` and
   `BaseQuery` (ADR 0005), the F1a read shapes (`partyBaseSchema`, `partyListItemSchema`, cursor pagination).
-- **Open:** the organization tree, with `business` and `branch` (A3b, ADR 0009, #31); `uuid_v7()` (#29); the
+- **Open:** the organization tree, with `business` and `branch` (A3b, ADR 0009, [#31](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/31)); `uuid_v7()` (#29); the
   ADR 0008 amendment, with nullable `created_by` and the `uuid_v7()` default (#27); the Decimal helpers on
   `BaseDTO` (A10a, #42); the route wrapper with `{status, body}` Controllers (#8); permission codes (A4a, #26);
   ADR 0006's per-kind codes (#52); the profile read shape `partyDetailSchema` (#47).
@@ -75,7 +75,7 @@ Model `Party` in `dal/prisma/schema/party.prisma`, `@@map("party")`. Migration n
 | `assigned_to`       | `uuid`                                  | plain `uuid` for now. FK → `staff (business_id, id)` in a follow-up after A4         |
 | `created_branch_id` | `uuid`                                  | composite FK `(business_id, created_branch_id)` → `branch (business_id, id)`         |
 | `created_at`        | `timestamptz` not null, default `now()` | UTC                                                                                  |
-| `updated_at`        | `timestamptz` not null, default `now()` | Prisma `@updatedAt`; the default covers raw SQL inserts (walk-in party, seeds)       |
+| `updated_at`        | `timestamptz` not null, default `now()` | Prisma `@updatedAt`; the default covers raw SQL inserts such as seeds                |
 | `created_by`        | `uuid`                                  | no FK, ever (ADR 0008). `CHECK (created_by IS NOT NULL OR is_walk_in)`. See open q 2 |
 | `version`           | `integer` not null, default `1`         | optimistic concurrency                                                               |
 
@@ -106,6 +106,10 @@ Prisma relations and back-relations (ADR 0008 section 5):
 - `REVOKE DELETE ON party FROM erp_app`. The default privileges grant it, and a party is deactivated, never
   deleted.
 - The source file and the migration must define the same policy (the `RlsSqlSource` pattern).
+- **The owner role has no policy on `party`.** The policy is `TO erp_app` only, so under forced RLS a migration
+  owner that isn't a superuser (the Neon demo host in #17) is refused every row, for example when a seed inserts
+  sample customers. This must follow Munif's answer to [question 1 on #31](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/31#issuecomment-7060072315), so the tree tables and
+  `party` treat the owner the same way.
 
 ### 4. Shared code first (both reviewers)
 
@@ -203,9 +207,23 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 1. **Party code.** Should `code` (`C-0001`) come from A14a's number series (#41), or from a simpler
    per-business counter row locked with `SELECT … FOR UPDATE`? Gaps don't matter for a party code.
    Recommended: A14a's series, with a `party_code` series per business, if A14a merges before part 3.
-2. **Walk-in party and `created_by`.** The walk-in party is created when a business is provisioned (ADR 0006
-   section 6), with no logged-in user. Is `CHECK (created_by IS NOT NULL OR is_walk_in)` right, or should
-   provisioning pass the provisioning user's id?
+2. **Where is the walk-in party created?** ADR 0006 section 6 (decided on #15) says that when a business is
+   created, Organization calls a Party interface that creates it. But a business is created by
+   `erp_provisioner`, which may insert only into `business` and `branch` (ADR 0008 test 17). Three options:
+   - **A seed** creates it, as the migration owner. That depends on [#31 question 1](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/31#issuecomment-7060072315), and every new
+     business needs the seed run again. `created_by` would be `NULL`.
+   - **The app creates it in the business's own scope, on first use** (the first sale or payment that needs a
+     walk-in customer), as `erp_app`. `INSERT … ON CONFLICT DO NOTHING` on the partial unique index
+     `(business_id) WHERE is_walk_in`, then a read, so two first uses at the same moment still leave exactly one.
+     `created_by` would be the user of that request, so the `CHECK` could become a plain `NOT NULL`.
+   - **A grant to `erp_provisioner` on `party`.** That would change ADR 0008, which keeps the provisioner to two
+     tables. `created_by` would be `NULL` (#27).
+
+   Recommended: the app on first use, with the unique index so each business has exactly one walk-in party.
+   Then `created_by` is never `NULL` on `party`, and the `OR is_walk_in` part of the `CHECK` goes. It changes the
+   #15 decision, so ADR 0006 section 6 would be updated to match. Your call; if you pick a seed or the grant, the
+   `CHECK` stays as written.
+
 3. **`text` with `CHECK`, or a PostgreSQL enum,** for `kind` and `status`? Recommended: `text` with `CHECK`.
    Adding `merged` later is then a constraint swap in a new migration. A new enum value can't be used in the
    same transaction that adds it, and an enum value can never be removed.
