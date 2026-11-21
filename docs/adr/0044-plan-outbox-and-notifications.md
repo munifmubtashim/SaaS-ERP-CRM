@@ -105,7 +105,7 @@ Nothing is sent by the server, so nothing is logged with the phone number.
 
 ## Dependencies
 
-- ADR 0005 (#14): `runInTenantScope` gains `app.user_id` (question 1).
+- ADR 0005 (#14): `runInTenantScope` gains `app.user_id` (question 1), as an amendment made after #8 merges.
 - A4 (ADR 0009 parts 3 and 4) for users, roles and scopes; `IRecipientSource` comes with them.
 - ADR 0012 (#38): `IEventOutbox` and `INotifier` join its contract list.
 
@@ -123,13 +123,13 @@ Nothing is sent by the server, so nothing is logged with the phone number.
 - **Harder:** every request transaction carries one more setting; the outbox grows until the relay archives it.
 - **Undo:** before go-live, drop both tables in a new migration; removing `app.user_id` is an ADR 0005 change.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Munif (tenancy, ADR 0005):** add `app.user_id` to every request transaction (`SET LOCAL`, like the other
-   three) and an `app_user_id()` function, so RLS can limit `notification` to its user? **Recommended:** yes. The
-   alternative, a `WHERE user_id = $caller` in the Query only, leaves one forgotten filter between users.
-2. **Munif:** recipients by fixed rules (type → permission), or rules each business can change (C-14,
-   "configurable")? **Recommended:** fixed in release 1, plus a per-user mute later; configurable rules come with the
-   relay, when SMS and email cost money.
-3. **Munif:** keep `outbox_event` rows forever in release 1? **Recommended:** yes; the relay's ADR decides archiving.
-   At Moto Mart's volume that's a few thousand rows a month.
+1. ~~**Munif (tenancy, ADR 0005):** add `app.user_id` to every request transaction?~~ **Decided by Munif, 21
+   Nov:** yes, `SET LOCAL app.user_id` on every request with an `app_user_id()` function, so RLS limits
+   `notification` to its user. It is **an amendment to ADR 0005, made after #8 merges**; part 2 of this plan waits
+   for it.
+2. ~~**Munif:** fixed recipient rules, or rules each business can change?~~ **Decided by Munif, 21 Nov:** fixed
+   rules (type → permission) in release 1.
+3. ~~**Munif:** keep `outbox_event` rows forever in release 1?~~ **Decided by Munif, 21 Nov:** yes; the relay's ADR
+   decides archiving.
