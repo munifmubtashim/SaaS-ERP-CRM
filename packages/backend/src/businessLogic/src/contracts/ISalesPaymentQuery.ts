@@ -16,5 +16,11 @@ export interface NewSalesPayment {
 export interface ISalesPaymentQuery {
   /** A fresh uuid_v7() from the database, so the journal can name its source before the row exists. */
   newPaymentId(): Promise<string>;
+  /**
+   * The invoice's open due as a two-decimal string, with the invoice row locked (SELECT ... FOR UPDATE) until the
+   * request commits, so two payments can't both fit under the same due. Null when the invoice doesn't exist in
+   * the caller's scope or isn't this party's.
+   */
+  invoiceDueForUpdate(invoiceId: string, partyId: string): Promise<string | null>;
   insertPayment(payment: NewSalesPayment): Promise<void>;
 }
