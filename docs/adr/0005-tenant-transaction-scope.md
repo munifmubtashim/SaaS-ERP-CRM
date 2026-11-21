@@ -109,6 +109,11 @@ filter by the authenticated user's own id, so a user never sees another user's s
   to agree with Farhan.) In release 1,
   organizations and legal entities are seeded; creating them here is a later ADR.
   A new business or branch cannot be inserted through RLS, because it is not yet in the caller's scope.
+- **Only a `provisioning` route calls it** (ADR 0010; answers Farhan's point 4 on #27). That route kind is
+  never wrapped in `runInTenantScope`, so the provisioner's commit is the request's only commit: a business
+  can't stay committed while a surrounding tenant transaction rolls back. Work after the create (the walk-in
+  party) runs after that commit, in a new `runInTenantScope` for the new business, and is idempotent.
+  (Proposed, to agree with Farhan.)
 - It is the only code that connects as the least-privilege role `erp_provisioner`, not as `erp_app`. That
   role has `INSERT` and `SELECT` on `business` and `branch` only, with its own RLS policies that check that
   organization, never `BYPASSRLS`.

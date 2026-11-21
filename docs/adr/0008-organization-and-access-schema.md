@@ -28,9 +28,10 @@ Constraints already decided elsewhere and not reopened here:
   **Ids come from a database default,** one SQL function `uuid_v7()` shipped in its own small PR before A3b,
   so rows inserted by raw SQL (seeds, provisioning) get ids too. (Proposed, to agree with Farhan.)
 - RLS **enabled and forced** on every tenant table. The app connects as `erp_app` (not owner, not BYPASSRLS).
-- Nothing in this ADR is ever deleted; records are deactivated. `erp_app` must end up with `SELECT, INSERT, UPDATE`
-  only, but `docker/postgres/init/01-app-role.sh` grants it `SELECT, INSERT, UPDATE, DELETE` on every new table by
-  default privileges, so each migration here revokes `DELETE` explicitly (section 4).
+- Nothing in this ADR is ever deleted; records are deactivated. `erp_app` never gets `DELETE`, but
+  `docker/postgres/init/01-app-role.sh` grants it `SELECT, INSERT, UPDATE, DELETE` on every new table by default
+  privileges, so each migration here revokes `DELETE` explicitly (section 4). On the four tree tables it also has
+  no `INSERT`, and `UPDATE` is column-level or none (section 4, ADR 0009). (Proposed, to agree with Farhan.)
 - Login runs outside a tenant scope (ADR 0005, `UnscopedQuery` for Auth and Health only). Provisioning is
   the one named exception, through `ProvisioningQuery` (section 1, amended in ADR 0005).
 - No role sees another organization. Group-wide scope is the Owner role only.
@@ -190,9 +191,30 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
   `business` and `branch` also revoke `INSERT` (provisioning only, section 1). `organization` and `legal_entity`
   also revoke `INSERT` (the migration owner or the seed creates them, section 1; matches ADR 0009, #31).
   (Proposed, to agree with Farhan.)
+- **Every policy names its role and commands** (ADR 0009, #31). `erp_app`'s policies are `TO erp_app`, with a
+  `FOR` clause for each command it's granted; on the tree tables that's `FOR SELECT` and `FOR UPDATE`. So no
+  other role ever evaluates them. (Proposed, to agree with Farhan.)
+- **Tree tables, `erp_app`'s `UPDATE`** (ADR 0009): none on `organization` and `legal_entity`; column-level on
+  `business` and `branch`. A trigger freezes `business.organization_id`, `business.legal_entity_id`,
+  `branch.business_id` and `branch.short_code` for every role, owner included. (Proposed, to agree with Farhan.)
+- **Owner policies on every tenant table, not only the tree** (decided by Munif, 21 Nov; answers Farhan's point 2
+  on #27):
+  - Each tenant table gets policies `TO CURRENT_USER` (the migrating owner), with the same scope expressions as
+    `erp_app`'s, `FOR SELECT`, `INSERT` and `UPDATE`. So RLS stays forced on the owner, and the seed and test
+    fixtures write only inside the `app.*` values they set.
+  - Each module's migration adds them for its own tables: `staff` here, `party` in ADR 0019, and so on.
+  - **No owner `DELETE` policy on any table, in any module** (Munif, 21 Nov; Farhan's point 5): a `branch` can't
+    be deleted, so its `short_code` is never freed. Tests don't delete fixtures; each uses fresh ids in its
+    throwaway database.
+  - **Nothing is deleted, by any role.** The demo reset recreates the database (drop, create, migrate, seed); it
+    never deletes rows. Erasing a person's data (for example a customer who asks to be forgotten) needs its own
+    later ADR.
+  - (Proposed, to agree with Farhan.)
 - `erp_provisioner`: `GRANT INSERT, SELECT` on `business` and `branch`, and its own `INSERT` and `SELECT`
   policies `TO erp_provisioner` on those two tables, which check the organization `ProvisioningQuery` sets
   (section 1). Nothing on `organization`, `legal_entity` or any other table.
+- **Business names are unique within an organization, case-insensitive** (ADR 0009, #31). A deactivated
+  business keeps its name taken. (Proposed, to agree with Farhan.)
 - A query with no scope set fails: the functions raise `tenant scope not set` (SQLSTATE `42501`) on a missing
   or empty value, never return null (ADR 0005, #19).
 
@@ -218,9 +240,10 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
     Prisma relation would avoid the drift, but any Query could then `include` the whole `app_user` row,
     which test 15 forbids.
   - The cost: the database does not prove that the id exists. Test 16 and review do.
-  - **On `organization`, `legal_entity`, `business` and `branch`, `created_by` is nullable.** `NULL` means
-    the row was created by provisioning (or seeded). Test 16 covers later modules' create routes, not these
-    four tables. (Proposed, to agree with Farhan.)
+  - **On `organization`, `legal_entity`, `business` and `branch`, `created_by` is nullable, and `NULL` only
+    when seeded.** The provisioning path stores the calling Owner's user id (ADR 0010, decided by Munif on 21 Nov
+    after Farhan's #32 point 3). Test 16 covers later modules' create routes, not these four tables. (Proposed,
+    to agree with Farhan.)
 - **`party.assigned_to` is a normal Prisma composite relation to `staff`:** `(business_id, assigned_to)` →
   `staff (business_id, id)`, so a party cannot be assigned to another business's staff. `staff` is not one
   of the four auth tables, so test 15 allows it. It needs the `@@unique` below and a back-relation field on
