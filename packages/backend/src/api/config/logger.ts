@@ -2,7 +2,8 @@ import { pino, type DestinationStream, type Logger } from 'pino';
 
 /**
  * Never logged (CLAUDE.md, ADR 0018 section 2): passwords, tokens, cookies, full phone numbers, NIDs, and a user
- * row's password hash or two-factor secret. `req.body.login` is redacted too: it can be a phone number.
+ * row's password hash or two-factor secret. The login field (`req.body.login`, `*.login`) is redacted too: it is a
+ * phone number or an email (Farhan, #45).
  * The list is the safety net, not permission to log them. test/unit/logger.test.ts checks it.
  */
 export const REDACT_PATHS: readonly string[] = [
@@ -11,6 +12,7 @@ export const REDACT_PATHS: readonly string[] = [
   'res.headers["set-cookie"]',
   'req.body.password',
   'req.body.login',
+  '*.login',
   '*.password',
   '*.token',
   '*.refreshToken',
