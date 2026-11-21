@@ -21,12 +21,13 @@ plan. No code is in this PR.
 
 ### Table `location` (Inventory, migration `stock_locations`, before `stock_ledger`)
 
-| Column      | Notes                                                           |
-| ----------- | --------------------------------------------------------------- |
-| `branch_id` | composite foreign key `(business_id, branch_id)`                |
-| `name`      | text, unique per branch                                         |
-| `type`      | `sales_floor`, `storage`, `in_transit`, `damaged`, `quarantine` |
-| `is_active` | boolean                                                         |
+| Column            | Notes                                                                            |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `branch_id`       | composite foreign key `(business_id, branch_id)`                                 |
+| `name`            | text, unique per branch                                                          |
+| `type`            | `sales_floor`, `storage`, `in_transit`, `damaged`, `quarantine`                  |
+| `is_active`       | boolean                                                                          |
+| `is_default_sale` | boolean; exactly one per branch, a `sales_floor` location (partial unique index) |
 
 The table rules on #27 and #31 apply. It's branch-scoped RLS, with `branch_is_active(branch_id)` in `WITH CHECK`.
 `@@unique([branchId, id])` lets movements prove a location belongs to their branch.
@@ -50,7 +51,10 @@ The table rules on #27 and #31 apply. It's branch-scoped RLS, with `branch_is_ac
 - **Every branch has one `in_transit` and one `damaged` location.** They're created right after the branch, in the
   new branch's scope as `erp_app`, with `INSERT … ON CONFLICT DO NOTHING`. That's the same pattern as the walk-in
   party (ADR 0010).
-- **Bins** (I-10) aren't in this plan (open question 1).
+- **Bins** (I-10) aren't in release 1 (decided by Munif, 21 Nov).
+- **A POS sale takes stock from the branch's default `sales_floor` location** (one per branch, marked
+  `is_default_sale`). Release 1 doesn't let a sale line choose another location; that's a later change (decided by
+  Munif, 21 Nov).
 
 ## Invariants touched
 
@@ -81,13 +85,14 @@ Stock (invariant 3: on hand per location is the sum of its movements), tenancy (
 ## Consequences
 
 - **Easier:** the stock screen matches the design's Showroom and Warehouse columns.
-- **Harder:** every sale must pick a location (open question 2).
+- **Harder:** each branch needs exactly one default sale location (a partial unique index on `(branch_id) WHERE
+is_default_sale`).
 - **Undo:** before go-live, drop `location` and the columns in a new migration.
 
 ## Open questions (with recommended answers)
 
-1. **Munif, Moto Mart:** bins (I-10) in release 1? Recommended: no, locations only; bins later.
-2. **Munif:** which location does a POS sale take from? Recommended: a default `sales_floor` location per branch,
-   changeable on the sale line.
-3. **Munif:** should ADR 0021 be updated to include `location_id`, or does this ADR stand as its amendment?
-   Recommended: amend ADR 0021 (#59) once both are agreed.
+1. ~~**Munif, Moto Mart:** bins (I-10) in release 1?~~ **Decided by Munif, 21 Nov:** locations only, no bins.
+2. ~~**Munif:** which location does a POS sale take from?~~ **Decided by Munif, 21 Nov:** a default `sales_floor`
+   location per branch, **not** changeable per line in release 1. Choosing the location on a sale line is a later
+   change.
+3. ~~**Munif:** amend ADR 0021?~~ **Decided by Munif, 21 Nov:** amend ADR 0021 (#59) now to include `location_id`.
