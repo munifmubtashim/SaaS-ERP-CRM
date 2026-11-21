@@ -1,5 +1,6 @@
 import { createLogger } from '../config/logger.js';
-import type { ApiManagers, IHealthManager } from '../controllers/contracts/index.js';
+import { AppError } from '@erp/shared';
+import type { ApiManagers, IHealthManager, ITenantScopeRunner } from '../controllers/contracts/index.js';
 
 export const silentLogger = createLogger({ level: 'silent', pretty: false });
 
@@ -37,3 +38,9 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
 
 export const managersWithDatabase = (databaseOk: boolean): ApiManagers =>
   fakeManagers(new FakeHealthManager(databaseOk));
+
+/** Tenant runner for tests that open no tenant scope: using it is a test bug, so it fails loudly. */
+export const noTenantScope: ITenantScopeRunner = {
+  run: () =>
+    Promise.reject(new AppError('INTERNAL_ERROR', 'This test opened a tenant scope it did not expect.')),
+};

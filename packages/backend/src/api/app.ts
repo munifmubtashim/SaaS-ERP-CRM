@@ -1,4 +1,4 @@
-import type { ApiManagers } from './controllers/contracts/index.js';
+import type { ApiManagers, ITenantScopeRunner } from './controllers/contracts/index.js';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
@@ -9,10 +9,13 @@ import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddlewar
 import { requestIdFor } from './middleware/requestId.js';
 import { tenantMiddleware } from './middleware/tenantMiddleware.js';
 import { buildRoutes } from './routes/index.js';
+import { createRouteWrappers } from './routes/tenantRoute.js';
 
 export interface AppDeps {
   logger: Logger;
   managers: ApiManagers;
+  /** Opens the one transaction per tenant request (ADR 0005). */
+  tenantScope: ITenantScopeRunner;
 }
 
 /**
@@ -41,7 +44,8 @@ export function createApp(deps: AppDeps): Express {
   // Every business route lives under /v1 and passes auth and tenant resolution first.
   app.use('/v1', authMiddleware, tenantMiddleware);
 
-  for (const { basePath, router } of buildRoutes(createControllers(deps.managers))) {
+  const routes = buildRoutes(createControllers(deps.managers), createRouteWrappers(deps.tenantScope));
+  for (const { basePath, router } of routes) {
     app.use(basePath, router);
   }
 

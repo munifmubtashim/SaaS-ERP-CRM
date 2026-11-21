@@ -14,6 +14,7 @@ import {
   PurchaseQuery,
   ServiceQuery,
   CrmQuery,
+  TenantScopeRunner,
 } from '@erp/dal';
 import { HealthManager } from './HealthManager.js';
 import { AuthManager } from './AuthManager.js';
@@ -29,8 +30,10 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import type { ITenantScope } from './contracts/ITenantScope.js';
 
 export type { IClock } from './contracts/IClock.js';
+export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
 export type { IAuthQuery } from './contracts/IAuthQuery.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
@@ -90,12 +93,18 @@ export interface ManagerConfig {
  * Composition root: the ONLY place Queries and Managers are constructed (lint-enforced).
  * Each dal Query is passed where a businessLogic I<Module>Query is expected, so TypeScript checks
  * here that dal satisfies the contracts businessLogic owns, without dal importing businessLogic.
+ * `tenantScope` opens the one transaction per tenant request (ADR 0005); the api route wrapper uses it.
  */
-export function createManagers(config: ManagerConfig): { managers: Managers; close: () => Promise<void> } {
+export function createManagers(config: ManagerConfig): {
+  managers: Managers;
+  tenantScope: ITenantScope;
+  close: () => Promise<void>;
+} {
   const db = createDbClient(config.databaseUrl, {
     poolMax: config.dbPoolMax,
     txTimeoutMs: config.dbTxTimeoutMs,
   });
+  const tenantScope: ITenantScope = new TenantScopeRunner(db);
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(new AuthQuery(db)),
@@ -111,5 +120,5 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
-  return { managers, close: () => db.$disconnect() };
+  return { managers, tenantScope, close: () => db.$disconnect() };
 }

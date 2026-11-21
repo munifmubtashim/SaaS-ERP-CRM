@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { createApp } from '../../app.js';
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
 import { parseInput } from '../../middleware/validate.js';
-import { managersWithDatabase, silentLogger } from '../helpers.js';
+import { managersWithDatabase, noTenantScope, silentLogger } from '../helpers.js';
 
 const appWith = (databaseOk: boolean) =>
-  createApp({ logger: silentLogger, managers: managersWithDatabase(databaseOk) });
+  createApp({ logger: silentLogger, managers: managersWithDatabase(databaseOk), tenantScope: noTenantScope });
 
 describe('GET /health (HealthRoutes -> HealthController -> HealthManager)', () => {
   it('returns 200 and the shared health contract when the database answers', async () => {

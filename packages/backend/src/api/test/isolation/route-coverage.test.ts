@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { createControllers } from '../../controllers/index.js';
 import { buildRoutes, PUBLIC_ROUTES } from '../../routes/index.js';
-import { managersWithDatabase, silentLogger } from '../helpers.js';
+import { createRouteWrappers } from '../../routes/tenantRoute.js';
+import { managersWithDatabase, noTenantScope, silentLogger } from '../helpers.js';
 import { ISOLATION_CASES } from './cases.js';
 
 // Tenant-isolation suite, Phase 0 part (roadmap 4.2, 10.1): "A new route without an isolation test
@@ -19,7 +20,7 @@ const stackOf = (r: Router | Express): Layer[] =>
     (r as unknown as { router: { stack: Layer[] } }).router.stack) as Layer[];
 
 const managers = managersWithDatabase(true);
-const modules = buildRoutes(createControllers(managers));
+const modules = buildRoutes(createControllers(managers), createRouteWrappers(noTenantScope));
 const routes = modules.flatMap(({ basePath, scope, router }) =>
   stackOf(router).flatMap(({ route }) =>
     route
@@ -33,7 +34,7 @@ const routes = modules.flatMap(({ basePath, scope, router }) =>
 
 describe('route coverage for tenant isolation', () => {
   it('mounts every module router and registers no route outside them', () => {
-    const top = stackOf(createApp({ logger: silentLogger, managers }));
+    const top = stackOf(createApp({ logger: silentLogger, managers, tenantScope: noTenantScope }));
     expect(top.flatMap(({ route }) => (route ? [route.path] : []))).toEqual([]);
     expect(top.filter((l) => l.name === 'router')).toHaveLength(modules.length);
   });

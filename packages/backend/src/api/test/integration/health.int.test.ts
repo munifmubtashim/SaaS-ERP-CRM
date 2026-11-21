@@ -9,7 +9,7 @@ import { silentLogger } from '../helpers.js';
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl)
   throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
-const { managers, close } = createManagers({
+const { managers, tenantScope, close } = createManagers({
   databaseUrl,
   version: 'integration',
   dbPoolMax: 10,
@@ -22,7 +22,7 @@ afterAll(async () => {
 
 describe('health through every layer', () => {
   it('reports the database as ok', async () => {
-    const res = await request(createApp({ logger: silentLogger, managers })).get('/health');
+    const res = await request(createApp({ logger: silentLogger, managers, tenantScope })).get('/health');
     expect(res.status).toBe(200);
     expect(healthResponseSchema.parse(res.body).checks.database).toBe('ok');
   });
