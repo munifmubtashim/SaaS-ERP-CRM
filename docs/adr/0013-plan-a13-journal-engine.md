@@ -139,8 +139,23 @@ The provisioning path (ADR 0010) stays limited to `business` and `branch`. Open 
 2. An unbalanced journal fails **at `COMMIT`**, not at insert; nothing remains.
 3. A journal with no lines, or with one line, fails at commit.
 4. A line with both debit and credit, or a negative amount, is refused.
-5. `UPDATE` and `DELETE` on a posted journal or line fail, as `erp_app` **and** as the owner role.
-   `TRUNCATE` fails.
+5. **A posted journal or line can't be changed or removed, by any role.** Three paths, each tested:
+   - `erp_app`: `UPDATE` and `DELETE` raise `permission denied` (no grant).
+   - `TRUNCATE` is refused by the `BEFORE TRUNCATE` trigger, for every role.
+   - The owner, on two paths, 5a and 5b.
+
+   5a. **RLS path.** As the owner (neither superuser nor `BYPASSRLS`, with `app.*` set to the journal's business),
+   `DELETE` and `UPDATE` on a posted journal or line change **0 rows with no error**, and the rows are unchanged.
+   Under forced RLS the owner has no `UPDATE` or `DELETE` policy (journals are append-only, ADR 0008 #27), so
+   PostgreSQL hides every row from the statement, and the immutability trigger never fires. Checked on
+   PostgreSQL 16 on 21 Nov: `DELETE 0`, `UPDATE 0`, row unchanged, no trigger error. So the test checks the rows,
+   never expects an error.
+
+   5b. **Trigger path.** As a role that bypasses RLS (the CI superuser `erp_owner`), `UPDATE` and `DELETE` on a
+   posted journal or line **raise** the immutability trigger's error, and the rows are unchanged. Checked on
+   PostgreSQL 16 on 21 Nov: the `BEFORE UPDATE OR DELETE` row trigger raised for both. This is the guard that
+   still holds for a migration or a superuser, which RLS doesn't stop.
+
 6. A reversal posts mirror lines and points at the original; a second reversal of the same journal is
    refused; a reversal that doesn't mirror is refused.
 7. The same source posted twice: the second is refused. Two parallel posts of the same source: exactly one
