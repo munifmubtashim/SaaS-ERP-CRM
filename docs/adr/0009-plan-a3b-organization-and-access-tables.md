@@ -62,6 +62,13 @@ Both parts are **dal only**, plus the dal integration tests:
   these four tables it is nullable: `NULL` means created by provisioning or seeded **(#27)**.
 - `legal_entity` gets `@@unique([organizationId, id])`, for `business (organization_id, legal_entity_id)`.
   `branch` gets `@@unique([businessId, id])`, for A4's `user_scope`. `business` needs none **(#27 typo fix)**.
+- **`version` on `business` and `branch`** (Munif, 21 Nov): `int NOT NULL DEFAULT 1`. CLAUDE.md asks for it where
+  rows are edited concurrently; an edit sends back the version it read (A3c and later admin screens).
+- **`branch.short_code`** (Munif, 21 Nov; raised by ADR 0015 for receipt prefixes such as `RC-UTT-000123`):
+  - `text NOT NULL`, short and uppercase: 2 to 6 characters, a letter first, then letters or digits.
+  - A `CHECK (short_code ~ '^[A-Z][A-Z0-9]{1,5}$')` in raw SQL, because Prisma can't express it. The PR confirms
+    `db:migrate:check` doesn't report the `CHECK` as drift.
+  - `@@unique([businessId, shortCode])`: unique per business, so two businesses may both have `UTT`.
 
 #### Grants and RLS (ADR 0008 section 4)
 
@@ -71,7 +78,12 @@ Both parts are **dal only**, plus the dal integration tests:
   - `legal_entity`: `organization_id = (SELECT app_organization_id())`.
   - `business`: the organization check and `id = ANY ((SELECT app_business_ids())::uuid[])`.
   - `branch`: `business_id = ANY (…)` and `id = ANY ((SELECT app_branch_ids())::uuid[])`.
-- **`REVOKE INSERT` from `erp_app`** on `business` and `branch` (provisioning only).
+- **`REVOKE INSERT` from `erp_app`** on all four tables (Munif, 21 Nov; ADR 0008 section 4 listed only
+  `business` and `branch`).
+  - `business` and `branch` are created only by the provisioning path (part 2, A3c).
+  - **`organization` and `legal_entity` are not covered by `erp_provisioner`**, which gets `INSERT` and
+    `SELECT` on `business` and `branch` only. Until onboarding a new client is designed (a later ADR, #27),
+    they are created by the migration owner: the seed script (plan A19) or a person running it.
 - **`erp_provisioner` (part 2; #27 and #28):** `GRANT INSERT, SELECT` on `business` and `branch` only.
   - Policies `TO erp_provisioner`: `business`: `organization_id = (SELECT app_organization_id())` for `USING`
     and `WITH CHECK`.
@@ -88,7 +100,31 @@ Both parts are **dal only**, plus the dal integration tests:
 | 1    | 1 and 2 for the tree tables; 3; 4; 5. Plus: `FORCE ROW LEVEL SECURITY` is on for all four tables, and the source file matches the migration.                                                                                                                                                                                       |
 | 2    | 12 and 13, database half (`erp_app` cannot insert a business or branch; `erp_provisioner` can, in its own organization); 17, including "cannot see another organization's business" (#27); `branch_is_active` directly. #28's "no privilege on any table yet" test changes to "INSERT and SELECT on `business` and `branch` only". |
 
+**Added to part 1 (Munif's answers, 21 Nov):**
+
+| Answer | Test case                                                                                                                                                                                                                |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1      | `erp_app` cannot `INSERT` into `organization` or `legal_entity` (permission denied), as it already cannot into `business` and `branch`.                                                                                  |
+| 2      | A new `business` and `branch` row has `version = 1`; `version` is `NOT NULL`.                                                                                                                                            |
+| 3      | Inside the fixture helper's transaction, `current_setting('app.organization_id')`, `app.business_ids` and `app.branch_ids` hold the fixture's ids; a later transaction on the same pooled connection sees them unset.    |
+| 4      | `branch.short_code`: `UTT` and `AG2` are accepted; `utt`, `U`, `TOOLONG`, `U-T` and `2UT` are refused by the `CHECK`; a second branch with `UTT` in the same business is refused; `UTT` in another business is accepted. |
+
 Test 16 (`created_by` is the caller) applies to later modules' create routes, not to these tables (#27).
+
+#### Test fixtures (Munif, 21 Nov)
+
+- **Who inserts them:** integration tests insert and delete fixtures as the migration owner
+  (`MIGRATION_DATABASE_URL`), because `erp_app` has no `INSERT` on these tables. Only the shared test helper
+  does this; no test reads data back as the owner, it reads as `erp_app`.
+- **The fixture helper always sets the `app.*` values** (`set_config(..., true)`, as `runInTenantScope` does) in
+  the same transaction as its inserts.
+- **Why, stated precisely:**
+  - In Docker Compose and CI, the owner is the image's `POSTGRES_USER` (`erp_owner`), which is a **superuser**.
+    A superuser skips RLS even when RLS is forced, so there the values aren't needed for the inserts to succeed.
+  - A production or staging owner should not be a superuser, and `FORCE ROW LEVEL SECURITY` does apply to a
+    table's owner when it isn't one. So the helper sets the values anyway, and its fixtures work under either
+    kind of owner.
+  - Test case 3 above checks that it does.
 
 #### What blocks A3b, and what it blocks
 
@@ -181,17 +217,19 @@ Fixtures: `erp_app` cannot insert a business, so the tests insert the tree as th
 
 1. ~~**(Munif and Farhan) Numbering**~~ Decided by Munif on #31 (20 Nov): keep ADR 0008 section 7's split.
    The access tables are A4 (parts 3 and 4); A3b is parts 1 and 2.
-2. **(A3b) `INSERT` on `organization` and `legal_entity` for `erp_app`.** #27 says they are seeded by the
-   migration owner, so `erp_app` never needs to insert them. Revoke it too (least privilege), even though ADR 0008
-   section 4 lists only `business`, `branch` and `permission`?
-3. **(A3b) `version` on `business` and `branch`.** CLAUDE.md asks for it "where edited concurrently". Two admins
-   renaming a branch at once is unlikely. Add it now, or wait?
+2. ~~**(A3b) `INSERT` on `organization` and `legal_entity` for `erp_app`.**~~ Decided by Munif (21 Nov):
+   revoked. `erp_provisioner` doesn't cover them; the owner or the seed creates them until onboarding is
+   designed. See "Grants and RLS", test case 1.
+3. ~~**(A3b) `version` on `business` and `branch`.**~~ Decided by Munif (21 Nov): added now. See "Table
+   details", test case 2.
 4. **(A4) `lower(email)` uniqueness.** Is an expression index drift for `db:migrate:check`? If it is: a generated
    `email_normalised` column, `citext`, or the Manager lower-cases before writing, with a plain unique index.
 5. **(A3b) Party timing.** Farhan's A11 migration right after part 1 merges, before part 2? Recommended: yes. Part
    2 changes only grants and policies on `business` and `branch`, and his `party` table doesn't depend on them.
-6. **(A3b and A4) Test fixtures as the owner.** Is it acceptable for integration tests to insert and delete
-   fixtures as the migration owner, because `erp_app` cannot?
+6. ~~**(A3b and A4) Test fixtures as the owner.**~~ Decided by Munif (21 Nov): yes, through the shared test
+   helper, which always sets the `app.*` values. See "Test fixtures", test case 3.
+7. ~~**(A3b) `branch.short_code`**~~ (raised by ADR 0015, #41). Decided by Munif (21 Nov): added now, short and
+   uppercase, unique per business. See "Table details", test case 4.
 
 ## Consequences
 
