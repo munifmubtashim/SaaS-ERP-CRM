@@ -48,7 +48,10 @@ describe('BaseDTO money and quantity helpers (A10a)', () => {
 
   it('throws on more decimals than the column scale, and never rounds', () => {
     // A numeric(18,2) or numeric(18,3) column cannot hold these, so they mean a wrong column was mapped.
-    for (const read of [() => SampleDTO.money(decimal('1.005')), () => SampleDTO.quantity(decimal('1.0005'))]) {
+    for (const read of [
+      () => SampleDTO.money(decimal('1.005')),
+      () => SampleDTO.quantity(decimal('1.0005')),
+    ]) {
       expect(read).toThrow(AppError);
       expect(read).toThrow(expect.objectContaining({ code: 'INTERNAL_ERROR' }));
     }
