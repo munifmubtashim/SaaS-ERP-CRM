@@ -80,4 +80,30 @@ describe('MockSalesService.recordPayment (stands in for POST /v1/payments until 
     const [id = ''] = await customerIds(A);
     await expect(salesFor(B).recordPayment(payment(id), 'key-1')).rejects.toMatchObject({ status: 404 });
   });
+
+  it('refuses the same key with a different payment: 409, as ADR 0011 (#37) says the server will', async () => {
+    const [id = ''] = await customerIds(A);
+    const sales = salesFor(A);
+    await sales.recordPayment(payment(id), 'key-1');
+    await expect(sales.recordPayment({ ...payment(id), amount: '99999.00' }, 'key-1')).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'CONFLICT', fields: [{ path: 'Idempotency-Key', code: 'idempotency.key_reused' }] },
+    });
+  });
+
+  it("keeps keys per business: a key used in business A never returns A's payment in business B", async () => {
+    let active: string = A;
+    const sales = new MockSalesService(() => active, 0);
+    const [idA = ''] = await customerIds(A);
+    const [idB = ''] = await customerIds(B);
+    const inA = await sales.recordPayment(payment(idA), 'key-1');
+
+    active = B;
+    // The same key and body in B: B does not know A's customer, so 404, not A's payment.
+    await expect(sales.recordPayment(payment(idA), 'key-1')).rejects.toMatchObject({ status: 404 });
+    // The same key for B's own customer is a new payment of B.
+    const inB = await sales.recordPayment(payment(idB), 'key-1');
+    expect(inB.id).not.toBe(inA.id);
+    expect(inB.partyId).toBe(idB);
+  });
 });
