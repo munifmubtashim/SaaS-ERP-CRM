@@ -102,9 +102,11 @@ No code is in this PR, and **nothing in it is built until Q15 is answered "yes"*
 
 ## Open questions
 
-1. **Owner and accountant (Q15):** is the business VAT registered? Nothing here is built until the answer is yes.
+**Decided by Munif, 21 Nov:** nothing in this plan is built unless Q15 is answered "yes". Q15, Q16, Q25 and the VAT
+rates are on the **owner visit list** (the decisions sheet, #57), to ask the owner and their accountant together.
+
+1. **Owner and accountant (Q15):** is the business VAT registered?
 2. **Accountant (Q16):** VAT rounding per line or per invoice? Recommended: per line, as A8 already computes.
-3. **Owner and accountant (Q25):** are prices shown to customers VAT-inclusive? Recommended: ask before Sales'
-   VAT line is built.
-4. **Accountant:** which VAT rates apply to motorcycles and parts (the standard rate or a reduced one)?
-   Recommended: store the rate per product, set by the Owner from the accountant's answer; no rate is hard-coded.
+3. **Owner and accountant (Q25):** are prices shown to customers VAT-inclusive?
+4. **Accountant:** which VAT rates apply to motorcycles and parts? Recommended: a rate per product, set by the
+   Owner from the answer; no rate is hard-coded.
