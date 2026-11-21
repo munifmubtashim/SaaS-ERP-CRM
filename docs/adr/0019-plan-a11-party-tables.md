@@ -86,6 +86,17 @@ Keys and indexes:
 - `(business_id, name)`: the list order. Search is open question 4.
 - `bin` is left out until the BIN rules (after the Phase 1 gate).
 
+Prisma relations and back-relations (ADR 0008 section 5):
+
+- `business_id` → `business` and `(business_id, created_branch_id)` → `branch` are Prisma relations, so
+  `db:migrate:check` sees the foreign keys and reports no drift.
+- A Prisma relation needs a field on both models. So part 3 adds one back-relation line each to `Business` and
+  `Branch` in Munif's `organization.prisma`, and nothing else in that file. ADR 0008 section 5 allows this
+  one-line edit in another owner's schema file, with that owner as reviewer: Munif reviews those lines.
+- Part 6 adds the same kind of line to `Staff` (also in `organization.prisma`, A4 part 4) for `assigned_to`.
+- `created_by` gets no relation, and nothing in `party.prisma` points at `AppUser`, `Role`, `RolePermission` or
+  `UserScope` (ADR 0008 test 15).
+
 ### 3. RLS and grants (in the migration and in `dal/sql/rls/party.sql`)
 
 - `ENABLE` and `FORCE ROW LEVEL SECURITY`.
@@ -161,14 +172,14 @@ API (Supertest, real Postgres):
 
 ### 7. Order of work (each a separate PR, under ~400 lines)
 
-| Part | Branch                    | Contents                                                                        | Needs merged first                                   |
-| ---- | ------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| 1    | `feat/party-payloads`     | phone normaliser, create and update payloads, `PARTY_POSSIBLE_DUPLICATE`        | this ADR (shared code: both review)                  |
-| 2    | `feat/party-manager`      | `IPartyQuery`, `PartyManager`, tests 10 to 14 against a fake Query              | part 1                                               |
-| 3    | `feat/party-table`        | `party.prisma`, migration `party`, `sql/rls/party.sql`, `PartyQuery`, tests 1–9 | A3b part 1 (#31), #29, #27, A10a (#42); merge `main` |
-| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 19               | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
-| 5    | `feat/party-service-live` | frontend: `createServices` uses `PartyService(http)` instead of the mock        | part 4                                               |
-| 6    | `feat/party-assigned-to`  | follow-up migration: `assigned_to` FK → `staff (business_id, id)`               | A4 part 4 (`staff`), merge `main` and tell Munif     |
+| Part | Branch                    | Contents                                                                                                                                   | Needs merged first                                   |
+| ---- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| 1    | `feat/party-payloads`     | phone normaliser, create and update payloads, `PARTY_POSSIBLE_DUPLICATE`                                                                   | this ADR (shared code: both review)                  |
+| 2    | `feat/party-manager`      | `IPartyQuery`, `PartyManager`, tests 10 to 14 against a fake Query                                                                         | part 1                                               |
+| 3    | `feat/party-table`        | `party.prisma`, back-relations on `Business` and `Branch` (Munif reviews), migration `party`, `sql/rls/party.sql`, `PartyQuery`, tests 1–9 | A3b part 1 (#31), #29, #27, A10a (#42); merge `main` |
+| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 19                                                                          | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
+| 5    | `feat/party-service-live` | frontend: `createServices` uses `PartyService(http)` instead of the mock                                                                   | part 4                                               |
+| 6    | `feat/party-assigned-to`  | follow-up migration: `assigned_to` FK → `staff (business_id, id)`, back-relation on `Staff` (Munif reviews)                                | A4 part 4 (`staff`), merge `main` and tell Munif     |
 
 Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Before part 3 and part 6, merge
 `main` and tell Munif a migration is in flight (CLAUDE.md).
