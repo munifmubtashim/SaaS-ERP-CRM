@@ -23,20 +23,29 @@ function fromMilli(milli: bigint): string {
 /**
  * In-memory IStockService for consumers' unit tests (ADR 0012 section 5); passes the stock contract suite. A call
  * checks every movement before writing any, so a refusal writes nothing, and the check and the write happen with no
- * await between them, so two parallel calls can't both take the last unit.
+ * await between them, so two parallel calls can't both take the last unit. Movements are applied sorted by
+ * (productId, branchId), and their ids come back in the order they were given.
  */
 export class FakeStockService implements IStockService {
   readonly movements: (StockMovementDraft & { id: string })[] = [];
   private readonly balances = new Map<string, bigint>();
+  /** Serial units currently in stock. */
+  private readonly unitsInStock = new Set<string>();
 
   async move(movements: StockMovementDraft[]): Promise<{ movementIds: string[] }> {
-    const sorted = [...movements].sort((a, b) =>
-      `${a.productId}|${a.branchId}`.localeCompare(`${b.productId}|${b.branchId}`),
-    );
+    const order = movements
+      .map((m, index) => ({ m, index }))
+      .sort((a, b) => `${a.m.productId}|${a.m.branchId}`.localeCompare(`${b.m.productId}|${b.m.branchId}`));
     const next = new Map(this.balances);
-    for (const m of sorted) {
+    const units = new Set(this.unitsInStock);
+    for (const { m } of order) {
+      const delta = toMilli(m.qtyDelta);
+      if (delta > 0n && m.unitCost === undefined) {
+        throw consumerBug('stock.unit_cost_required', 'A receipt must carry its unit cost.');
+      }
+      if (m.unitId !== undefined) applyUnit(units, m.unitId, delta);
       const key = `${m.productId}|${m.branchId}`;
-      const after = (next.get(key) ?? 0n) + toMilli(m.qtyDelta);
+      const after = (next.get(key) ?? 0n) + delta;
       if (after < 0n) {
         const message = 'Not enough stock for this product at this branch.';
         throw new AppError('CONFLICT', message, [{ path: 'qtyDelta', code: 'stock.insufficient', message }]);
@@ -44,12 +53,36 @@ export class FakeStockService implements IStockService {
       next.set(key, after);
     }
     for (const [key, value] of next) this.balances.set(key, value);
-    const recorded = sorted.map((m) => ({ ...m, id: randomUUID() }));
-    this.movements.push(...recorded);
+    this.unitsInStock.clear();
+    for (const unit of units) this.unitsInStock.add(unit);
+    const recorded = movements.map((m) => ({ ...m, id: randomUUID() }));
+    this.movements.push(...order.map(({ index }) => recorded[index] as StockMovementDraft & { id: string }));
     return { movementIds: recorded.map((m) => m.id) };
   }
 
   onHand(productId: string, branchId: string): string {
     return fromMilli(this.balances.get(`${productId}|${branchId}`) ?? 0n);
   }
+}
+
+/** Serial units (invariant 7, ADR 0020): one at a time; in only when not in stock, out only when in stock. */
+function applyUnit(units: Set<string>, unitId: string, delta: bigint): void {
+  if (delta !== 1000n && delta !== -1000n) {
+    throw consumerBug('stock.serial_quantity', 'A serial unit moves one at a time (1 or -1).');
+  }
+  if (delta > 0n) {
+    if (units.has(unitId)) throw conflict('unit.already_in_stock', 'This unit is already in stock.');
+    units.add(unitId);
+  } else {
+    if (!units.has(unitId)) throw conflict('unit.not_available', 'This unit is not in stock.');
+    units.delete(unitId);
+  }
+}
+
+function consumerBug(code: string, message: string): AppError {
+  return new AppError('INTERNAL_ERROR', message, [{ path: 'movements', code, message }]);
+}
+
+function conflict(code: string, message: string): AppError {
+  return new AppError('CONFLICT', message, [{ path: 'unitId', code, message }]);
 }

@@ -1,4 +1,5 @@
-import { AppError, compareMoney, parseMoney, ZERO } from '@erp/shared';
+import { AppError, businessDateInDhaka, compareMoney, parseMoney, ZERO, type Paisa } from '@erp/shared';
+import type { IClock } from './contracts/IClock.js';
 import type { IPaymentMethodRule } from './contracts/IPaymentMethodRule.js';
 import type { ISalesPaymentQuery } from './contracts/ISalesPaymentQuery.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
@@ -13,8 +14,6 @@ export interface RecordPaymentInput {
   /** Two-decimal money string, above zero. */
   amount: string;
   externalRef: string | null;
-  /** Business date in Asia/Dhaka, "YYYY-MM-DD". */
-  date: string;
 }
 
 export interface RecordedPayment {
@@ -36,18 +35,27 @@ export class SalesPaymentRecorder {
     private readonly query: ISalesPaymentQuery,
     private readonly posting: IPostingService,
     private readonly numbers: INumberSeries,
+    private readonly clock: IClock,
     methods: readonly IPaymentMethodRule[],
   ) {
-    this.methods = new Map(methods.map((rule) => [rule.method, rule]));
+    const byMethod = new Map<string, IPaymentMethodRule>();
+    for (const rule of methods) {
+      if (byMethod.has(rule.method)) throw new Error(`Payment method ${rule.method} is registered twice.`);
+      byMethod.set(rule.method, rule);
+    }
+    this.methods = byMethod;
   }
 
   async record(input: RecordPaymentInput): Promise<RecordedPayment> {
-    const rule = this.validate(input);
+    const { rule, amount } = this.validate(input);
+    if (input.invoiceId !== null) await this.refuseAboveDue(input.invoiceId, input.partyId, amount);
+    const externalRef = input.externalRef?.trim() || null;
     const receiptNumber = await this.numbers.next('receipt', input.branchId);
     const paymentId = await this.query.newPaymentId();
     const { journalId } = await this.posting.post({
       branchId: input.branchId,
-      date: input.date,
+      // The business date comes from the server clock in Dhaka, never from the caller (no back-dating).
+      date: businessDateInDhaka(this.clock.now()),
       source: { type: 'sales_payment', id: paymentId },
       memo: `Payment ${receiptNumber}`,
       lines: [
@@ -67,17 +75,35 @@ export class SalesPaymentRecorder {
       invoiceId: input.invoiceId,
       method: rule.method,
       amount: input.amount,
-      externalRef: input.externalRef,
+      externalRef,
       receiptNumber,
       journalId,
     });
     return { paymentId, receiptNumber, journalId };
   }
 
-  private validate(input: RecordPaymentInput): IPaymentMethodRule {
+  /**
+   * Overpayment is refused for now (ADR 0016 amendment pending on #43): a payment above the invoice's open due
+   * would push receivable below zero instead of becoming an advance. Farhan decides how an excess becomes one.
+   */
+  private async refuseAboveDue(invoiceId: string, partyId: string, amount: Paisa): Promise<void> {
+    const due = await this.query.invoiceDueForUpdate(invoiceId, partyId);
+    if (due === null) {
+      const message = 'Invoice not found for this customer.';
+      throw new AppError('NOT_FOUND', message, [
+        { path: 'invoiceId', code: 'payment.invoice_not_found', message },
+      ]);
+    }
+    if (compareMoney(amount, parseMoney(due)) > 0) {
+      const message = 'The payment is more than the amount due on this invoice.';
+      throw new AppError('CONFLICT', message, [{ path: 'amount', code: 'payment.exceeds_due', message }]);
+    }
+  }
+
+  private validate(input: RecordPaymentInput): { rule: IPaymentMethodRule; amount: Paisa } {
     const rule = this.methods.get(input.method);
     if (!rule) throw invalid('method', 'payment.method_unknown', 'This payment method is not available.');
-    let amount;
+    let amount: Paisa;
     try {
       amount = parseMoney(input.amount);
     } catch {
@@ -93,7 +119,7 @@ export class SalesPaymentRecorder {
         'Enter the transaction or reference number.',
       );
     }
-    return rule;
+    return { rule, amount };
   }
 }
 
