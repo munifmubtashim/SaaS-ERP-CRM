@@ -205,14 +205,16 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 
 ## Open questions for Munif
 
-1. **Party code.** Where does `code` (`C-0001`) come from? ADR 0015 ([#41](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/41)) keys each number series
-   on business, branch and kind (`UNIQUE (business_id, branch_id, kind)`), with a branch prefix such as `RC-UTT-`.
-   A party has no branch, so a `party_code` series doesn't fit #41 as drafted. **Can #41 allow a business-level
-   series, with no branch and no branch prefix?**
-   - If yes: recommended, a `party_code` series per business from A14a, if A14a merges before part 3.
-   - If not: recommended, a simple per-business counter for `party_code`, one row per business, taken with an
-     atomic `UPDATE … SET next_value = next_value + 1 … RETURNING` (invariant 6, never read-then-write). That
-     is a second small table in A11's migration (see question 6). Gaps don't matter for a party code.
+1. **Party code.** Where does `code` (such as `C-000001`) come from? ADR 0015 ([#41](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/41)) at `40f3a0c` adds
+   **business-wide series**: `branch_id` is null, the prefix has no branch code (`C-`), one row per business and
+   kind (unique with `NULLS NOT DISTINCT`), taken with `next('party_code', null)`. A11 would add the
+   `party_code` kind. #41 is still a draft, and its question 6 asks whether this is what A11 needs.
+   - Recommended: the business-wide `party_code` series from A14a, with prefix `C-` and #41's default width 6,
+     so codes read `C-000001`. Not width 4: `lpad` cuts a longer value, so code 10000 would print as `C-1000`.
+     Part 3 then needs A14a merged first.
+   - Only if A14a hasn't merged when part 3 is ready: a simple per-business counter, one row per business, taken
+     with an atomic `UPDATE … SET next_value = next_value + 1 … RETURNING` (invariant 6, never read-then-write).
+     That is a second small table in A11's migration (see question 6). Gaps don't matter for a party code.
 
 2. **Where is the walk-in party created?** ADR 0006 section 6 (decided on #15) says that when a business is
    created, Organization calls a Party interface that creates it. But a business is created by
