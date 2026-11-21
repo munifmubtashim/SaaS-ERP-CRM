@@ -79,8 +79,9 @@ Permissions; tenancy (the check uses the active scope).
 
 ## Open questions (with recommended answers)
 
-1. **Both:** must every tenant route declare a permission (recommended), or may read-only routes default to "any
-   role in scope"?
-2. **Both:** a hidden field absent (recommended) or `null`?
-3. **Munif:** role mappings fixed from #26 for release 1 (recommended), with per-business editing later?
+1. ~~**Both:** must every tenant route declare a permission?~~ **Decided by Munif, 21 Nov:** yes, enforced by a
+   test that fails any tenant route without one (test 5).
+2. ~~**Both:** a hidden field absent or `null`?~~ **Decided by Munif, 21 Nov:** absent, not `null`.
+3. ~~**Munif:** role mappings fixed from #26 for release 1?~~ **Decided by Munif, 21 Nov:** yes, fixed from #26
+   for release 1; per-business editing later.
 4. **Farhan:** do Party's per-kind codes (#52) need anything beyond this check? Recommended: no.
