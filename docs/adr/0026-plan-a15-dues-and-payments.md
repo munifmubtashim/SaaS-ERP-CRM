@@ -45,9 +45,9 @@ The columns ADR 0016 section 4 asks for, and nothing that can be computed:
 | `note`              | up to 500 characters                                                                                                                          |
 | `created_at`        | `updated_at`, `created_by` (the caller), `version`                                                                                            |
 
-- **One transaction id once per method:** partial unique index `(business_id, method, external_ref) WHERE
-external_ref IS NOT NULL`, so the same bKash transaction can't be entered twice (#47 question 4). Open
-  question 2.
+- **One transaction id once per method:** a partial unique index on `(business_id, method, external_ref)`,
+  where `external_ref IS NOT NULL`, so the same bKash transaction can't be entered twice (#47 question 4).
+  Open question 2.
 - **Posted is permanent:** a trigger allows one change only, `posted → voided` with the four void columns.
 - **RLS and grants** as every tenant table (ADR 0008, #27): forced, branch-scoped, with `branch_is_active` in
   `WITH CHECK`; `erp_app` `TO erp_app` for `SELECT`, `INSERT` and `UPDATE`, `UPDATE` only on the void columns,
@@ -61,7 +61,9 @@ external_ref IS NOT NULL`, so the same bKash transaction can't be entered twice 
 
 1. Validate: amount above zero as a money string; external id when the method needs it; the party is active and
    not the walk-in party (for an advance); the invoice, if given, is `posted`, belongs to that party, and is in
-   the same business.
+   the same business. **One exception, still open:** for a bank-loan plan (ADR 0027,
+   [#65](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/65)), the plan's bank may pay on the customer's
+   financed invoice, so its payment isn't taken as an advance. That waits for #65's question 5.
 2. **Not more than the invoice's due** (#53 question 1): the invoice row is locked with `SELECT … FOR UPDATE`, its
    due is total minus its posted payments, and an amount above it is refused with `409 CONFLICT`,
    `payment.above_due`. The rest can be paid as an advance with a second payment. Open question 3.
