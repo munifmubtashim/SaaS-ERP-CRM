@@ -6,6 +6,10 @@ answer before that; the **can wait** ones can be answered during the build.
 
 Each line gives the question, who decides, the recommendation, and the PR to answer it on.
 
+**Agreed by Farhan on 21 Nov (approved, then the final commit cleared the approvals, so each needs re-approval):**
+#27 ADR 0008 amendment (head `91f9ed3`), #31 ADR 0009 Accepted (head `c11c309`), #32 ADR 0010 Accepted (head
+`d401a51`). Their open questions above are settled.
+
 ## 1. #31 ADR 0009: organization tables (A3b) — next to build
 
 | #      | Question                                                                                                   | Who    | Recommendation                                                                                | When                        |
@@ -199,24 +203,24 @@ review only.
 
 ### #77 ADR 0038: salary entries
 
-| #      | Question                                 | Who   | Recommendation                              | Blocks building? |
-| ------ | ---------------------------------------- | ----- | ------------------------------------------- | ---------------- |
-| 0038-1 | Allow "accrued" salaries in release 1?   | Munif | No; cash and bank only, accruals later      | yes              |
-| 0038-2 | Who may enter salaries?                  | Munif | Owner and Accountant                        | yes              |
-| 0038-3 | Salary as its own table, not an expense? | Munif | Own table (hidden field, per-staff reports) | yes              |
+| #      | Question                                 | Who   | Recommendation                                                                           | Blocks building? |
+| ------ | ---------------------------------------- | ----- | ---------------------------------------------------------------------------------------- | ---------------- |
+| 0038-1 | Allow "accrued" salaries in release 1?   | Munif | **Decided by Munif, 21 Nov:** no accruals in release 1; cash and bank only               | yes              |
+| 0038-2 | Who may enter salaries?                  | Munif | **Decided by Munif, 21 Nov:** Owner and Accountant                                       | yes              |
+| 0038-3 | Salary as its own table, not an expense? | Munif | **Decided by Munif, 21 Nov:** own table; the Activity Log records who viewed salary data | yes              |
 
 ### #78 ADR 0039: financial statements
 
-| #      | Question                                                     | Who        | Recommendation                                                | Blocks building? |
-| ------ | ------------------------------------------------------------ | ---------- | ------------------------------------------------------------- | ---------------- |
-| 0039-1 | Equity section = capital + retained profit + current profit? | accountant | Yes, with a year-end close later                              | no (part 2)      |
-| 0039-2 | P&L by branch in release 1?                                  | Munif      | Yes, as a column option                                       | no               |
-| 0039-3 | Which roles see the statements?                              | Munif      | Owner and Accountant; Business Manager the trial balance only | yes              |
+| #      | Question                                                     | Who        | Recommendation                                                                                             | Blocks building? |
+| ------ | ------------------------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------------- | ---------------- |
+| 0039-1 | Equity section = capital + retained profit + current profit? | accountant | **Decided by Munif, 21 Nov:** simple capital plus retained earnings; flagged for the owner's accountant    | no (part 2)      |
+| 0039-2 | P&L by branch in release 1?                                  | Munif      | **Decided by Munif, 21 Nov:** yes, a column option                                                         | no               |
+| 0039-3 | Which roles see the statements?                              | Munif      | **Decided by Munif, 21 Nov:** Owner and Accountant all statements; Business Manager the trial balance only | yes              |
 
 ### #79 ADR 0040: stock adjustments and counts
 
-| #      | Question                                                       | Who        | Recommendation         | Blocks building? |
-| ------ | -------------------------------------------------------------- | ---------- | ---------------------- | ---------------- |
-| 0040-1 | Every adjustment needs approval?                               | Munif      | Every one in release 1 | yes              |
-| 0040-2 | One `inventory_loss` role for losses and gains, or per reason? | accountant | One role               | yes              |
-| 0040-3 | A count per location, or a whole branch at once?               | Munif      | Per location           | no (part 2)      |
+| #      | Question                                                       | Who        | Recommendation                                                 | Blocks building? |
+| ------ | -------------------------------------------------------------- | ---------- | -------------------------------------------------------------- | ---------------- |
+| 0040-1 | Every adjustment needs approval?                               | Munif      | **Decided by Munif, 21 Nov:** yes, every adjustment            | yes              |
+| 0040-2 | One `inventory_loss` role for losses and gains, or per reason? | accountant | **Decided by Munif, 21 Nov:** one account for losses and gains | yes              |
+| 0040-3 | A count per location, or a whole branch at once?               | Munif      | **Decided by Munif, 21 Nov:** one location at a time           | no (part 2)      |
