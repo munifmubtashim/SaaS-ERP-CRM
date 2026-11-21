@@ -9,6 +9,14 @@ export { AuthDTO } from './dto/AuthDTO.js';
 export { AuthQuery } from './query/AuthQuery.js';
 export { OrganizationDTO } from './dto/OrganizationDTO.js';
 export { OrganizationQuery } from './query/OrganizationQuery.js';
+// The provisioner (ADR 0010): the factory and the types only. The client stays inside dal.
+export { BusinessDTO, BranchDTO } from './dto/OrganizationDTO.js';
+export {
+  createProvisioningQuery,
+  type ProvisioningQuery,
+  type CreateBusinessInput,
+  type CreateBranchInput,
+} from './query/ProvisioningQuery.js';
 export { ProductDTO } from './dto/ProductDTO.js';
 export { ProductQuery } from './query/ProductQuery.js';
 export { InventoryDTO } from './dto/InventoryDTO.js';

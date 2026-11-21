@@ -58,6 +58,8 @@ jobs:
       DATABASE_URL: postgresql://erp_app:erp_app_ci@localhost:5432/erp
       # Read by ProvisionerRole.int.test.ts; the role step below creates the role under this name.
       PROVISIONER_DB_USER: erp_provisioner
+      # ProvisioningQuery's connection (ADR 0010); the password matches the role step below.
+      PROVISIONING_DATABASE_URL: postgresql://erp_provisioner:erp_provisioner_ci@localhost:5432/erp
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
