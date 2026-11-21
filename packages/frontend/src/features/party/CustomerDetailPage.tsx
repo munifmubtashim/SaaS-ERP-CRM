@@ -101,10 +101,10 @@ function CustomerDetail({ id }: { id: string }) {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Card className="md:col-span-2">
+        <Card className="min-w-0 md:col-span-2">
           <DuesSection id={customer.id} />
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <ProfileFacts customer={customer} />
         </Card>
       </div>

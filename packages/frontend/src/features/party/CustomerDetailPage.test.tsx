@@ -187,6 +187,16 @@ describe('CustomerDetailPage (mock data)', () => {
     expect(await screen.findByLabelText('Total due')).toHaveTextContent('৳12,34,56,789.00');
   });
 
+  it('lets both cards shrink to a phone screen, so a wide invoice table scrolls inside its card', async () => {
+    // jsdom can't measure layout. Without min-w-0, a grid item can't be narrower than its content, so a
+    // 9-digit invoice row made the page wider than a 390 px phone (checked in Chromium on #51).
+    const { container } = renderPage(new FakeParty(), new FakeSales({ ...dues, totalDue: '123456789.00' }));
+    await screen.findByLabelText('Total due');
+    const cards = container.querySelectorAll('section.glass');
+    expect(cards).toHaveLength(2);
+    for (const card of cards) expect(card).toHaveClass('min-w-0');
+  });
+
   it('offers "Record payment" as the next action', async () => {
     renderPage(new FakeParty(), new FakeSales());
     const link = await screen.findByRole('link', { name: 'Record payment' });
