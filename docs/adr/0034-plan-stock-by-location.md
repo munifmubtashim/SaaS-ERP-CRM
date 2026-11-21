@@ -21,22 +21,26 @@ plan. No code is in this PR.
 
 ### Table `location` (Inventory, migration `stock_locations`, before `stock_ledger`)
 
-| Column            | Notes                                                                            |
-| ----------------- | -------------------------------------------------------------------------------- |
-| `branch_id`       | composite foreign key `(business_id, branch_id)`                                 |
-| `name`            | text, unique per branch                                                          |
-| `type`            | `sales_floor`, `storage`, `in_transit`, `damaged`, `quarantine`                  |
-| `is_active`       | boolean                                                                          |
-| `is_default_sale` | boolean; exactly one per branch, a `sales_floor` location (partial unique index) |
+| Column            | Notes                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `branch_id`       | composite foreign key `(business_id, branch_id)`; **null only for the business's In transit location** (amended 21 Nov, below) |
+| `name`            | text, unique per branch                                                                                                        |
+| `type`            | `sales_floor`, `storage`, `in_transit`, `damaged`, `quarantine`                                                                |
+| `is_active`       | boolean                                                                                                                        |
+| `is_default_sale` | boolean; exactly one per branch, a `sales_floor` location (partial unique index)                                               |
 
 The table rules on #27 and #31 apply. It's branch-scoped RLS, with `branch_is_active(branch_id)` in `WITH CHECK`.
-`@@unique([branchId, id])` lets movements prove a location belongs to their branch.
+`@@unique([branchId, id])` lets movements prove a location belongs to their branch, and `@@unique([businessId,
+id])` lets an In transit movement prove the location is its business's.
 
 ### Changes to ADR 0021's tables, before they're built
 
 - **`stock_movement`** gains `location_id NOT NULL`, with a composite foreign key `(branch_id, location_id)` →
   `location (branch_id, id)`. A movement can't use another branch's location.
 - **`stock_balance`** is keyed by `(business_id, branch_id, product_id, location_id)`.
+- **The In transit exception (amended 21 Nov):** movements and balances at the business In transit location have
+  `branch_id` null. ADR 0021 (#59, amended the same day) says how that one case is checked: a second foreign key
+  `(business_id, location_id)`, a trigger, `NULLS NOT DISTINCT` on the balance key, and a transfer-only RLS rule.
 - **`serial_unit`** (ADR 0020) gains `location_id`, changed in the same transaction as its movement.
 
 ### Rules
@@ -48,9 +52,15 @@ The table rules on #27 and #31 apply. It's branch-scoped RLS, with `branch_is_ac
   - **Warehouse** = the sum over `storage` locations;
   - **Total** = the sellable sum;
   - the other types are shown separately (I-06).
-- **Every branch has one `in_transit` and one `damaged` location.** They're created right after the branch, in the
-  new branch's scope as `erp_app`, with `INSERT … ON CONFLICT DO NOTHING`. That's the same pattern as the walk-in
-  party (ADR 0010).
+- **Every branch has one `damaged` location**, created right after the branch, in the new branch's scope as
+  `erp_app`, with `INSERT … ON CONFLICT DO NOTHING`. That's the same pattern as the walk-in party (ADR 0010).
+- **Every business has one In transit location, which belongs to no branch** (amended 21 Nov, decided by Munif for
+  ADR 0041 question 4):
+  - `type = 'in_transit'` and `branch_id` null; a `CHECK ((branch_id IS NULL) = (type = 'in_transit'))`, and a
+    partial unique index `(business_id) WHERE type = 'in_transit'`, so there's exactly one and no branch has its own.
+  - Created right after the business, in the new business's scope as `erp_app`, with `ON CONFLICT DO NOTHING`.
+  - RLS: every user of the business can read it (its row holds no quantities); nobody can rename or deactivate it.
+  - Only transfer movements may use it (ADR 0021, amended). It's never sellable and never a sale's default.
 - **Bins** (I-10) aren't in release 1 (decided by Munif, 21 Nov).
 - **A POS sale takes stock from the branch's default `sales_floor` location** (one per branch, marked
   `is_default_sale`). Release 1 doesn't let a sale line choose another location; that's a later change (decided by
@@ -66,7 +76,8 @@ Stock (invariant 3: on hand per location is the sum of its movements), tenancy (
    locations.
 2. A movement using another branch's location is refused (composite key).
 3. A sale from a `damaged` or `in_transit` location is refused with `stock.not_sellable`.
-4. A new branch gets exactly one `in_transit` and one `damaged` location, even if the step runs twice.
+4. A new branch gets exactly one `damaged` location and a new business exactly one In transit location (with no
+   branch), even if the steps run twice; a second In transit location, or one with a branch, is refused.
 5. Showroom, Warehouse and Total match the definitions above.
 6. RLS: a branch-2-only scope can't see branch 1's locations.
 
@@ -74,6 +85,7 @@ Stock (invariant 3: on hand per location is the sum of its movements), tenancy (
 
 - ADR 0021 (#59) and ADR 0020 (#58): to be built with `location_id` from the start once this is agreed.
 - ADR 0009 (#31), ADR 0010 (#32), for the step after branch creation.
+- ADR 0041 (#83): the business In transit location (question 4, decided 21 Nov).
 
 ## Size and PR split
 
@@ -89,10 +101,12 @@ Stock (invariant 3: on hand per location is the sum of its movements), tenancy (
 is_default_sale`).
 - **Undo:** before go-live, drop `location` and the columns in a new migration.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
 1. ~~**Munif, Moto Mart:** bins (I-10) in release 1?~~ **Decided by Munif, 21 Nov:** locations only, no bins.
 2. ~~**Munif:** which location does a POS sale take from?~~ **Decided by Munif, 21 Nov:** a default `sales_floor`
    location per branch, **not** changeable per line in release 1. Choosing the location on a sale line is a later
    change.
 3. ~~**Munif:** amend ADR 0021?~~ **Decided by Munif, 21 Nov:** amend ADR 0021 (#59) now to include `location_id`.
+4. ~~**Munif:** one `in_transit` location per branch, or one per business?~~ **Decided by Munif, 21 Nov (ADR 0041
+   question 4):** one per business, belonging to no branch, so each branch confirms its own side of a transfer.
