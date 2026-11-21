@@ -203,12 +203,30 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
     `erp_app`'s, `FOR SELECT`, `INSERT` and `UPDATE`. So RLS stays forced on the owner, and the seed and test
     fixtures write only inside the `app.*` values they set.
   - Each module's migration adds them for its own tables: `staff` here, `party` in ADR 0019, and so on.
+  - **Append-only tables get `FOR SELECT` and `FOR INSERT` only** (Farhan's point 1 on #27, 21 Nov). On
+    `journal` and its lines, `stock_movement`, `audit_log`, `party_merge_log` and any later append-only table, the
+    owner holds no `UPDATE` policy at all. Their triggers already refuse changes to posted rows (invariant 2); the
+    missing policy means the owner never gets as far as the trigger.
   - **No owner `DELETE` policy on any table, in any module** (Munif, 21 Nov; Farhan's point 5): a `branch` can't
     be deleted, so its `short_code` is never freed. Tests don't delete fixtures; each uses fresh ids in its
     throwaway database.
-  - **Nothing is deleted, by any role.** The demo reset recreates the database (drop, create, migrate, seed); it
+  - **Nothing is deleted from a tenant table, by any role.** The demo reset recreates the database (drop, create,
+    migrate, seed); it
     never deletes rows. Erasing a person's data (for example a customer who asks to be forgotten) needs its own
-    later ADR.
+    later ADR, and so does cleaning up old rows of a tenant table (for example expired idempotency keys, ADR 0011).
+    Tables outside the tenant tree with no RLS, such as `auth_session` (ADR 0018), aren't covered: the owner
+    may still clean them.
+  - **`TRUNCATE` is refused too** (Farhan's point 2). RLS doesn't apply to `TRUNCATE`, and the owner may run it.
+    So every tenant table gets a statement-level `BEFORE TRUNCATE` trigger that raises, for every role, the owner
+    included. It's added by each module's migration, as ADR 0013 already does for journals. The demo reset drops the
+    database, so it isn't affected.
+  - **An owner `DELETE` removes 0 rows and raises no error.** With RLS forced and no `DELETE` policy, PostgreSQL
+    hides every row from the `DELETE`. So tests check that the rows are **still there** after the attempt, never
+    that an error is raised. (`erp_app` has `DELETE` revoked, so for it the error is `permission denied`.)
+  - **Test data is never deleted, so tests never assert on table-wide counts** (Farhan's point 3). A test checks
+    only rows with its own fresh ids. CI starts from an empty database each run. A local Docker database keeps
+    growing between runs; recreate it whenever you like (`docker compose down -v`, then `npm run docker:up`
+    and `db:migrate:deploy`). No test may depend on that.
   - (Proposed, to agree with Farhan.)
 - `erp_provisioner`: `GRANT INSERT, SELECT` on `business` and `branch`, and its own `INSERT` and `SELECT`
   policies `TO erp_provisioner` on those two tables, which check the organization `ProvisioningQuery` sets
