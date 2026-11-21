@@ -31,31 +31,36 @@ The rules from #27 and #31 apply to both tables:
 
 **`stock_movement`**, append-only:
 
-| Column                     | Notes                                                                                                                |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `branch_id`                | composite foreign key `(business_id, branch_id)`                                                                     |
-| `product_id`               | composite foreign key `(business_id, product_id)`                                                                    |
-| `serial_unit_id`           | nullable; set for serial-tracked products, and then `qty_delta` is `1` or `-1` (`CHECK`)                             |
-| `qty_delta`                | `numeric(18,3)`, never zero (`CHECK`); positive in, negative out                                                     |
-| `unit_cost`                | `numeric(18,2)`, required on every movement: the receipt cost in, the cost used out. **A hidden field**              |
-| `kind`                     | `opening`, `receipt`, `sale`, `sale_return`, `adjustment` (later kinds come with their features)                     |
-| `source_type`, `source_id` | the document that made it (an invoice, a receipt). Unique per `(source_type, source_id, product_id, serial_unit_id)` |
-| `movement_date`            | date, the business date in Asia/Dhaka                                                                                |
+| Column                     | Notes                                                                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `branch_id`                | composite foreign key `(business_id, branch_id)`                                                                                              |
+| `location_id`              | composite foreign key `(branch_id, location_id)` → `location (branch_id, id)` (ADR 0034, #73): a movement can't use another branch's location |
+| `product_id`               | composite foreign key `(business_id, product_id)`                                                                                             |
+| `serial_unit_id`           | nullable; set for serial-tracked products, and then `qty_delta` is `1` or `-1` (`CHECK`)                                                      |
+| `qty_delta`                | `numeric(18,3)`, never zero (`CHECK`); positive in, negative out                                                                              |
+| `unit_cost`                | `numeric(18,2)`, required on every movement: the receipt cost in, the cost used out. **A hidden field**                                       |
+| `kind`                     | `opening`, `receipt`, `sale`, `sale_return`, `adjustment` (later kinds come with their features)                                              |
+| `source_type`, `source_id` | the document that made it (an invoice, a receipt). Unique per `(source_type, source_id, product_id, serial_unit_id)`                          |
+| `movement_date`            | date, the business date in Asia/Dhaka                                                                                                         |
 
 - `erp_app`: `SELECT`, `INSERT` only.
 - Owner policies: `FOR SELECT` and `FOR INSERT` only, because it's append-only (ADR 0008, #27).
 - A trigger refuses `UPDATE` and `DELETE` for every role, as journals do (ADR 0013).
 
-**`stock_balance`**, the cache, one row per `(business_id, branch_id, product_id)`:
+**`stock_balance`**, the cache, one row per `(business_id, branch_id, product_id, location_id)` (locations,
+ADR 0034, decided by Munif on 21 Nov):
 
-| Column     | Notes                                                                                    |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| `on_hand`  | `numeric(18,3)`, `CHECK (on_hand >= 0)`: the database's own guard for F-08               |
-| `avg_cost` | `numeric(18,2)`, the branch's weighted average (invariant 7); unused for serial products |
-| `version`  | `int`                                                                                    |
+| Column     | Notes                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `on_hand`  | `numeric(18,3)`, `CHECK (on_hand >= 0)`: the database's own guard for F-08                 |
+| `avg_cost` | **moved** to `stock_cost` below: the average is per branch (invariant 7), not per location |
+| `version`  | `int`                                                                                      |
 
-`erp_app`: `SELECT`, `INSERT`, `UPDATE (on_hand, avg_cost, version, updated_at)`. Only `StockQuery` writes
-it; a dal test fails if another file names `stock_balance` (the pattern ADR 0008 test 15 uses).
+**`stock_cost`**, one row per `(business_id, branch_id, product_id)`: `avg_cost numeric(18,2)` and `version`. It
+holds the branch's weighted average (invariant 7), so locations in one branch share one cost.
+
+`erp_app`: `SELECT`, `INSERT`, `UPDATE (on_hand, version, updated_at)` on `stock_balance`, and
+`UPDATE (avg_cost, version, updated_at)` on `stock_cost`. Only `StockQuery` writes them; a dal test fails if another file names `stock_balance` (the pattern ADR 0008 test 15 uses).
 
 ### 2. Moving stock: `StockService.move` (ADR 0012), inside the caller's transaction
 
@@ -67,10 +72,13 @@ deadlock.
   ```sql
   UPDATE stock_balance
      SET on_hand = on_hand - $qty, version = version + 1
-   WHERE business_id = $b AND branch_id = $br AND product_id = $p AND on_hand >= $qty
-  RETURNING avg_cost;
+   WHERE business_id = $b AND branch_id = $br AND product_id = $p AND location_id = $loc AND on_hand >= $qty
+  RETURNING on_hand;
   ```
 
+  - The location is the branch's default `sales_floor` location for a POS sale (ADR 0034; not chosen per line in
+    release 1). The cost comes from `stock_cost` (`SELECT avg_cost … FOR SHARE`), so a receipt can't change it
+    mid-sale.
   - Zero rows means `409 CONFLICT`, field code `stock.insufficient`, and nothing is written. That's an atomic
     conditional update, never read-then-write (invariant 6).
   - For a serial unit, ADR 0020's conditional status change runs first. The movement's `unit_cost` is the
@@ -78,11 +86,12 @@ deadlock.
   - Then the movement row is inserted with that cost. The caller gets the cost back, for the cost-of-goods
     journal line (ADR 0022).
 
-- **In (a receipt, the opening stock):** `SELECT … FOR UPDATE` on the balance row, inserting it first if it's
-  missing (`INSERT … ON CONFLICT DO NOTHING`). Then the new weighted average is computed in businessLogic
-  through the shared money helpers, never in SQL or with floats. The `UPDATE` and the movement insert run
-  under that row lock.
-- **Weighted average:** `(on_hand × avg_cost + qty × unit_cost) ÷ (on_hand + qty)`, rounded half away from zero
+- **In (a receipt, the opening stock):** `SELECT … FOR UPDATE` on the branch's `stock_cost` row, then on the
+  location's balance row, inserting either first if it's missing (`INSERT … ON CONFLICT DO NOTHING`). Then the
+  new weighted average is computed in businessLogic through the shared money helpers, never in SQL or with
+  floats. The updates and the movement insert run under those row locks.
+- **Weighted average:** `(on_hand × avg_cost + qty × unit_cost) ÷ (on_hand + qty)`, where `on_hand` is the
+  branch's total for the product over all its locations, rounded half away from zero
   to paisa. `shared/src/utils/money.ts` has no division today, so a new shared helper
   `divideByQuantity(amount, quantity)` is needed (its own small shared PR, with property tests). Serial units
   don't average: each carries its own cost (invariant 7).
@@ -91,14 +100,15 @@ deadlock.
 
 ### 3. The balance is a cache, and stays one
 
-- `stock_balance.on_hand` must always equal the sum of that branch's movements for the product.
+- `stock_balance.on_hand` must always equal the sum of the movements for that product at that location.
 - A test asserts that after every scenario in the test list.
 - A `rebuildStockBalance()` SQL function, run as the owner, recomputes every row from the movements. It's used
   by the nightly integrity check later (D11); it isn't reachable from a request.
 
 ### 4. What the screens read
 
-The stock-on-hand screen (#36) reads `stock_balance.on_hand` per product and branch. The movement history (I-08)
+The stock-on-hand screen (#36) reads `stock_balance.on_hand` per product, branch and location (Showroom,
+Warehouse and Total, ADR 0034). The movement history (I-08)
 reads `stock_movement`, newest first, with no `unit_cost` until redaction exists (plan 2.5; the same rule as
 ADR 0020 section 3).
 
@@ -121,6 +131,8 @@ ADR 0020 section 3).
 10. Two documents moving the same two products in opposite orders don't deadlock (sorted order).
 11. `rebuildStockBalance()` gives the same balances as the live cache after a mixed scenario.
 12. Only `StockQuery` names `stock_balance` (dal source test).
+13. **Locations** (ADR 0034): on hand per location equals the sum of that location's movements; a POS sale takes
+    from the branch's default `sales_floor` location; two locations in one branch share one average cost.
 
 ## Migration steps (written here, applied in the PR, not now)
 
@@ -157,9 +169,9 @@ ADR 0020 section 3).
 
 ## Open questions
 
-1. **Munif, Moto Mart:** stock by **location** (showroom, store) is release 1 in plan section 1.5. This ADR keeps
-   stock per branch; locations would add `location_id` to both tables. Add it now, or in its own ADR after the
-   demo? Recommended: after the demo, before go-live.
+1. ~~**Munif, Moto Mart:** stock by **location**?~~ **Decided by Munif, 21 Nov:** locations now (ADR 0034, #73).
+   `location_id` is on `stock_movement` and `stock_balance` from the start, the average cost moved to `stock_cost`
+   (per branch), and a POS sale takes from the branch's default `sales_floor` location. No bins.
 2. **Both:** the weighted average rounds to paisa at each receipt. Accept the small drift, or store `avg_cost`
    with more decimals? Recommended: paisa, as the accountant will see it.
 3. **Farhan:** is `sale_return` needed for release 1 (C14), or can it wait with returns?
