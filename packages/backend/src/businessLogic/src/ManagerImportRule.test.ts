@@ -43,3 +43,23 @@ describe('a Manager may not import another module (ADR 0012 test 4)', () => {
     expect(await importErrors('PartyManager.ts', source)).toEqual([]);
   });
 });
+
+describe('the rule covers all of businessLogic/src, not only Managers (review finding, #97)', () => {
+  const importsManager =
+    "import { SalesManager } from './SalesManager.js';\nexport const x = SalesManager;\n";
+  const importsService =
+    "import { PostingService } from './PostingService.js';\nexport const x = PostingService;\n";
+
+  it.each(['SalesPaymentRecorder.ts', 'IdempotencyGuard.ts', 'NumberSeries.ts', 'test/FakeStockService.ts'])(
+    '%s may not import a Manager or a service class',
+    async (path) => {
+      expect(await importErrors(path, importsManager)).not.toEqual([]);
+      expect(await importErrors(path, importsService)).not.toEqual([]);
+    },
+  );
+
+  it('the composition root (index.ts) and test files may', async () => {
+    expect(await importErrors('index.ts', importsManager)).toEqual([]);
+    expect(await importErrors('AuthManager.test.ts', importsManager)).toEqual([]);
+  });
+});

@@ -21,9 +21,15 @@ export interface StockMovementDraft {
 
 export interface IStockService {
   /**
-   * Records the movements, applied sorted by (productId, branchId) so two documents can't deadlock. Any movement
-   * that would take on-hand below zero refuses the whole call with 409 stock.insufficient and writes nothing
-   * (spec F-08; atomic conditional UPDATE in the real service, invariant 6).
+   * Records the movements, applied sorted by (productId, branchId) so two documents can't deadlock. **The returned
+   * `movementIds[i]` is the id of `movements[i]`**, in the order given, whatever order they were applied in.
+   * Refusals write nothing, for the whole call:
+   * - a movement that would take on-hand below zero: 409 stock.insufficient (spec F-08; an atomic conditional
+   *   UPDATE in the real service, invariant 6);
+   * - a receipt (positive quantity) without `unitCost`: 500 stock.unit_cost_required (a consumer bug);
+   * - a serial unit with a quantity other than 1 or -1: 500 stock.serial_quantity;
+   * - a serial unit received while in stock: 409 unit.already_in_stock; sent out while not in stock:
+   *   409 unit.not_available (ADR 0020).
    */
   move(movements: StockMovementDraft[]): Promise<{ movementIds: string[] }>;
 }

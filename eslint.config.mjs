@@ -105,6 +105,27 @@ export const baseConfig = tseslint.config(
   prettier,
 );
 
+// ADR 0012: another module is reached only through its published interface (contracts/provided/*), never through
+// its Manager or service class, not even as a type. The ../ forms cover the fakes in businessLogic/src/test/.
+const PROVIDED_INTERFACES_ONLY = {
+  group: [
+    './*Manager',
+    './*Manager.js',
+    './*Service',
+    './*Service.js',
+    '../*Manager',
+    '../*Manager.js',
+    '../*Service',
+    '../*Service.js',
+    // Interfaces are allowed even when their name ends in Service (IPostingService, IStockService).
+    '!./I*Service',
+    '!./I*Service.js',
+    '!../I*Service',
+    '!../I*Service.js',
+  ],
+  message: "Depend on the provider's published interface in ./contracts/provided/, not on its class.",
+};
+
 export default tseslint.config(
   ...baseConfig,
 
@@ -191,6 +212,16 @@ export default tseslint.config(
     },
   },
   {
+    // ADR 0012, widened after the #97 review: no businessLogic class reaches another module's Manager or service
+    // class, only its published interface. The composition root and tests are exempt. Managers get the same patterns
+    // in the next block, together with their @erp/dal rule (a later block replaces this one's options for them).
+    files: ['packages/backend/src/businessLogic/src/**/*.ts'],
+    ignores: ['packages/backend/src/businessLogic/src/index.ts', '**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [PROVIDED_INTERFACES_ONLY] }],
+    },
+  },
+  {
     // Managers depend on businessLogic contracts (I<Module>Query); only DTO types may come from dal.
     files: ['packages/backend/src/businessLogic/src/*Manager.ts'],
     rules: {
@@ -206,13 +237,7 @@ export default tseslint.config(
           ],
           // ADR 0012: another module is reached only through its published interface (contracts/provided/*),
           // never through its Manager or its service class, not even as a type.
-          patterns: [
-            {
-              group: ['./*Manager', './*Manager.js', './*Service', './*Service.js'],
-              message:
-                "Depend on the provider's published interface in ./contracts/provided/, not on its class.",
-            },
-          ],
+          patterns: [PROVIDED_INTERFACES_ONLY],
         },
       ],
     },
