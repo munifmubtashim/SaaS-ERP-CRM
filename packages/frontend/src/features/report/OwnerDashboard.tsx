@@ -2,6 +2,7 @@ import { formatDateTimeBD, formatMoneyBDT } from '@erp/shared';
 import { Button, Card } from '../../components/ui';
 import { useI18n } from '../../i18n';
 import { ApiRequestError } from '../../services';
+import { byDuesWithShare } from './duesShares';
 import { useOwnerDashboard } from './useOwnerDashboard';
 
 /**
@@ -89,7 +90,7 @@ export function OwnerDashboard() {
             </tr>
           </thead>
           <tbody>
-            {businesses.map((b) => (
+            {byDuesWithShare(businesses).map((b) => (
               <tr
                 key={b.businessId}
                 className="grid grid-cols-2 gap-x-4 border-b border-row-border px-6 py-3 last:border-b-0 md:table-row md:p-0"
@@ -100,6 +101,16 @@ export function OwnerDashboard() {
                 <td className="num md:px-6 md:py-3 md:text-right">
                   <span className="block text-[12px] text-muted md:hidden">{t('dashboard.dues')}</span>
                   {taka(b.dues)}
+                  {b.share !== null && (
+                    <>
+                      <span className="block text-[12px] text-muted">
+                        {t('dashboard.shareOfDues').replace('{share}', formatMoneyBDT(b.share, format))}
+                      </span>
+                      <span aria-hidden="true" className="mt-1 block h-1 rounded-full bg-chip">
+                        <span className="block h-1 rounded-full bg-accent" style={{ width: `${b.share}%` }} />
+                      </span>
+                    </>
+                  )}
                 </td>
                 <td className="num text-right md:px-6 md:py-3">
                   <span className="block text-[12px] text-muted md:hidden">

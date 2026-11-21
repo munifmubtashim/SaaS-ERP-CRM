@@ -41,6 +41,7 @@ export const en = {
   'dashboard.refresh': 'Refresh',
   'dashboard.refreshing': 'Refreshing…',
   'dashboard.refreshFailed': 'Could not refresh. These figures may be out of date.',
+  'dashboard.shareOfDues': '{share}% of all dues',
   'page.notBuilt': 'This module is not built yet. It arrives in a later phase.',
   'error.title': 'Something went wrong',
   'error.home': 'Back to home',
