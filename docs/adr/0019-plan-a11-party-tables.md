@@ -109,7 +109,11 @@ Prisma relations and back-relations (ADR 0008 section 5):
   expression and `WITH CHECK` on writes. **No owner `DELETE` policy.** So RLS stays forced on the owner too: a
   seed writes sample customers only inside the `app.*` values it has set, and no role needs `BYPASSRLS`.
 - `REVOKE DELETE ON party FROM erp_app`. The default privileges grant it, and a party is deactivated, never
-  deleted.
+  deleted. An owner `DELETE` removes 0 rows and raises no error (forced RLS, no `DELETE` policy).
+- **A statement-level `BEFORE TRUNCATE` trigger** that raises for every role, the owner included, like every
+  tenant table (ADR 0008, [#27](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/27), `290ac55`): RLS doesn't apply to `TRUNCATE`.
+- `party` is edited in place, not append-only, so the owner keeps its `UPDATE` policy (ADR 0008 limits only
+  append-only tables to `SELECT` and `INSERT`).
 - The source file and the migration must define the same policies (the `RlsSqlSource` pattern).
 
 ### 4. Shared code first (both reviewers)
@@ -137,6 +141,10 @@ Prisma relations and back-relations (ADR 0008 section 5):
   - Phones are normalised, then checked against active parties of the same business. A match without
     `confirmDuplicate` is `PARTY_POSSIBLE_DUPLICATE`.
   - The walk-in party can't be deactivated.
+  - **`ensureWalkIn()`**, the Party interface Organization calls right after a business is created (ADR 0010,
+    [#32](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/32), `7efa5f4`), and the backstop when a sale or payment needs the walk-in party and it's missing.
+    It runs `INSERT … ON CONFLICT DO NOTHING` on `(business_id) WHERE is_walk_in`, then reads the row, in the
+    caller's scope as `erp_app`. `created_by` is the caller.
   - Permissions use ADR 0006's per-kind codes (#52): creating a customer needs `party.customer.create`,
     and so on.
 - **`PartyController` and `PartyRoutes`** (api), all `scope: 'tenant'`, each with an isolation case:
@@ -145,18 +153,22 @@ Prisma relations and back-relations (ADR 0008 section 5):
 
 ### 6. Tests to write first
 
-Database (real Postgres, as `erp_app`). The numbers in brackets are ADR 0006's test numbers.
+Database (real Postgres, as `erp_app`). The numbers in brackets are ADR 0006's test numbers. Every test checks
+only rows with its own fresh ids, never table-wide counts: nothing is deleted, so test data builds up (ADR 0008).
 
 1. RLS is enabled **and forced** on `party`. A query outside a tenant scope fails [18].
 2. A user scoped to business X can't read, update or guess the id of a party of business Y [5].
-3. `erp_app` can't `DELETE` from `party`.
+3. `erp_app` can't `DELETE` from `party` (permission denied). As an owner that is neither superuser nor
+   `BYPASSRLS` (ADR 0009 test case 6), a `DELETE` removes 0 rows and the rows are still there; `TRUNCATE` is
+   refused by the trigger, for that owner and for the superuser owner.
 4. `created_branch_id` pointing at a branch of another business fails on the composite FK, even as the owner
    [7].
 5. `UNIQUE (business_id, code)`: the same code is allowed in two businesses and refused twice in one.
-6. A second walk-in party in one business fails. A non-walk-in party without `created_by` fails.
+6. A second walk-in party in one business fails. A non-walk-in party without `created_by` fails. Two parallel
+   `ensureWalkIn()` calls in one business leave exactly one walk-in party, and both return it.
 7. `credit_limit` `50000.00` and `0.00` read back as `"50000.00"` and `"0.00"`. A negative limit fails.
 8. A stale `version` updates no row.
-9. The source file and the migration define the same policy.
+9. The source file and the migration define the same policies and the same `TRUNCATE` trigger.
 
 Manager (unit, fake `IPartyQuery`):
 
@@ -236,9 +248,11 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
    - **A grant to `erp_provisioner` on `party`.** That would change ADR 0008, which keeps the provisioner to two
      tables.
 
-   Recommended: right after the business is created, in a new scope, with the unique index so each business has
-   exactly one walk-in party. It keeps the #15 decision (Organization calls Party's interface when a business is
-   created), so ADR 0006 section 6 doesn't change. The seed does the same for seeded businesses, with
+   Recommended, and now ADR 0010's design ([#32](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/32), `7efa5f4`): right after the business is created, in a
+   new scope, with the unique index so each business has exactly one walk-in party. If that step fails, the
+   `409 business.name_taken` path of a retried create runs it again, and Party's `ensureWalkIn()` creates it on
+   first use as the backstop (section 5). It keeps the #15 decision (Organization calls Party's interface when a
+   business is created), so ADR 0006 section 6 doesn't change. The seed does the same for seeded businesses, with
    `created_by` `NULL`, so the `CHECK (created_by IS NOT NULL OR is_walk_in)` stays as written. Your call.
 
 3. **`text` with `CHECK`, or a PostgreSQL enum,** for `kind` and `status`? Recommended: `text` with `CHECK`.
