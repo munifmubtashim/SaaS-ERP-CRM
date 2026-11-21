@@ -120,12 +120,10 @@ movement's transaction), tenancy (branch-scoped rule).
   same transaction).
 - **Undo:** before go-live, drop the table; no stock or money data depends on it.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Munif:** I-03 says "each item has a reorder level". Per branch, or one per business? **Recommended:** per
-   branch (plan 3.2), because each branch orders for its own shelf. A business-wide default copied into new
-   branches can come later.
-2. **Munif:** a product with no rule: show it as Out when its Available is 0? **Recommended:** no. Many products are
-   never stocked in every branch, so Out would flood the list. Only products with an active rule get Low or Out.
-3. **Munif:** suggested order: the fixed `reorder_qty`, or "top up to level + quantity"? **Recommended:** the fixed
-   `reorder_qty` in release 1, as the spec says; the buyer edits the draft order anyway.
+1. ~~**Munif:** a reorder level per branch, or one per business?~~ **Decided by Munif, 21 Nov:** per branch.
+2. ~~**Munif:** show a product with no rule as Out when its Available is 0?~~ **Decided by Munif, 21 Nov:** no. Only
+   products with an active rule get Low or Out.
+3. ~~**Munif:** suggested order: the fixed `reorder_qty`, or top up to the level?~~ **Decided by Munif, 21 Nov:**
+   the fixed `reorder_qty`.
