@@ -42,6 +42,11 @@ needed yet. The route that adds one must also add its case in `api/test/isolatio
   and timeout settings as `config/db.ts`. #28's lint rule lets only `ProvisioningQuery.ts` import it.
 - **`dal/query/ProvisioningQuery.ts`:**
   - `createBusiness(organizationId, input)` and `createBranch(organizationId, businessId, input)`.
+  - **`createBranch`'s input includes `shortCode`** (ADR 0009, #31: `branch.short_code` is `NOT NULL`, 2 to 6
+    characters, a letter first, uppercase letters or digits, unique within the business, never changed).
+    The database enforces the format (`CHECK`) and the uniqueness (`@@unique([businessId, shortCode])`). The Query
+    maps a unique violation on that index to `AppError('CONFLICT')` with field code `branch.short_code_taken`,
+    so a duplicate is never a 500.
   - Each runs **one interactive transaction on the provisioner client** that first calls
     `set_config('app.organization_id', $1, true)`. That is `SET LOCAL`; never a plain `SET` (CLAUDE.md
     tenancy). It does not set `app.business_ids` or `app.branch_ids` **(#27)**.
@@ -63,6 +68,11 @@ needed yet. The route that adds one must also add its case in `api/test/isolatio
 - **`contracts/IProvisioningQuery.ts`** (the consumer owns the contract, CLAUDE.md).
 - **`contracts/IRoleSource.ts`:** `roleCodesFor(userId, organizationId): Promise<RoleCode[]>`, typed with
   `RoleCode` from #26.
+- **`shortCode` format, checked before the database:** `branchShortCodeSchema` in
+  `shared/src/schemas/organization.schema.ts`: `z.string().regex(/^[A-Z][A-Z0-9]{1,5}$/)`, the same rule as
+  ADR 0009's `CHECK`. It refuses lower case rather than changing it; the branch form upper-cases as you type.
+  Shared code, so both review it. The api parses `createBranch`'s body with it (`parseInput`), and the Manager's
+  unit tests use it too.
 - **`OrganizationManager.createBusiness(caller, input)` and `createBranch(caller, businessId, input)`:**
   1. Refuse with `AppError('FORBIDDEN')` unless the caller's roles include `owner`, **before any query
      call** (ADR 0008 tests 12 and 13).
@@ -87,10 +97,10 @@ needed yet. The route that adds one must also add its case in `api/test/isolatio
 
 ### Tests written first, and how they will fail
 
-| Part | Tests                                                                                                                                                                                                                                                                                                                                                                                                    | First failure                                                                                    |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 1    | Integration, as `erp_provisioner`: creates a business and a branch in organization A and gets the row back; cannot create a business with organization B's id; cannot see organization B's businesses; the transaction leaves `app.business_ids` unset (so `app_business_ids()` raises inside it); `created_by` is `NULL`; a missing `PROVISIONING_DATABASE_URL` fails at start-up with a clear message. | `ProvisioningQuery` and the factory do not exist (import errors), then RLS refusals once they do |
-| 2    | Unit, with fakes: a non-Owner is refused and the fake Query is **never called**; an Owner's call reaches the Query with the caller's organization; a branch under a deactivated business is refused; `createManagers` throws when no role source is supplied.                                                                                                                                            | the Manager methods and contracts do not exist                                                   |
+| Part | Tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | First failure                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1    | Integration, as `erp_provisioner`: creates a business and a branch in organization A and gets the row back; cannot create a business with organization B's id; cannot see organization B's businesses; the transaction leaves `app.business_ids` unset (so `app_business_ids()` raises inside it); `created_by` is `NULL`; a missing `PROVISIONING_DATABASE_URL` fails at start-up with a clear message. **`shortCode`:** a branch with `UTT` is created and reads back `UTT`; a second branch with `UTT` in the same business gets `409` with `branch.short_code_taken` and inserts nothing; `UTT` in another business of the same organization is accepted. | `ProvisioningQuery` and the factory do not exist (import errors), then RLS refusals once they do |
+| 2    | Unit, with fakes: a non-Owner is refused and the fake Query is **never called**; an Owner's call reaches the Query with the caller's organization; a branch under a deactivated business is refused; `createManagers` throws when no role source is supplied; `branchShortCodeSchema` accepts `UTT` and `AG2` and refuses `utt`, `U`, `TOOLONG`, `U-T` and `2UT`, and a refused code never reaches the fake Query.                                                                                                                                                                                                                                            | the Manager methods and contracts do not exist                                                   |
 
 ### Order
 
