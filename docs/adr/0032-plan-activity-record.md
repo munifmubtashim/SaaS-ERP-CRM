@@ -57,7 +57,8 @@ The table rules proposed on #27 and #31 apply:
 ### The Activity Log page (B3)
 
 - `GET /v1/activity`, a tenant route with filters: user, page, action and date range; cursor pages.
-- It needs `organization.activity.view`, and `before`/`after` pass through ADR 0033's redaction.
+- It needs `organization.activity.view`, held by Owner, Business Manager (own businesses) and Accountant (decided by
+  Munif, 21 Nov). `before`/`after` pass through ADR 0033's redaction.
 - **Frontend:** `features/organization/ActivityLogPage` (Organization is Munif's module).
 
 ## Invariants touched
@@ -103,7 +104,7 @@ Tenancy (RLS, the second transaction for denied actions), append-only records (l
 
 ## Open questions (with recommended answers)
 
-1. **Munif:** who may open the Activity Log? Recommended: Owner, Business Manager (own businesses) and
-   Accountant.
-2. **Both:** partition by month now? Recommended: no, later, when volume needs it.
+1. ~~**Munif:** who may open the Activity Log?~~ **Decided by Munif, 21 Nov:** Owner, Business Manager (own
+   businesses) and Accountant. `organization.activity.view` is mapped to those three roles.
+2. ~~**Both:** partition by month now?~~ **Decided by Munif, 21 Nov:** no partitioning now.
 3. **Farhan:** should viewing a full NID (CR-06) write `view_sensitive` here, as plan 2.2 says? Recommended: yes.
