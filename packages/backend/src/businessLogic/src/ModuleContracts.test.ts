@@ -11,5 +11,13 @@ postingContract('FakePostingService', async (options) => {
 
 stockContract('FakeStockService', async () => {
   const service = new FakeStockService();
-  return { service, onHand: async (productId, branchId) => service.onHand(productId, branchId) };
+  return {
+    service,
+    onHand: async (productId, branchId) => service.onHand(productId, branchId),
+    movementOf: async (id) => {
+      const found = service.movements.find((m) => m.id === id);
+      if (!found) throw new Error(`no movement ${id}`);
+      return found;
+    },
+  };
 });
