@@ -204,6 +204,15 @@ export default tseslint.config(
               message: 'Depend on ./contracts/I<Module>Query; import only types (DTOs) from @erp/dal.',
             },
           ],
+          // ADR 0012: another module is reached only through its published interface (contracts/provided/*),
+          // never through its Manager or its service class, not even as a type.
+          patterns: [
+            {
+              group: ['./*Manager', './*Manager.js', './*Service', './*Service.js'],
+              message:
+                "Depend on the provider's published interface in ./contracts/provided/, not on its class.",
+            },
+          ],
         },
       ],
     },
