@@ -120,6 +120,9 @@ erp_app`, they are never evaluated for `erp_provisioner`, whose transaction sets
 - **Nothing is deleted, by any role.** The demo reset recreates the database (drop, create, migrate, seed); it
   never deletes rows. Erasing a person's data (for example a customer who asks to be forgotten) needs its own
   later ADR.
+- **`BEFORE TRUNCATE` trigger on all four tables**, raising for every role (ADR 0008, Farhan's point 2 on #27):
+  RLS doesn't apply to `TRUNCATE`, so without it the owner could empty a table and free every `short_code`. Test
+  case 10.
 - **`UPDATE` for `erp_app` is column-level** (answers Farhan's point 2):
   - `organization`, `legal_entity`: **no `UPDATE`** in release 1. The owner or the seed changes them.
   - `business`: `UPDATE (name, bin, address, logo_key, invoice_prefix, opening_hours, fiscal_year_start_month,
@@ -173,7 +176,8 @@ is_active, version, updated_at)`.
 | 6      | **The owner path, without superuser or `BYPASSRLS`.** In the throwaway Postgres, the test creates such a role, a database it owns, and runs the migration as that role. Then, as that role: an insert with the `app.*` values set for the fixture's scope succeeds; an insert outside that scope, or with no `app.*` values set, is refused; a select returns only rows in the set scope. `erp_provisioner`'s own policies are unchanged. |
 | 7      | A second `business` named `Demo Motors` or `demo motors` in the same organization is refused, also while the first is deactivated; the same name in another organization is accepted. _(Part 1.)_                                                                                                                                                                                                                                         |
 | 8      | `erp_provisioner` can't insert a `branch` under a business with `is_active = false`, even inside its own organization. _(Part 2.)_                                                                                                                                                                                                                                                                                                        |
-| 9      | As the owner without superuser or `BYPASSRLS` (the test case 6 role), `DELETE` on any of the four tree tables is refused, so a `branch` and its `short_code` can't be removed. _(Part 1.)_                                                                                                                                                                                                                                                |
+| 9      | As the owner without superuser or `BYPASSRLS` (the test case 6 role), a `DELETE` on any of the four tree tables removes 0 rows and raises no error (no `DELETE` policy under forced RLS). The test checks that the rows are **still there** afterwards, so a `branch` and its `short_code` can't be removed. _(Part 1.)_                                                                                                                  |
+| 10     | `TRUNCATE` on any of the four tree tables is refused by the `BEFORE TRUNCATE` trigger, as that owner role and as the superuser owner. _(Part 1.)_                                                                                                                                                                                                                                                                                         |
 
 Test 16 (`created_by` is the caller) applies to later modules' create routes, not to these tables (#27).
 
@@ -193,7 +197,8 @@ Test 16 (`created_by` is the caller) applies to later modules' create routes, no
     2. set `app.organization_id`, `app.business_ids` and `app.branch_ids` with `set_config(..., true)` in the same
        transaction;
     3. insert inside that scope. Nothing is deleted afterwards: each test uses fresh ids in its throwaway
-       database.
+       database, and asserts only on rows with those ids, never on table-wide counts (ADR 0008, Farhan's point 3
+       on #27).
   - So the owner sees and writes only the scope it has set, like `erp_app`, and forced RLS means something for
     it. No role needs `BYPASSRLS`.
   - **Docker Compose and CI:** the owner there is the image's `POSTGRES_USER` (`erp_owner`), a superuser, which
