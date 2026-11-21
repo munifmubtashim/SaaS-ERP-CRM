@@ -6,9 +6,17 @@ answer before that; the **can wait** ones can be answered during the build.
 
 Each line gives the question, who decides, the recommendation, and the PR to answer it on.
 
-**Agreed by Farhan on 21 Nov (approved, then the final commit cleared the approvals, so each needs re-approval):**
-#27 ADR 0008 amendment (head `91f9ed3`), #31 ADR 0009 Accepted (head `c11c309`), #32 ADR 0010 Accepted (head
-`d401a51`). Their open questions above are settled.
+**Agreed by Farhan on 21 Nov, and re-approved after the final commit:** #27 ADR 0008 amendment (head `91f9ed3`),
+#31 ADR 0009 Accepted (head `c11c309`), #32 ADR 0010 Accepted (head `d401a51`). Their open questions above are
+settled.
+
+**Built (draft PRs, stacked; merge in this order):** #29 `uuid_v7()`, then #80 ADR 0009 part 1 (organization
+tree), then #28 (`erp_provisioner` role) and #81 ADR 0009 part 2 (provisioner grants), then #82 ADR 0010 part 1
+(`ProvisioningQuery`). Each passed `npm run check`, the integration and isolation suites and the drift check.
+
+| #   | Question                                                                                                                                                                                                               | Who   | Recommendation                                                         | Blocks building? |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------- | ---------------- |
+| B-1 | Add to ADR 0009 (on #31) that the production provisioning role must be named `erp_provisioner`, and that the migration role and the seed role must be the same? It's in the README, the migrations and #80/#81 for now | Munif | Yes, as one small commit on #31 (it dismisses Farhan's approval again) | no               |
 
 ## 1. #31 ADR 0009: organization tables (A3b) — next to build
 
@@ -224,3 +232,31 @@ review only.
 | 0040-1 | Every adjustment needs approval?                               | Munif      | **Decided by Munif, 21 Nov:** yes, every adjustment            | yes              |
 | 0040-2 | One `inventory_loss` role for losses and gains, or per reason? | accountant | **Decided by Munif, 21 Nov:** one account for losses and gains | yes              |
 | 0040-3 | A count per location, or a whole branch at once?               | Munif      | **Decided by Munif, 21 Nov:** one location at a time           | no (part 2)      |
+
+## 12. Batch 4 (drafted 21 Nov): transfers, reorder rules, attachments
+
+### #83 ADR 0041: stock transfers with approval and In transit (C6)
+
+| #      | Question                                                                                    | Who   | Recommendation                                                                               | Blocks building? |
+| ------ | ------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------- | ---------------- |
+| 0041-1 | A receive writes to both branches; RLS allows only the caller's branches. Who can receive?  | Munif | A user with both branches in scope (Owner, Business Manager, or a Branch Manager given both) | yes              |
+| 0041-2 | A move between two locations of the same branch: a transfer with approval, or a plain move? | Munif | A plain move: one step, no approval, no journal                                              | yes (part 1)     |
+| 0041-3 | `inter_branch`: one account per business, or one per pair of branches?                      | both  | One account; each journal's `branch_id` says which branch owes                               | no (part 2)      |
+
+### #84 ADR 0042: reorder rules, Low and Out of stock (C8)
+
+| #      | Question                                                      | Who   | Recommendation                                       | Blocks building? |
+| ------ | ------------------------------------------------------------- | ----- | ---------------------------------------------------- | ---------------- |
+| 0042-1 | Reorder level per branch, or one per business?                | Munif | Per branch                                           | yes              |
+| 0042-2 | Show a product with no rule as Out when Available is 0?       | Munif | No: only products with an active rule get Low or Out | yes              |
+| 0042-3 | Suggested order: the fixed `reorder_qty`, or top up to level? | Munif | The fixed `reorder_qty` in release 1                 | no               |
+
+### #85 ADR 0043: attachments and exports (B13)
+
+| #      | Question                                                              | Who   | Recommendation                                                      | Blocks building? |
+| ------ | --------------------------------------------------------------------- | ----- | ------------------------------------------------------------------- | ---------------- |
+| 0043-1 | Which attachment subjects in release 1?                               | Munif | `party` only (the Documents tab); others come with their screens    | yes              |
+| 0043-2 | Where does the S3 client live?                                        | both  | In dal, behind a businessLogic `IObjectStore`                       | yes              |
+| 0043-3 | Allowed types and size?                                               | Munif | JPEG, PNG, WebP, PDF up to 10 MB; the browser converts HEIC to JPEG | yes              |
+| 0043-4 | PDF of a list: browser print, or a PDF library?                       | Munif | Browser print to PDF (no embedded Bangla font needed)               | no (part 3)      |
+| 0043-5 | Record every export as an activity event (adds `export` to ADR 0032)? | Munif | Yes                                                                 | no (part 3)      |
