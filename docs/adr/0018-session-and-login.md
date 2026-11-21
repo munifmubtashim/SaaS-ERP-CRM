@@ -70,8 +70,9 @@ Auth is a permissions and migration area, so CLAUDE.md requires an agreed plan. 
   - Every non-GET request must also carry an `Origin` header equal to the app's origin, or it is refused
     (`403 FORBIDDEN`).
   - No CSRF token is needed with both.
-- **Never logged:** Pino redacts `req.headers.cookie`, `set-cookie`, `password`, and any `token` field (CLAUDE.md
-  logging rule). A test checks the redaction paths.
+- **Never logged:** Pino redacts `req.headers.cookie`, `set-cookie`, `password`, any `token` field, and the login
+  field (`req.body.login` and `*.login`), which is a full E.164 phone or an email (CLAUDE.md logging rule; Farhan's
+  point on #45). A test checks the redaction paths.
 
 ### 3. Lifetimes
 
@@ -145,7 +146,8 @@ No valid session → `401`. `tenantMiddleware` (A6) then builds `req.tenant` fro
 7. A session past its idle or its absolute expiry gets `401`; activity extends idle but never absolute.
 8. A password change revokes all of that user's sessions.
 9. A non-GET request without a matching `Origin` → `403`.
-10. Logs: a login request's log line contains no password, cookie or token (Pino redaction test).
+10. Logs: a login request's log line contains no password, cookie or token, and neither a phone nor an email from
+    the login field, whether it is logged under `req.body` or another object (Pino redaction test).
 11. A hash made with lower settings is upgraded after a successful login.
 12. `AuthQuery` is the only dal file that names `auth_session` (extends ADR 0008 test 15).
 
