@@ -137,8 +137,11 @@ Report. **Farhan**: Party, Sales, Purchase, Service, Crm. Each has a stub in eve
 Shared code (`shared`, `dal/prisma` entry file and migrations, `app.ts`, every `index.ts`, the app shell, CI and
 these rules) needs both reviewers and changes in **small separate PRs, merged first**.
 
-Every module router is mounted from `api/routes/index.ts` with `scope: 'public' | 'tenant'`. A tenant route
-without a case in `api/test/isolation/cases.ts` fails CI; a public route must be on `PUBLIC_ROUTES`.
+Every module router is mounted from `api/routes/index.ts` with `scope: 'public' | 'tenant' | 'provisioning'`. A
+tenant route without a case in `api/test/isolation/cases.ts` fails CI; a public route must be on `PUBLIC_ROUTES`.
+A **provisioning** route (create a business or branch, ADR 0010) runs **outside any tenant transaction**, is for
+**the Owner only**, reaches the database **only through `ProvisioningQuery`**, and fails CI without a case in
+`PROVISIONING_CASES`.
 
 ## Code standards: classes, SOLID, DRY (ADR 0004; example: the Health slice)
 
