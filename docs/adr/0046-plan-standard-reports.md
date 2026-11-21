@@ -125,12 +125,10 @@ under the caller's RLS), money and date rules.
 - **Harder:** a change to a source table must keep its report view working; the view test catches it.
 - **Undo:** drop the views in a new migration; nothing writes data.
 
-## Open questions (with recommended answers)
+## Open questions
 
-1. **Munif:** the previous period for a whole month: the previous calendar month (October has 31 days) or the
-   same number of days? **Recommended:** the previous calendar month when the range is a whole month, otherwise the
-   same number of days.
-2. **Munif:** VAT report in release 1? **Recommended:** no, until D12 and Q15 settle whether Moto Mart files VAT
-   through this system.
-3. **Farhan:** "profit by salesperson" needs a salesperson on each invoice. Is that on ADR 0022's invoice?
-   **Recommended:** a nullable `salesperson_id` on the invoice, defaulting to the user who made it.
+1. ~~**Munif:** the previous period for a whole month?~~ **Decided by Munif, 21 Nov:** the previous calendar month
+   when the range is a whole month, otherwise the same number of days just before.
+2. ~~**Munif:** VAT report in release 1?~~ **Decided by Munif, 21 Nov:** no.
+3. **Farhan (open, his decision):** a salesperson on each invoice (ADR 0022) for profit by salesperson? **Munif's
+   lean, 21 Nov:** yes, a nullable `salesperson_id` that defaults to the user who created the invoice.
