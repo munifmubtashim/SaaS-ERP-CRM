@@ -85,10 +85,7 @@ interface IApprovalService {
     reason: string;
   }): Promise<{ requestId: string }>;
   /** True when the subject has an approved request of that kind. */
-  isApproved(
-    kind: ApprovalKind,
-    subject: { type: string; id: string },
-  ): Promise<boolean>;
+  isApproved(kind: ApprovalKind, subject: { type: string; id: string }): Promise<boolean>;
 }
 ```
 
