@@ -196,3 +196,27 @@ review only.
 | 0037-1 | Expense approval limit?                       | Munif, owner | Per-business rule; default ৳10,000.00 | yes              |
 | 0037-2 | Payee as free text with an optional supplier? | Munif        | Yes                                   | yes              |
 | 0037-3 | Receipt required once attachments exist?      | Munif        | Above the approval limit only         | no               |
+
+### #77 ADR 0038: salary entries
+
+| #      | Question                                 | Who   | Recommendation                              | Blocks building? |
+| ------ | ---------------------------------------- | ----- | ------------------------------------------- | ---------------- |
+| 0038-1 | Allow "accrued" salaries in release 1?   | Munif | No; cash and bank only, accruals later      | yes              |
+| 0038-2 | Who may enter salaries?                  | Munif | Owner and Accountant                        | yes              |
+| 0038-3 | Salary as its own table, not an expense? | Munif | Own table (hidden field, per-staff reports) | yes              |
+
+### #78 ADR 0039: financial statements
+
+| #      | Question                                                     | Who        | Recommendation                                                | Blocks building? |
+| ------ | ------------------------------------------------------------ | ---------- | ------------------------------------------------------------- | ---------------- |
+| 0039-1 | Equity section = capital + retained profit + current profit? | accountant | Yes, with a year-end close later                              | no (part 2)      |
+| 0039-2 | P&L by branch in release 1?                                  | Munif      | Yes, as a column option                                       | no               |
+| 0039-3 | Which roles see the statements?                              | Munif      | Owner and Accountant; Business Manager the trial balance only | yes              |
+
+### #79 ADR 0040: stock adjustments and counts
+
+| #      | Question                                                       | Who        | Recommendation         | Blocks building? |
+| ------ | -------------------------------------------------------------- | ---------- | ---------------------- | ---------------- |
+| 0040-1 | Every adjustment needs approval?                               | Munif      | Every one in release 1 | yes              |
+| 0040-2 | One `inventory_loss` role for losses and gains, or per reason? | accountant | One role               | yes              |
+| 0040-3 | A count per location, or a whole branch at once?               | Munif      | Per location           | no (part 2)      |
