@@ -128,12 +128,13 @@ redacted), append-only history (#27), notifications in the same transaction (inv
 - **Harder:** the list's speed depends on every source's query; each source PR adds its index and a timing test.
 - **Undo:** before go-live, drop the two tables; the sources are read-only.
 
-## Open questions (with recommended answers)
+## Open questions
 
-1. **Munif:** when a resolved item's condition is still true, hide it until the condition starts again, or show it
-   again on the next day? **Recommended:** hide until it starts again (section 3); a "resolve" means "dealt with".
-2. **Munif:** the thresholds (N days for not delivered, registration, bill due; the stock age): fixed defaults or
-   per-business settings? **Recommended:** per-business settings with defaults (3 days, 15 days, 7 days, 180
-   days), stored with the business's other settings.
-3. **Farhan:** do `sold_not_delivered`, `overdue_customer_payment`, `supplier_bill_due` and `pending_approval` fit
-   `ExceptionRow`, or does any need another field? **Recommended:** they fit; `summary` carries the specifics.
+1. ~~**Munif:** a resolved item whose condition is still true?~~ **Decided by Munif, 21 Nov:** hidden until the
+   problem starts again (section 3).
+2. ~~**Munif:** the thresholds: fixed or per business?~~ **Decided by Munif, 21 Nov:** fixed in release 1: not
+   delivered after 3 days, registration overdue after 15 days, supplier bill due within 7 days, stock aged over 180
+   days. Constants in one place, so per-business settings can replace them later.
+3. **Farhan (open, his decision):** do `sold_not_delivered`, `overdue_customer_payment`, `supplier_bill_due` and
+   `pending_approval` fit `ExceptionRow`, or does any need another field? Munif leaves the exception kinds to
+   Farhan.
