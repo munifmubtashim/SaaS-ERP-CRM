@@ -80,6 +80,11 @@ Constraints already decided elsewhere and not reopened here:
   provisioning path. Creating them from the provisioning path (onboarding a new client) is a later ADR.
   They are seeded by a script that a person runs as the migration owner (plan A19 note), outside A3.
   (Proposed, to agree with Farhan.)
+  - **`erp_app` has no `INSERT` on `organization` or `legal_entity` either** (section 4), and `erp_provisioner`
+    doesn't cover them: it has `INSERT` and `SELECT` on `business` and `branch` only. So until onboarding is
+    designed in a later ADR, only the migration owner or the seed script creates them. The seed writes through
+    the owner's own `TO CURRENT_USER` policies with the `app.*` values set, so RLS stays forced on the owner
+    (ADR 0009, #31). (Proposed, to agree with Farhan.)
 - **Deactivation:** `is_active = false` keeps history and refuses new writes. Enforcement is two-layered:
   the Manager refuses with a clear message, and each branch-scoped table gets a `WITH CHECK` using
   `branch_is_active(branch_id)` as it is added. The tree tables themselves carry the flag only; the
@@ -182,7 +187,9 @@ All policies use the functions from the RLS migration (#19): `app_organization_i
 - `app_user`, `role`, `role_permission`, `user_scope`: no RLS (section 2). `permission`: no RLS, global.
 - Every table: `ENABLE` and `FORCE ROW LEVEL SECURITY`; `REVOKE DELETE ... FROM erp_app` in the same migration,
   because the default privileges in `01-app-role.sh` grant it. `permission` also revokes `INSERT` and `UPDATE`;
-  `business` and `branch` also revoke `INSERT` (provisioning only, section 1).
+  `business` and `branch` also revoke `INSERT` (provisioning only, section 1). `organization` and `legal_entity`
+  also revoke `INSERT` (the migration owner or the seed creates them, section 1; matches ADR 0009, #31).
+  (Proposed, to agree with Farhan.)
 - `erp_provisioner`: `GRANT INSERT, SELECT` on `business` and `branch`, and its own `INSERT` and `SELECT`
   policies `TO erp_provisioner` on those two tables, which check the organization `ProvisioningQuery` sets
   (section 1). Nothing on `organization`, `legal_entity` or any other table.
@@ -244,7 +251,8 @@ Integration, real Postgres, connected as `erp_app`:
     for organization A, returns and changes nothing of organization B, including by guessed id.
 11. `AuthQuery`'s scope read for user U returns only U's own `user_scope` rows.
 12. `erp_app` still cannot `INSERT` into `business`, with `erp_provisioner` and its policies in place; the
-    provisioning path can, after the Manager's Owner check, as `erp_provisioner`.
+    provisioning path can, after the Manager's Owner check, as `erp_provisioner`. `erp_app` cannot `INSERT`
+    into `organization` or `legal_entity` either (ADR 0009 test case 1). (Proposed, to agree with Farhan.)
 13. `erp_app` still cannot `INSERT` into `branch` directly, with `erp_provisioner` and its policies in
     place; the provisioning path can, as `erp_provisioner`, after the Manager's Owner check, and a
     non-Owner caller is refused before any insert.
