@@ -20,15 +20,15 @@ nothing. No code is in this PR.
 
 ### 1. The lines (all money as strings, arithmetic through `shared/src/utils/money`)
 
-| Line                       | Source (owner)                                                                                                                           |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Opening**                | today's balances of the `cash`, `bank` and `mobile_money` account roles, from posted journals (ADR 0013)                                 |
-| + **Expected collections** | open customer dues by due date (ADR 0026, Farhan); a promise-to-pay date (CR-05, F1) replaces the due date                               |
-| − **Supplier bills due**   | open purchase bills by due date (ADR 0028, Farhan)                                                                                       |
-| − **Recurring expenses**   | each active `recurring_expense` occurrence in the horizon (ADR 0037)                                                                     |
-| − **Salaries**             | per active staff member, the average monthly total of their last 3 months' salary entries (ADR 0038), on the recurring settings' due day |
-| = **Closing** per week     | carried into the next week's opening                                                                                                     |
-| **Uncertain** (separate)   | dues already overdue today: shown on their own line, **not** added to expected collections                                               |
+| Line                                             | Source (owner)                                                                                                                           |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Opening**                                      | today's balances of the `cash`, `bank` and `mobile_money` account roles, from posted journals (ADR 0013)                                 |
+| + **Expected collections** (labelled "Expected") | open customer dues by due date (ADR 0026, Farhan); a promise-to-pay date (CR-05, F1) replaces the due date                               |
+| − **Supplier bills due**                         | open purchase bills by due date (ADR 0028, Farhan)                                                                                       |
+| − **Recurring expenses**                         | each active `recurring_expense` occurrence in the horizon (ADR 0037)                                                                     |
+| − **Salaries**                                   | per active staff member, the average monthly total of their last 3 months' salary entries (ADR 0038), on the recurring settings' due day |
+| = **Closing** per week                           | carried into the next week's opening                                                                                                     |
+| **Uncertain** (separate)                         | dues already overdue today: shown on their own line, **not** added to expected collections                                               |
 
 - **Weeks** are business weeks in Asia/Dhaka (question 1); the horizon is 4, 8 or 13 weeks (1 to 3 months).
 - A recurring expense **never posts by itself**; on its due day it is an Action Center item (ADR 0037, 0045).
@@ -90,12 +90,10 @@ RLS), money and date rules.
   flatter it.
 - **Undo:** remove the report class; nothing is stored.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Munif:** which day does a forecast week start? **Recommended:** Saturday (Saturday to Friday), matching a
-   showroom's trading week in Bangladesh, where Friday is the weekly holiday.
-2. **Munif:** who sees the forecast? **Recommended:** Owner and Accountant only, because its totals reveal salaries.
-   A Business Manager version without the salary line and totals can come later if asked.
-3. **Munif:** expected collections at 100 % of the due amount, or discounted by each customer's payment history?
-   **Recommended:** 100 % in release 1, with overdue dues kept apart; a likelihood weighting needs data the system
-   doesn't have yet.
+1. ~~**Munif:** which day does a forecast week start?~~ **Decided by Munif, 21 Nov:** Saturday (Saturday to
+   Friday), **to be confirmed with the owner** on the next visit.
+2. ~~**Munif:** who sees the forecast?~~ **Decided by Munif, 21 Nov:** Owner and Accountant only.
+3. ~~**Munif:** expected collections at 100 %, or weighted?~~ **Decided by Munif, 21 Nov:** 100 %, and the line is
+   labelled **"Expected"** on screen (en and bn), with overdue dues kept on their own line.
