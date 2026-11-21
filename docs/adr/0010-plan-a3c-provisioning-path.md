@@ -2,7 +2,7 @@
 
 | Field               | Value                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------- |
-| Status              | Proposed                                                                                |
+| Status              | Accepted (approved by Farhan on #32, 21 Nov)                                            |
 | Date                | 2026-11-20                                                                              |
 | Deciders            | Munif, Farhan                                                                           |
 | Spec / roadmap refs | ADR 0008 section 1 and its amendment (#27); ADR 0005 named exception; ADR 0009; plan A3 |
@@ -186,14 +186,13 @@ business.name_taken`, and path 1 finishes the walk-in from there. If provisionin
 
 1. ~~**Factory in `ProvisioningQuery.ts`.**~~ Decided by Farhan on #32 (21 Nov): yes.
 2. ~~**(Munif) `PROVISIONING_DATABASE_URL`, required or optional?**~~ Answered by Munif on #32 (20 Nov): required in
-   production, optional in tests and local development (Part 1). Open until Farhan agrees.
+   production, optional in tests and local development (Part 1). Agreed by Farhan, 21 Nov.
 3. ~~**(Munif) The interim role source until A5.**~~ Decided by Farhan on #32 (21 Nov): yes, an explicit deny-all
    source.
 4. ~~**Does `OrganizationQuery` belong here?**~~ Decided by Farhan on #32 (21 Nov): no, its reads go in A6.
-5. **`created_by` is the calling Owner.** Munif's answer (21 Nov), open until Farhan agrees. #27 now says "`NULL`
+5. **`created_by` is the calling Owner.** Munif's answer (21 Nov), agreed by Farhan, 21 Nov. #27 now says "`NULL`
    only when seeded".
-6. **Business names unique per organization, case-insensitive.** Munif's answer (21 Nov), open until Farhan
-   agrees; the detail is in ADR 0009 (#31). ⚠ A deactivated business keeps its name taken; the Owner renames it
+6. **Business names unique per organization, case-insensitive.** Munif's answer (21 Nov), agreed by Farhan, 21 Nov; the detail is in ADR 0009 (#31). ⚠ A deactivated business keeps its name taken; the Owner renames it
    to free the name.
 7. **(Both, new) The CLAUDE.md line for the `provisioning` route kind.** Its own small PR, after this ADR is
    agreed, reviewed by both. Recommended: Munif opens it.
