@@ -43,8 +43,8 @@ key columns frozen. `erp_app` may `UPDATE (status, removed_by, removed_at, updat
   the provider's server-side encryption in production) for C-12.
 - **The api never streams files.** Upload and download use presigned URLs: `PUT` valid 5 minutes, `GET` valid 60
   seconds.
-- The S3 client lives behind `IObjectStore` (`presignPut`, `presignGet`, `head`), a businessLogic contract
-  implemented in dal next to the database access (question 2).
+- The S3 client sits behind `IObjectStore` (`presignPut`, `presignGet`, `head`), a contract businessLogic owns.
+  **Where the implementing class lives is still open** (question 2).
 
 ### Flow
 
@@ -136,16 +136,53 @@ responses).
 - **Harder:** object storage becomes part of backups and restores; a file and its row must be restored together.
 - **Undo:** before go-live, drop the table and empty the bucket in a new migration and a script.
 
-## Open questions (with recommended answers)
+## HEIC: the phones and browsers to check (question 3)
 
-1. **Munif:** which subjects in release 1? **Recommended:** `party` only (the Documents tab, plan 1.5); each other
-   subject comes with its screen.
-2. **Both:** where does the S3 client live? CLAUDE.md calls dal "database access only". **Recommended:** dal, as the
-   one layer that talks to outside storage, behind a businessLogic `IObjectStore`; the alternative is a new
-   `infrastructure` package, which isn't worth it for one client.
-3. **Munif:** allowed types and size: JPEG, PNG, WebP, PDF up to 10 MB? Phones often send HEIC. **Recommended:**
-   those four, and the upload screen converts HEIC to JPEG in the browser.
-4. **Munif:** PDF of a list: the browser's print to PDF, or a PDF library? **Recommended:** print to PDF; a library
-   would need an embedded Bangla font.
-5. **Munif:** record every export as an activity event? It means adding `export` to ADR 0032's action list.
-   **Recommended:** yes. A customer list export is the easiest way for data to leave the business.
+iPhones save photos as HEIC by default ("High Efficiency"), and some Android phones can too. The upload screen
+turns a HEIC file into JPEG in the browser before step 1, with a decoder loaded only when a HEIC file is picked;
+the server never accepts HEIC. Part 1's manual check, on real devices or a device cloud, for each row: pick a
+photo from the gallery, take one with the camera, and pick a PDF. Each must arrive as JPEG or PDF under 10 MB,
+upright (orientation kept), and readable.
+
+| Device                                                                                      | Browsers                 |
+| ------------------------------------------------------------------------------------------- | ------------------------ |
+| iPhone on the current and previous iOS (camera set to High Efficiency)                      | Safari, Chrome           |
+| Samsung Galaxy, an A series and an S series, current Android, "High efficiency pictures" on | Chrome, Samsung Internet |
+| A Xiaomi or Realme on Android (common in Bangladesh)                                        | Chrome                   |
+| Windows laptop, with a HEIC file copied from an iPhone                                      | Chrome, Edge             |
+| Mac, with a HEIC file from Photos                                                           | Safari, Chrome           |
+
+Each result goes in part 1's PR description. A row that can't convert shows "Please choose a JPEG or PDF" in en and
+bn, never a silent failure.
+
+## Open questions
+
+1. ~~**Munif:** which subjects in release 1?~~ **Decided by Munif, 21 Nov:** customers only (`party`, the
+   Documents tab).
+2. **Munif and Farhan (open): where does the storage client live?** Both options keep `IObjectStore` as a
+   businessLogic contract (CLAUDE.md line 148, "the consuming layer owns the contract", is met either way) and
+   construct it once in `createManagers`, injected through constructors (line 146 is met either way). They differ
+   in which other lines they stretch:
+   - **A. In dal** (`dal/storage/ObjectStore.ts`).
+     - Line 87, the tree: "`dal/` database access only". It would need to read "database and file storage
+       access".
+     - Line 116: "**dal** is the only place that talks to the database". Still true, but dal would also talk to
+       MinIO.
+     - Line 151: "Query = database". The storage class isn't a Query, so it gets its own name pattern
+       (`<Thing>Store`).
+     - Line 115: `createManagers` already "builds the dal client and Queries"; it would build the store too.
+     - No lint change: dal may import any package.
+   - **B. An adapter in businessLogic** (`businessLogic/src/adapters/S3ObjectStore.ts`), built in `createManagers`.
+     - Line 114: "**businessLogic** holds the rules: no Express, no SQL, no Prisma". An I/O adapter isn't a rule;
+       the letter holds (no Express, SQL or Prisma), the spirit doesn't.
+     - Line 151: "Manager = rules". The adapter is neither a Manager nor a rule, so the single-responsibility line
+       needs an "adapters" entry.
+     - Line 115: `createManagers` would build the adapter too.
+     - Lint: `@aws-sdk/*` isn't on businessLogic's banned list, so nothing fails, and nothing stops other I/O
+       creeping in either. Adding an `adapters/` folder rule would be new lint.
+   - Either way, CLAUDE.md gets a one-line change in its own small PR, reviewed by both.
+3. ~~**Munif:** allowed types and size?~~ **Decided by Munif, 21 Nov:** JPEG, PNG, WebP and PDF up to 10 MB; the
+   browser converts HEIC to JPEG. The devices and browsers to check are listed above.
+4. ~~**Munif:** PDF of a list?~~ **Decided by Munif, 21 Nov:** the browser's print to PDF.
+5. ~~**Munif:** record every export as an activity event?~~ **Decided by Munif, 21 Nov:** yes. `export` is added
+   to ADR 0032's action list (#71) when that ADR is next changed.
