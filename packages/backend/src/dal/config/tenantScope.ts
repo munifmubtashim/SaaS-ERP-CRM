@@ -5,8 +5,8 @@ import type { DbClient } from './db.js';
 
 /**
  * Tenant transaction scope (ADR 0005). Every tenant request runs in ONE transaction that first sets
- * app.organization_id, app.business_ids and app.branch_ids transaction-locally; RLS policies read them. Queries never
- * receive this client: BaseQuery reads it from currentClient().
+ * app.organization_id, app.business_ids, app.branch_ids and app.branch_id transaction-locally; RLS policies
+ * read them. Queries never receive this client: BaseQuery reads it from currentClient().
  */
 export type TxClient = Prisma.TransactionClient;
 
@@ -40,9 +40,11 @@ export function runInTenantScope<T>(
   }
   const parsed = tenantScopeSchema.safeParse(scope);
   if (!parsed.success) {
-    return Promise.reject(new AppError('INTERNAL_ERROR', 'Invalid tenant scope: ids must be UUIDs.'));
+    return Promise.reject(
+      new AppError('INTERNAL_ERROR', 'Invalid tenant scope: ids must be UUIDs, branchId one of branchIds.'),
+    );
   }
-  const { organizationId, businessIds, branchIds } = parsed.data;
+  const { organizationId, businessIds, branchIds, branchId } = parsed.data;
   if (businessIds.length > 1 && !readOnly) {
     return Promise.reject(
       new AppError('INTERNAL_ERROR', 'A scope with several businesses is allowed only on read-only routes.'),
@@ -53,10 +55,12 @@ export function runInTenantScope<T>(
     if (readOnly) await tx.$executeRaw`SET TRANSACTION READ ONLY`;
     // set_config(name, value, is_local = true) is SET LOCAL with bind parameters (SET LOCAL takes none).
     // RLS policies read these through app_organization_id(), app_business_ids(), app_branch_ids().
+    // app.branch_id is always set, to '' when the route has no write branch, so nothing reads a stale value.
     await tx.$queryRaw`
       SELECT set_config('app.organization_id', ${organizationId}, true),
              set_config('app.business_ids', ${businessIds.join(',')}, true),
-             set_config('app.branch_ids', ${branchIds.join(',')}, true)`;
+             set_config('app.branch_ids', ${branchIds.join(',')}, true),
+             set_config('app.branch_id', ${branchId ?? ''}, true)`;
     return storage.run(tx, fn);
   });
 }

@@ -76,3 +76,38 @@ describe('RLS policy functions (ADR 0005)', () => {
     }
   });
 });
+
+describe('app.branch_id: the branch a write goes to (ADR 0007 step 6)', () => {
+  const readBranchId = async () => {
+    const [row] = await currentClient().$queryRaw<{ value: string | null }[]>`
+      SELECT current_setting('app.branch_id', true) AS value`;
+    return row?.value ?? '';
+  };
+
+  it('the scope sets app.branch_id to the scope’s branchId', async () => {
+    const scope = {
+      organizationId: ORG,
+      businessIds: [BIZ_A],
+      branchIds: [BRANCH_A1, BRANCH_A2],
+      branchId: BRANCH_A2,
+    };
+    expect(await runInTenantScope(app, scope, readBranchId)).toBe(BRANCH_A2);
+  });
+
+  it('a scope without branchId leaves app.branch_id empty, never the previous request’s branch', async () => {
+    const withBranch = {
+      organizationId: ORG,
+      businessIds: [BIZ_A],
+      branchIds: [BRANCH_A1],
+      branchId: BRANCH_A1,
+    };
+    const withoutBranch = { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH_A1] };
+    expect(await runInTenantScope(singleConnection, withBranch, readBranchId)).toBe(BRANCH_A1);
+    expect(await runInTenantScope(singleConnection, withoutBranch, readBranchId)).toBe('');
+  });
+
+  it('rejects a branchId outside branchIds before opening a transaction', async () => {
+    const scope = { organizationId: ORG, businessIds: [BIZ_A], branchIds: [BRANCH_A1], branchId: BRANCH_A2 };
+    await expect(runInTenantScope(app, scope, readBranchId)).rejects.toThrow(/Invalid tenant scope/);
+  });
+});

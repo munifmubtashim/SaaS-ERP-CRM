@@ -1,0 +1,10 @@
+[
+  {
+    "id": "GHSA-7589-6fvf-x4pw",
+    "package": "effect",
+    "path": "@prisma/config",
+    "reason": "Dev-only: effect is used by the Prisma CLI config loader (@prisma/config), never by the running API. Prisma 7.10.1 pins effect exactly to 3.20.0, npm 11.11.0 cannot apply an override to it, and there is no newer Prisma 7 release. Remove this entry when Prisma ships effect >= 3.22.1.",
+    "expires": "2026-12-20",
+    "owner": "dev-munif"
+  }
+]

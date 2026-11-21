@@ -239,7 +239,9 @@ describe('BaseQuery reads its client from the tenant scope (ADR 0005)', () => {
         await currentClient().$executeRaw`SELECT pg_sleep(0.6)`;
       },
     );
-    await expect(slow).rejects.toThrow();
+    // The timeout error itself ("... expired transaction. The timeout for this transaction was 300 ms ..."),
+    // not any transaction error such as "Transaction already closed" (Farhan, #18).
+    await expect(slow).rejects.toThrow(/timeout|expired/i);
   });
 });
 
