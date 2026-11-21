@@ -33,13 +33,13 @@ class FakeInventoryService implements IInventoryService {
   }
 }
 
-function renderPage(inventory: IInventoryService, locale: 'en' | 'bn' = 'en') {
+function renderPage(inventory: IInventoryService, locale: 'en' | 'bn' = 'en', url = '/inventory') {
   const services = fakeServices(new FakeHealthService(new Error('unused')), { inventory });
   render(
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <I18nProvider locale={locale}>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[url]}>
             <StockPage />
           </MemoryRouter>
         </I18nProvider>
@@ -118,5 +118,21 @@ describe('StockPage', () => {
     renderPage(new FakeInventoryService([page([oil])]), 'bn');
     expect(await screen.findByText('১,২৪০')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'মজুদ' })).toBeInTheDocument();
+  });
+
+  it('starts from the search in the address', async () => {
+    const inventory = new FakeInventoryService([page([oil])]);
+    renderPage(inventory, 'en', '/inventory?search=oil');
+    await screen.findByText('Engine oil 10W-30, 1 litre');
+    expect(inventory.calls[0]).toMatchObject({ search: 'oil' });
+    expect(screen.getByRole('searchbox', { name: 'Search stock' })).toHaveValue('oil');
+  });
+
+  it('links each product to the product list, searched for that product', async () => {
+    renderPage(new FakeInventoryService([page([oil])]));
+    expect(await screen.findByRole('link', { name: 'Engine oil 10W-30, 1 litre' })).toHaveAttribute(
+      'href',
+      '/inventory/products?search=P-0101',
+    );
   });
 });

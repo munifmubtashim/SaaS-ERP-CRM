@@ -1,6 +1,6 @@
 import { formatQuantityBD, type StockRow } from '@erp/shared';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Button, Card } from '../../components/ui';
 import { useI18n } from '../../i18n';
 import { ApiRequestError } from '../../services';
@@ -12,13 +12,16 @@ import { useStock } from './useStock';
  */
 export function StockPage() {
   const { t } = useI18n();
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState<string | undefined>();
+  // The search lives in the address, so a link, a refresh or Back opens the same list.
+  const [params, setParams] = useSearchParams();
+  const search = params.get('search')?.trim() || undefined;
+  const [searchInput, setSearchInput] = useState(search ?? '');
   const stock = useStock({ search });
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    setSearch(searchInput.trim() || undefined);
+    const next = searchInput.trim();
+    setParams(next ? { search: next } : {});
   };
 
   return (
@@ -129,7 +132,12 @@ function StockTable({ rows }: { rows: StockRow[] }) {
             >
               <td className={`${cell} num order-2 text-muted`}>{row.productCode}</td>
               <td className={`${cell} order-1 w-full max-w-md truncate font-medium md:w-auto`}>
-                {row.productName}
+                <Link
+                  to={`/inventory/products?search=${encodeURIComponent(row.productCode)}`}
+                  className="hover:text-accent-text"
+                >
+                  {row.productName}
+                </Link>
               </td>
               <td className={`${cell} order-3 text-text2`}>{row.branchName}</td>
               <td className={`${cell} num order-4 ml-auto md:text-right`}>
