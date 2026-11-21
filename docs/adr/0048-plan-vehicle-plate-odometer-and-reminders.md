@@ -109,12 +109,11 @@ This replaces ADR 0029's part 5 (`feat/vehicle-job-detail`); Farhan's review of 
 - **Harder:** km-based reminders depend on readings; a unit that never comes back has only the date rule.
 - **Undo:** before go-live, drop the pack tables and the column in a new migration; core is untouched.
 
-## Open questions (with recommended answers)
+## Open questions
 
-1. **Munif:** a reading lower than the last one: refuse, or allow with a note? **Recommended:** allow with a note
-   (meters get replaced and readings get mistyped), kept on the reading and in the activity record.
-2. **Munif, Moto Mart:** the warranty km and service intervals per model: who enters them, and are there defaults?
-   **Recommended:** the Owner enters them per model from the maker's booklet; no defaults, so a missing rule means
-   date-only warranty and date-only reminders.
-3. **Farhan:** does ADR 0029's warranty check take an `IWarrantyLimit` from the pack, and is part 5 handed over to
-   this plan? **Recommended:** yes to both.
+1. ~~**Munif:** a lower odometer reading?~~ **Decided by Munif, 21 Nov:** allowed with a note, kept with the reading
+   and in the activity record.
+2. ~~**Munif:** who enters warranty km and service intervals?~~ **Decided by Munif, 21 Nov:** the Owner, per model;
+   **no defaults**, so a model without a rule has date-only warranty and date-only reminders.
+3. **Farhan (open, his decision):** does ADR 0029's warranty check take an `IWarrantyLimit` from the pack, and is
+   ADR 0029's part 5 handed over to this plan?
