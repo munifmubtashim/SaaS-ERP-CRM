@@ -12,7 +12,7 @@ import {
 /**
  * uuid_v7() (ADR 0008 amendment, #27): the database default for every id, so rows inserted by raw SQL (seeds,
  * provisioning) get UUID v7 keys too. PostgreSQL 16 has no built-in for it. Run as the application role.
- * No table uses it yet; A3b adds the defaults.
+ * The organization tree tables (A3b, ADR 0009) are the first to use it as their id default.
  */
 const appUrl = process.env.DATABASE_URL;
 if (!appUrl) throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
@@ -109,8 +109,17 @@ describe('dal/sql/functions/uuid_v7.sql matches the migrations', () => {
     expect(all).not.toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.uuid_v7/i);
   });
 
-  it('no table uses it as a default yet (A3b adds them)', () => {
-    const all = migrationFolders().map(migrationSql).join('\n');
-    expect(all).not.toMatch(/DEFAULT\s+(public\.)?uuid_v7\(\)/i);
+  it('is the id default of the organization tree tables (A3b)', async () => {
+    const rows = await app.$queryRaw<{ table_name: string; column_default: string | null }[]>`
+      SELECT table_name, column_default FROM information_schema.columns
+       WHERE table_schema = 'public' AND column_name = 'id'
+         AND table_name IN ('organization', 'legal_entity', 'business', 'branch')
+       ORDER BY table_name`;
+    expect(rows).toEqual(
+      ['branch', 'business', 'legal_entity', 'organization'].map((table_name) => ({
+        table_name,
+        column_default: 'uuid_v7()',
+      })),
+    );
   });
 });

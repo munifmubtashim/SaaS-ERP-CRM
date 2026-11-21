@@ -1,3 +1,86 @@
 // Organization module: organizations, businesses, branches, roles, scopes, audit log (roadmap 4.2, 5.1, 5.2)
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// The tenant tree (ADR 0008 section 1, ADR 0009 part 1). RLS, grants, triggers, the short_code CHECK and the
+// case-insensitive business-name index are raw SQL in dal/sql/rls/organization.sql, copied into the migration.
+
+model Organization {
+  id        String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// NULL only when seeded (ADR 0008 amendment, #27). No foreign key (ADR 0008 section 5).
+  createdBy String?  @map("created_by") @db.Uuid
+
+  legalEntities LegalEntity[]
+  businesses    Business[]
+
+  @@map("organization")
+}
+
+model LegalEntity {
+  id             String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  bin            String?
+  address        String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy      String?  @map("created_by") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  businesses   Business[]
+
+  /// For business (organization_id, legal_entity_id): a business can't point at another organization's entity.
+  @@unique([organizationId, id])
+  @@map("legal_entity")
+}
+
+model Business {
+  id                   String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  legalEntityId        String   @map("legal_entity_id") @db.Uuid
+  name                 String
+  bin                  String?
+  address              String?
+  logoKey              String?  @map("logo_key")
+  invoicePrefix        String?  @map("invoice_prefix")
+  openingHours         Json?    @map("opening_hours")
+  /// Bangladesh's fiscal year starts in July.
+  fiscalYearStartMonth Int      @default(7) @map("fiscal_year_start_month")
+  isActive             Boolean  @default(true) @map("is_active")
+  /// Raised by the edit's Query (UPDATE … WHERE version = $read), never by a trigger (ADR 0009).
+  version              Int      @default(1)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy            String?  @map("created_by") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  legalEntity  LegalEntity  @relation(fields: [organizationId, legalEntityId], references: [organizationId, id])
+  branches     Branch[]
+
+  @@map("business")
+}
+
+model Branch {
+  id           String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  name         String
+  /// 2 to 6 characters, a letter first, uppercase letters or digits; never changed after insert (ADR 0009).
+  shortCode    String   @map("short_code")
+  address      String?
+  openingHours Json?    @map("opening_hours")
+  isActive     Boolean  @default(true) @map("is_active")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
+  @@unique([businessId, id])
+  @@unique([businessId, shortCode])
+  @@map("branch")
+}
