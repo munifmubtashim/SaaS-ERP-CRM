@@ -1,25 +1,39 @@
-import { pino, type Logger } from 'pino';
+import { pino, type DestinationStream, type Logger } from 'pino';
 
 /**
- * JSON logs (roadmap 4.1, 10.2). Never log passwords, tokens, cookies or full phone numbers:
- * the redact list below is the safety net, not permission to log them.
+ * Never logged (CLAUDE.md, ADR 0018 section 2): passwords, tokens, cookies, full phone numbers, NIDs, and a user
+ * row's password hash or two-factor secret. `req.body.login` is redacted too: it can be a phone number.
+ * The list is the safety net, not permission to log them. test/unit/logger.test.ts checks it.
  */
-export function createLogger(options: { level: string; pretty: boolean }): Logger {
-  return pino({
+export const REDACT_PATHS: readonly string[] = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'res.headers["set-cookie"]',
+  'req.body.password',
+  'req.body.login',
+  '*.password',
+  '*.token',
+  '*.refreshToken',
+  '*.phone',
+  '*.nid',
+  '*.passwordHash',
+  '*.mfaSecretEnc',
+];
+
+/**
+ * JSON logs (roadmap 4.1, 10.2). `destination` is for tests; with it, the pretty transport is not used.
+ */
+export function createLogger(
+  options: { level: string; pretty: boolean },
+  destination?: DestinationStream,
+): Logger {
+  const config = {
     level: options.level,
-    redact: {
-      paths: [
-        'req.headers.authorization',
-        'req.headers.cookie',
-        'res.headers["set-cookie"]',
-        '*.password',
-        '*.token',
-        '*.refreshToken',
-        '*.phone',
-        '*.nid',
-      ],
-      censor: '[redacted]',
-    },
+    redact: { paths: [...REDACT_PATHS], censor: '[redacted]' },
+  };
+  if (destination) return pino(config, destination);
+  return pino({
+    ...config,
     ...(options.pretty ? { transport: { target: 'pino-pretty', options: { singleLine: true } } } : {}),
   });
 }

@@ -30,12 +30,15 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import { Argon2PasswordHasher } from './Argon2PasswordHasher.js';
 import { DenyAllRoleSource } from './DenyAllRoleSource.js';
 import type { IRoleSource } from './contracts/IRoleSource.js';
 
 export type { IClock } from './contracts/IClock.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
-export type { IAuthQuery } from './contracts/IAuthQuery.js';
+export type { IAuthQuery, LoginUser, UserRef } from './contracts/IAuthQuery.js';
+export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
+export type { VerifiedLogin } from './AuthManager.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
 export type { IProductQuery } from './contracts/IProductQuery.js';
 export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
@@ -123,7 +126,7 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
   });
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
-    auth: new AuthManager(new AuthQuery(db)),
+    auth: new AuthManager(new AuthQuery(db), new Argon2PasswordHasher(), new SystemClock()),
     organization: new OrganizationManager(new OrganizationQuery(), provisioning, config.roleSource),
     product: new ProductManager(new ProductQuery()),
     inventory: new InventoryManager(new InventoryQuery()),
