@@ -48,6 +48,9 @@ in this PR.
 | `approver_permission` | a permission code from `permissions.ts`, for example `sales.discount.approve`                         |
 | `is_active`           | rules are replaced, not edited: a new row, the old one inactive; a trigger allows only `true → false` |
 
+Both tables also have `id` (`uuid_v7()`), `business_id` (RLS), `created_at`, `updated_at`, `created_by` (the
+caller) and `version`.
+
 **`approval_request`** (branch-scoped):
 
 | Column                               | Notes                                                                                               |
@@ -62,8 +65,10 @@ in this PR.
 | `decision_note`                      | optional                                                                                            |
 | `rule_snapshot`                      | `jsonb`: the rule's threshold and permission at request time (B8's test)                            |
 
-- **No self-approval (U-05), in the database too:** `CHECK (decided_by IS NULL OR decided_by <> requested_by)`.
-  The Manager checks it first and answers `403 FORBIDDEN`, field code `approval.self`.
+- **No self-approval (U-05), in the database too:**
+  `CHECK (status NOT IN ('approved', 'rejected') OR decided_by <> requested_by)`. It covers approve and reject
+  only, so the requester can still withdraw (which sets `decided_by` to the requester). The Manager checks it
+  first and answers `403 FORBIDDEN`, field code `approval.self`.
 - **A decision is final:** a trigger allows only `pending → approved`, `pending → rejected` and
   `pending → withdrawn` (the requester only), with `decided_by` and `decided_at`.
 - **RLS and grants** as every tenant table (ADR 0008, #27): forced; `approval_request` branch-scoped with
@@ -122,7 +127,8 @@ businessLogic, with fakes:
 Real Postgres:
 
 4. The `CHECK` refuses `decided_by = requested_by` even when the Manager is skipped, as the owner too.
-5. A decided request can't change again (trigger); `withdrawn` is the requester's only.
+5. A decided request can't change again (trigger); `withdrawn` is the requester's only, and a withdrawal by the
+   requester succeeds (the `CHECK` covers approve and reject only).
 6. A second pending request for the same subject and kind is refused by the partial unique index.
 7. Two approvers deciding at once: one decision stands, the other gets 409.
 8. Isolation: business Y gets 404 on X's requests and rules by id; a branch-2-only manager can't decide a branch-1
