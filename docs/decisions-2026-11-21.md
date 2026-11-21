@@ -237,12 +237,12 @@ review only.
 
 ### #83 ADR 0041: stock transfers with approval and In transit (C6)
 
-| #      | Question                                                                                                                | Who   | Recommendation                                                                                                                             | Blocks building? |
-| ------ | ----------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
-| 0041-1 | Who can confirm a receive, when it writes to both branches?                                                             | Munif | **Decided by Munif, 21 Nov:** a user with both branches in scope (unless 0041-4 is adopted)                                                | yes              |
-| 0041-2 | A move between two locations of the same branch?                                                                        | Munif | **Decided by Munif, 21 Nov:** a plain move, no approval, no journal                                                                        | yes (part 1)     |
-| 0041-3 | `inter_branch`: one account per business, or per pair of branches?                                                      | both  | **Decided by Munif, 21 Nov:** one account per business                                                                                     | no (part 2)      |
-| 0041-4 | **New, preferred:** one In transit location per business, outside every branch, so each branch writes only its own side | Munif | Adopt it before ADR 0021 (#59) and 0034 (#73) are built; it changes both (null `branch_id` for that location only) and adds one RLS helper | yes              |
+| #      | Question                                                           | Who   | Recommendation                                                                                                                                    | Blocks building? |
+| ------ | ------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 0041-1 | Who can confirm a receive?                                         | Munif | **Decided by Munif, 21 Nov:** a user with both branches; **now the fallback only** (0041-4 chosen)                                                | –                |
+| 0041-2 | A move between two locations of the same branch?                   | Munif | **Decided by Munif, 21 Nov:** a plain move, no approval, no journal                                                                               | yes (part 1)     |
+| 0041-3 | `inter_branch`: one account per business, or per pair of branches? | both  | **Decided by Munif, 21 Nov:** one account per business                                                                                            | no (part 2)      |
+| 0041-4 | One In transit location per business, outside every branch         | Munif | **Decided by Munif, 21 Nov:** chosen. ADR 0034 (#73, `94172b9`) and ADR 0021 (#59, `b93fee3`) amended to match; each branch confirms its own side | yes              |
 
 ### #84 ADR 0042: reorder rules, Low and Out of stock (C8)
 
@@ -254,36 +254,36 @@ review only.
 
 ### #85 ADR 0043: attachments and exports (B13)
 
-| #      | Question                                  | Who   | Recommendation                                                                                                                                                                         | Blocks building? |
-| ------ | ----------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| 0043-1 | Which attachment subjects in release 1?   | Munif | **Decided by Munif, 21 Nov:** customers only                                                                                                                                           | yes              |
-| 0043-2 | Where does the storage client live?       | both  | **Open.** A: in dal (stretches CLAUDE.md "dal database access only"); B: an adapter in businessLogic (stretches "businessLogic holds the rules"). Either needs a one-line CLAUDE.md PR | yes              |
-| 0043-3 | Allowed types and size?                   | Munif | **Decided by Munif, 21 Nov:** JPEG, PNG, WebP, PDF up to 10 MB; HEIC converted in the browser (device checklist in the ADR)                                                            | yes              |
-| 0043-4 | PDF of a list?                            | Munif | **Decided by Munif, 21 Nov:** browser print to PDF                                                                                                                                     | no (part 3)      |
-| 0043-5 | Record every export as an activity event? | Munif | **Decided by Munif, 21 Nov:** yes                                                                                                                                                      | no (part 3)      |
+| #      | Question                                  | Who   | Recommendation                                                                                                              | Blocks building? |
+| ------ | ----------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 0043-1 | Which attachment subjects in release 1?   | Munif | **Decided by Munif, 21 Nov:** customers only                                                                                | yes              |
+| 0043-2 | Where does the storage client live?       | both  | **Open.** Munif leans to A (in dal, dal's rule reworded to "external systems"); waits for Farhan                            | yes              |
+| 0043-3 | Allowed types and size?                   | Munif | **Decided by Munif, 21 Nov:** JPEG, PNG, WebP, PDF up to 10 MB; HEIC converted in the browser (device checklist in the ADR) | yes              |
+| 0043-4 | PDF of a list?                            | Munif | **Decided by Munif, 21 Nov:** browser print to PDF                                                                          | no (part 3)      |
+| 0043-5 | Record every export as an activity event? | Munif | **Decided by Munif, 21 Nov:** yes                                                                                           | no (part 3)      |
 
 ## 13. Batch 5 (drafted 21 Nov): outbox, Action Center, standard reports
 
 ### #86 ADR 0044: outbox and in-app notifications (B11)
 
-| #      | Question                                                                                  | Who   | Recommendation                                                        | Blocks building? |
-| ------ | ----------------------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------- | ---------------- |
-| 0044-1 | Add `app.user_id` to every request transaction, so RLS limits `notification` to its user? | Munif | Yes (an ADR 0005 change); a `WHERE` alone leaves one forgotten filter | yes (part 2)     |
-| 0044-2 | Recipients by fixed rules, or rules each business can change (C-14)?                      | Munif | Fixed in release 1; configurable with the relay                       | yes (part 2)     |
-| 0044-3 | Keep `outbox_event` rows forever in release 1?                                            | Munif | Yes; the relay's ADR decides archiving                                | no               |
+| #      | Question                                                                  | Who   | Recommendation                                                              | Blocks building? |
+| ------ | ------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------- | ---------------- |
+| 0044-1 | `app.user_id` on every request, so RLS limits `notification` to its user? | Munif | **Decided by Munif, 21 Nov:** yes, as an ADR 0005 amendment after #8 merges | yes (part 2)     |
+| 0044-2 | Recipients by fixed rules, or rules each business can change?             | Munif | **Decided by Munif, 21 Nov:** fixed in release 1                            | yes (part 2)     |
+| 0044-3 | Keep `outbox_event` rows forever in release 1?                            | Munif | **Decided by Munif, 21 Nov:** yes                                           | no               |
 
 ### #87 ADR 0045: Action Center workflow (F3)
 
-| #      | Question                                                                                       | Who    | Recommendation                               | Blocks building? |
-| ------ | ---------------------------------------------------------------------------------------------- | ------ | -------------------------------------------- | ---------------- |
-| 0045-1 | A resolved item whose condition is still true: hidden until it starts again, or back next day? | Munif  | Hidden until it starts again                 | yes (part 2)     |
-| 0045-2 | Thresholds (not delivered, registration, bill due, stock age): fixed or per business?          | Munif  | Per business, defaults 3, 15, 7 and 180 days | no               |
-| 0045-3 | Do Farhan's four kinds fit `ExceptionRow`?                                                     | Farhan | Yes; `summary` carries the specifics         | yes              |
+| #      | Question                                       | Who    | Recommendation                                                          | Blocks building? |
+| ------ | ---------------------------------------------- | ------ | ----------------------------------------------------------------------- | ---------------- |
+| 0045-1 | A resolved item whose condition is still true? | Munif  | **Decided by Munif, 21 Nov:** hidden until the problem starts again     | yes (part 2)     |
+| 0045-2 | Day limits: fixed or per business?             | Munif  | **Decided by Munif, 21 Nov:** fixed in release 1: 3, 15, 7 and 180 days | no               |
+| 0045-3 | Do the exception kinds fit `ExceptionRow`?     | Farhan | **Open:** Munif leaves the exception kinds to Farhan                    | yes              |
 
 ### #88 ADR 0046: standard report pack (F4)
 
-| #      | Question                                                                 | Who    | Recommendation                                                               | Blocks building? |
-| ------ | ------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------- | ---------------- |
-| 0046-1 | Previous period for a whole month: previous calendar month or same days? | Munif  | Previous calendar month for a whole month, otherwise the same number of days | yes              |
-| 0046-2 | VAT report in release 1?                                                 | Munif  | No, until D12 and Q15                                                        | no               |
-| 0046-3 | A `salesperson_id` on the invoice (ADR 0022) for profit by salesperson?  | Farhan | Nullable, defaulting to the user who made the invoice                        | yes (part 3)     |
+| #      | Question                                                     | Who    | Recommendation                                                                               | Blocks building? |
+| ------ | ------------------------------------------------------------ | ------ | -------------------------------------------------------------------------------------------- | ---------------- |
+| 0046-1 | Previous period for a whole month?                           | Munif  | **Decided by Munif, 21 Nov:** the previous calendar month; otherwise the same number of days | yes              |
+| 0046-2 | VAT report in release 1?                                     | Munif  | **Decided by Munif, 21 Nov:** no                                                             | no               |
+| 0046-3 | A `salesperson_id` on the invoice for profit by salesperson? | Farhan | **Open, Farhan's decision.** Munif leans yes: nullable, defaulting to the creator            | yes (part 3)     |
