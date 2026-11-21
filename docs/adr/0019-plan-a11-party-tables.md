@@ -75,7 +75,7 @@ Model `Party` in `dal/prisma/schema/party.prisma`, `@@map("party")`. Migration n
 | `assigned_to`       | `uuid`                                  | plain `uuid` for now. FK → `staff (business_id, id)` in a follow-up after A4         |
 | `created_branch_id` | `uuid`                                  | composite FK `(business_id, created_branch_id)` → `branch (business_id, id)`         |
 | `created_at`        | `timestamptz` not null, default `now()` | UTC                                                                                  |
-| `updated_at`        | `timestamptz` not null                  | Prisma `@updatedAt`                                                                  |
+| `updated_at`        | `timestamptz` not null, default `now()` | Prisma `@updatedAt`; the default covers raw SQL inserts (walk-in party, seeds)       |
 | `created_by`        | `uuid`                                  | no FK, ever (ADR 0008). `CHECK (created_by IS NOT NULL OR is_walk_in)`. See open q 2 |
 | `version`           | `integer` not null, default `1`         | optimistic concurrency                                                               |
 
@@ -83,7 +83,7 @@ Keys and indexes:
 
 - `UNIQUE (business_id, id)`: the target of every composite FK from other tables (ADR 0006 section 2).
 - `(business_id, phone_e164)` and `(business_id, alt_phone_e164)`: the duplicate check.
-- `(business_id, name)`: the list order and a name prefix search. See open question 4.
+- `(business_id, name)`: the list order. Search is open question 4.
 - `bin` is left out until the BIN rules (after the Phase 1 gate).
 
 ### 3. RLS and grants (in the migration and in `dal/sql/rls/party.sql`)
@@ -156,6 +156,8 @@ API (Supertest, real Postgres):
 16. A user of branch 1 lists a party created in branch 2 of the same business [9].
 17. No list or detail response contains `nid`, `nid_ciphertext` or `nid_hash` [11].
 18. A cashier without `party.customer.edit` gets 403 on `PATCH`.
+19. A user without `party.customer.create` gets 403 on `POST /v1/parties` for a customer. A supplier-only user
+    (with `party.supplier.create` but not `party.customer.create`) can't create a customer.
 
 ### 7. Order of work (each a separate PR, under ~400 lines)
 
@@ -164,7 +166,7 @@ API (Supertest, real Postgres):
 | 1    | `feat/party-payloads`     | phone normaliser, create and update payloads, `PARTY_POSSIBLE_DUPLICATE`        | this ADR (shared code: both review)                  |
 | 2    | `feat/party-manager`      | `IPartyQuery`, `PartyManager`, tests 10 to 14 against a fake Query              | part 1                                               |
 | 3    | `feat/party-table`        | `party.prisma`, migration `party`, `sql/rls/party.sql`, `PartyQuery`, tests 1–9 | A3b part 1 (#31), #29, #27, A10a (#42); merge `main` |
-| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 18               | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
+| 4    | `feat/party-routes`       | `PartyController`, `PartyRoutes`, isolation cases, tests 15 to 19               | parts 2 and 3, #8, A5, A6, A4a (#26), #52            |
 | 5    | `feat/party-service-live` | frontend: `createServices` uses `PartyService(http)` instead of the mock        | part 4                                               |
 | 6    | `feat/party-assigned-to`  | follow-up migration: `assigned_to` FK → `staff (business_id, id)`               | A4 part 4 (`staff`), merge `main` and tell Munif     |
 
@@ -196,11 +198,15 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 3. **`text` with `CHECK`, or a PostgreSQL enum,** for `kind` and `status`? Recommended: `text` with `CHECK`.
    Adding `merged` later is then a constraint swap in a new migration. A new enum value can't be used in the
    same transaction that adds it, and an enum value can never be removed.
-4. **Name search.** Is a btree on `(business_id, name)` with prefix search enough for release 1? Or do we add
-   `pg_trgm` now for "contains" search (`ILIKE '%rahman%'`)? Recommended: btree now, trigram when a business
-   passes a few thousand parties.
+4. **Search by name, code and phone.** ADR 0006 section 9 says the list searches all three. A **prefix**
+   search (`name ILIKE 'text%'`, which a btree on `(business_id, name)` can use) finds "Abdur" but **not**
+   "rahman" in "Abdur Rahman". A **contains** search (`ILIKE '%text%'`) finds both, but no btree index helps
+   it, so each search reads all of the business's parties. Recommended for release 1: plain contains search on
+   `name`, `code` and `phone_e164`, with no search index, which is fast enough while a business has a few
+   thousand parties. Add `pg_trgm` indexes later, when a business grows enough for the search to be slow. Your call.
 5. **Idempotency on `POST /v1/parties`.** ADR 0006 section 9 gives it an Idempotency-Key. Should part 4 wait for
    A14 part 2 (#40)? Or should `{ idempotent: true }` be added to the route in a small PR after A14 merges?
    Recommended: add it after, because creating a party moves no money or stock.
-6. **One table in A11.** Do you agree that `party_group`, `party_contact`, `party_address` and `credit_hold` come
-   later, with their features (section 1), and not in A11's migration?
+6. **One table in A11.** Do you agree that `party_identity`, `party_contact`, `party_address`, `party_group`,
+   `credit_hold`, `party_relation` and `party_merge_log` all come later, each with its feature (section 1), and
+   not in A11's migration?
