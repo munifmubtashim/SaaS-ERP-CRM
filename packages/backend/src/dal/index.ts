@@ -5,8 +5,8 @@ export { BaseDTO, type BaseRow } from './dto/BaseDTO.js';
 export { HealthDTO } from './dto/HealthDTO.js';
 export { BaseQuery } from './query/BaseQuery.js';
 export { HealthQuery } from './query/HealthQuery.js';
-export { AuthDTO } from './dto/AuthDTO.js';
-export { AuthQuery } from './query/AuthQuery.js';
+export { AuthDTO, LoginUserDTO } from './dto/AuthDTO.js';
+export { AuthQuery, type CreateUserInput } from './query/AuthQuery.js';
 export { OrganizationDTO } from './dto/OrganizationDTO.js';
 export { OrganizationQuery } from './query/OrganizationQuery.js';
 // The provisioner (ADR 0010): the factory and the types only. The client stays inside dal.

@@ -14,8 +14,13 @@ const source = functionsIn(readFileSync(SOURCE, 'utf8'));
 const migrated = latestMigrationFunctions();
 
 describe('dal/sql/rls/tenancy.sql matches the migrations', () => {
-  it('the source defines the three RLS policy functions', () => {
-    expect([...source.keys()].sort()).toEqual(['app_branch_ids', 'app_business_ids', 'app_organization_id']);
+  it('the source defines the three RLS scope functions and the login key', () => {
+    expect([...source.keys()].sort()).toEqual([
+      'app_branch_ids',
+      'app_business_ids',
+      'app_login_key',
+      'app_organization_id',
+    ]);
   });
 
   it('every app_* function in the migrations is in the source, and no other', () => {

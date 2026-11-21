@@ -7,5 +7,12 @@ const rootEnv = fileURLToPath(new URL('../../../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 export default defineConfig({
-  test: { include: ['test/**/*.int.test.ts'], testTimeout: 20_000 },
+  test: {
+    include: ['test/**/*.int.test.ts'],
+    testTimeout: 20_000,
+    // One test file at a time. The TRUNCATE ... CASCADE refusal tests lock every table that references
+    // organization; another file writing those tables at the same moment blocks or deadlocks with them.
+    // Tests inside a file still run in order, as before.
+    fileParallelism: false,
+  },
 });

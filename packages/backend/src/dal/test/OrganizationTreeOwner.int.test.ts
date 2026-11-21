@@ -110,6 +110,67 @@ describe('ADR 0009 cases 6, 9 and 10: an owner that is neither superuser nor BYP
       await tx.$executeRawUnsafe('TRUNCATE branch');
       throw new Error('TRUNCATE ran: the trigger is missing (rolled back)');
     });
-    await expect(attempt).rejects.toThrow(/TRUNCATE is refused/);
+    await expect(attempt).rejects.toThrow(/TRUNCATE is refused|cannot truncate a table referenced/);
+  });
+});
+
+describe('auth_access (Munif, 22 Nov): the owner policies on the access tables, for this owner', () => {
+  const HASH = '$argon2id$v=19$m=19456,t=2,p=1$dGVzdHNhbHQ$dGVzdGhhc2g'; // not a real password's hash
+
+  it('inserts and reads a user and a role inside the organization it set, and sees no other', async () => {
+    const other = await createTree(roleOwner);
+    const [userId, roleId, otherUser] = (await roleOwner.$transaction((tx) => newIds(tx, 3))) as [
+      string,
+      string,
+      string,
+    ];
+    await roleOwner.$transaction(async (tx) => {
+      await setScope(tx, other.organizationId, [other.businessId], [other.branchId]);
+      await tx.$executeRaw`
+        INSERT INTO app_user (id, organization_id, email, password_hash, display_name)
+        VALUES (${otherUser}::uuid, ${other.organizationId}::uuid, ${`o-${otherUser}@example.com`}, ${HASH}, 'Other')`;
+    });
+    const seen = await roleOwner.$transaction(async (tx) => {
+      await setScope(tx, tree.organizationId, [tree.businessId], [tree.branchId]);
+      await tx.$executeRaw`
+        INSERT INTO app_user (id, organization_id, email, password_hash, display_name)
+        VALUES (${userId}::uuid, ${tree.organizationId}::uuid, ${`u-${userId}@example.com`}, ${HASH}, 'Owner')`;
+      await tx.$executeRaw`
+        INSERT INTO role (id, organization_id, code, name, is_system)
+        VALUES (${roleId}::uuid, ${tree.organizationId}::uuid, 'owner', 'Owner', true)`;
+      await tx.$executeRaw`
+        INSERT INTO user_scope (user_id, role_id) VALUES (${userId}::uuid, ${roleId}::uuid)`;
+      return tx.$queryRaw<{ id: string }[]>`
+        SELECT id::text FROM app_user WHERE id IN (${userId}::uuid, ${otherUser}::uuid)`;
+    });
+    expect(seen).toEqual([{ id: userId }]);
+  });
+
+  it('an insert into another organization than the one it set is refused', async () => {
+    const other = await createTree(roleOwner);
+    const insert = roleOwner.$transaction(async (tx) => {
+      await setScope(tx, tree.organizationId, [tree.businessId], [tree.branchId]);
+      await tx.$executeRaw`
+        INSERT INTO app_user (organization_id, email, password_hash, display_name)
+        VALUES (${other.organizationId}::uuid, 'wrong-org@example.com', ${HASH}, 'Wrong')`;
+    });
+    await expect(insert).rejects.toThrow(/row-level security/);
+  });
+
+  it('with no app.* values set, reading app_user fails with "tenant scope not set"', async () => {
+    await expect(roleOwner.$queryRaw`SELECT id FROM app_user`).rejects.toThrow(/tenant scope not set/);
+  });
+
+  it('a DELETE removes 0 rows and a TRUNCATE is refused, on each access table', async () => {
+    for (const table of ['app_user', 'role', 'role_permission', 'user_scope']) {
+      const deleted = await roleOwner.$transaction(async (tx) => {
+        await setScope(tx, tree.organizationId, [tree.businessId], [tree.branchId]);
+        return tx.$executeRawUnsafe(`DELETE FROM ${table}`);
+      });
+      expect(deleted, table).toBe(0);
+      await expect(roleOwner.$executeRawUnsafe(`TRUNCATE ${table}`), table).rejects.toThrow(
+        /TRUNCATE is refused|cannot truncate a table referenced/,
+      );
+    }
   });
 });

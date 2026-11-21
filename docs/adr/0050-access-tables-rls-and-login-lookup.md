@@ -1,0 +1,111 @@
+# 0050: Forced RLS on the access tables, and the login lookup
+
+| Field               | Value                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| Status              | Proposed                                                                                               |
+| Date                | 2026-11-22                                                                                             |
+| Deciders            | Munif (Auth owner); Farhan to review, because it changes ADR 0008 which he approved on #27             |
+| Supersedes          | **ADR 0008 section 2, in part** (the "No tenant RLS" rule below); adds to ADR 0009 part 3 and ADR 0018 |
+| Spec / roadmap refs | spec U-04; CLAUDE.md tenancy rules; ADR 0005, 0008, 0009, 0018; migration `auth_access`                |
+
+## Context
+
+ADR 0008 section 2 decided:
+
+> **No tenant RLS on `app_user`, `role`, `role_permission` and `user_scope`.** They are read before a scope
+> exists: login, and `tenantMiddleware` building `req.tenant`. That read goes through `AuthQuery` on the
+> unscoped path (ADR 0005), filtered by the authenticated user's own id. A tenant policy on these tables
+> would make that read fail, because the RLS functions raise when no scope is set.
+
+It accepted the trade-off that a missing `organization_id` filter in any query would leak names, emails, phones
+and password hashes across organizations, caught only by review and tests. Before building these tables (ADR 0009
+part 3), Munif decided on 22 Nov that the database should enforce the organization boundary here too, as it
+does on every other tenant table, and that the one read that really happens before a scope (login) gets its own
+narrow path.
+
+## Decision
+
+This ADR **supersedes ADR 0008 section 2, in part**: the sentence quoted above, and the "Trade-off, accepted"
+paragraph after it, no longer apply. The rest of section 2 stands (one organization per user, `user_scope` as the
+place a role is held, Owner-only group scope, `staff` is not a user, custom roles).
+
+### 1. Forced RLS, scoped by organization
+
+- `app_user`, `role`, `role_permission` and `user_scope` have RLS **enabled and forced**.
+- `erp_app` policies are `TO erp_app`, one per granted command (`SELECT`, `INSERT`, `UPDATE`), each requiring
+  `app.organization_id`: directly on `app_user` and `role`, through the role on `role_permission`, and through the
+  user on `user_scope`.
+- The migration owner gets `TO CURRENT_USER` policies for `SELECT`, `INSERT` and `UPDATE` with the same
+  organization check, so the seed and test fixtures write only inside the organization they set (ADR 0008
+  section 4). **No `DELETE` policy** for any role, and a `BEFORE TRUNCATE` trigger refusing `TRUNCATE` on all four
+  tables and on `permission`.
+- `permission` stays a global, read-only catalogue: no RLS, `SELECT` only for `erp_app`, seeded by the owner.
+
+### 2. The login lookup (ADR 0018 section 4)
+
+Login is the only read before any organization is known.
+
+- `AuthQuery.findUserForLogin(login)` opens its own short transaction and sets **only** `app.login_key`, with
+  `set_config(..., true)` (transaction-local), to the lower-cased email or the E.164 phone.
+- A new function `app_login_key()` returns that value, or `NULL` when it is unset. Unlike `app_organization_id()`
+  it doesn't raise, because only `app_user`'s `SELECT` policy reads it, to choose a branch:
+  - key set: the row whose `lower(email)` or `phone` equals the key. Both are unique, so **at most one row**;
+  - key unset: `organization_id = app_organization_id()`, which raises when no scope is set, as on every tenant
+    table.
+- With the key set, nothing else is reachable: `role`, `role_permission` and `user_scope` still need the
+  organization and raise; an `UPDATE` of `app_user` raises; the key doesn't reach the next transaction on a
+  pooled connection.
+- After the password check, the login code works inside the found user's organization (A5, #45 part 2).
+
+### 3. Login columns
+
+- Email is unique across the system on `lower(email)` and optional; phone is unique across the system and
+  optional; at least one is set (`CHECK`). This answers ADR 0018 open question 3 (Munif, 21 Nov).
+- Phone is stored in one format only, E.164: `CHECK (phone ~ '^\+[1-9][0-9]{7,14}$')`.
+- Creating a user with a taken email or phone answers `409 CONFLICT` with `user.email_taken` or
+  `user.phone_taken` and a fixed message. **The answer is the same whether the other user is in the caller's
+  organization or another one**, and it never contains another organization's id.
+
+### 4. System roles are fixed
+
+- A `BEFORE UPDATE` trigger on `role`, for every database role: no role's `code`, `is_system` or
+  `organization_id` changes, and a system role is never renamed or deactivated.
+- `erp_app` can't create a system role, and can't add a permission to one (its `INSERT` policies require
+  `NOT is_system`). Custom roles can be renamed and deactivated.
+- **The seed creates a new organization's five system roles and their permissions until onboarding is
+  designed.** (Munif, 22 Nov; this is the ADR 0009 part 4 seed.)
+
+## Known trade-offs (accepted)
+
+**(a) Any code running as `erp_app` can set `app.login_key` and then see that one user's full row, including
+`password_hash` and `mfa_secret_enc`.** The key is a plain transaction setting: the database can't tell
+`AuthQuery` from any other code on the same connection. It shows one row per key, so it can't list users, but
+anyone who knows an email or phone could read that user's hash through a rogue query. **The only guard is that
+`AuthQuery` alone may name the auth tables**: ADR 0008 test 15 (`AuthTablesOnlyInAuthQuery.int.test.ts`) fails
+when any other dal file names `app_user`, `role`, `role_permission`, `user_scope`, their models or their
+back-relation fields, and review checks every change to `AuthQuery.ts`. Revisit with a `SECURITY DEFINER` lookup
+that returns only what login needs, if that guard ever proves too weak.
+
+**(b) Login must give the same answer for an unknown user and a wrong password** (ADR 0018 section 4, steps 3 to
+5). The lookup returns "no row" for an unknown login, which the login code must not reveal: the same `401`, the
+same message, and the dummy-hash cost spent so the timing matches. ADR 0018 test 2 checks both.
+
+## Tests (written first)
+
+`AuthAccess.int.test.ts` (41 tests), `AuthTablesOnlyInAuthQuery.int.test.ts` (test 15), and an
+`auth_access` block in `OrganizationTreeOwner.int.test.ts` for an owner that is neither superuser nor
+`BYPASSRLS`. They cover: RLS enabled and forced, no `DELETE` or unnamed-role policy; the login path and its
+limits; organization isolation including guessed ids (ADR 0008 test 10); E.164 and the login `CHECK`; the
+identical conflict answer; fixed system roles; ADR 0008 tests 6 and 9; the source files matching the migration.
+
+## Consequences
+
+- **Easier:** the organization boundary on users, roles and scopes is enforced by the database, not only by
+  every query remembering its filter.
+- **Harder:** every read of these tables needs `app.organization_id`, or the login key for the one login read.
+  `tenantMiddleware` (A6) reads `user_scope` with the session's organization set (the session row carries it,
+  ADR 0018), not with the user id alone.
+- **Keep true:** only `AuthQuery` names the auth tables; only `findUserForLogin` sets `app.login_key`; login
+  answers never distinguish unknown users from wrong passwords.
+- **Undo:** a new migration dropping the policies and disabling RLS on the four tables returns to ADR 0008
+  section 2 as written.

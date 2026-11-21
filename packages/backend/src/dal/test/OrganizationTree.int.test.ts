@@ -239,6 +239,16 @@ describe('ADR 0009 added test cases', () => {
       await tx.$executeRawUnsafe(`TRUNCATE ${table} CASCADE`);
       throw new Error('TRUNCATE ran: the trigger is missing (rolled back)');
     });
-    await expect(attempt).rejects.toThrow(/TRUNCATE is refused/);
+    const error = await attempt.then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    // On a failure, print the whole error and its SQLSTATE, so an intermittent cause (a lock, a deadlock) is seen.
+    const meta = (error as { meta?: unknown } | undefined)?.meta;
+    const sqlState = /\b(?:Code|code)\W+([0-9A-Z]{5})\b/.exec(
+      `${String(error)} ${JSON.stringify(meta ?? {})}`,
+    )?.[1];
+    const detail = `SQLSTATE ${sqlState ?? 'unknown'}\n${String(error)}\nmeta: ${JSON.stringify(meta ?? null)}`;
+    expect(String(error), detail).toMatch(/TRUNCATE is refused/);
   });
 });

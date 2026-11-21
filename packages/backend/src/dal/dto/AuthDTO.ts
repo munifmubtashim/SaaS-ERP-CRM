@@ -14,3 +14,35 @@ export class AuthDTO extends BaseDTO {
     return new AuthDTO(row);
   }
 }
+
+/** What login needs from a user row (ADR 0018 section 4). The hash never leaves dal and businessLogic. */
+export interface LoginUserRow {
+  id: string;
+  organizationId: string;
+  passwordHash: string;
+  isActive: boolean;
+  lockedUntil: Date | null;
+  failedAttempts: number;
+}
+
+export class LoginUserDTO {
+  private constructor(
+    readonly id: string,
+    readonly organizationId: string,
+    readonly passwordHash: string,
+    readonly isActive: boolean,
+    readonly lockedUntil: Date | null,
+    readonly failedAttempts: number,
+  ) {}
+
+  static fromRow(row: LoginUserRow): LoginUserDTO {
+    return new LoginUserDTO(
+      row.id,
+      row.organizationId,
+      row.passwordHash,
+      row.isActive,
+      row.lockedUntil,
+      row.failedAttempts,
+    );
+  }
+}
