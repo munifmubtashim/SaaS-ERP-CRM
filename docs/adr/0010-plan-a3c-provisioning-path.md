@@ -88,7 +88,10 @@ needed yet. The route that adds one must also add its case in `api/test/isolatio
   3. Call `ProvisioningQuery` with the caller's organization. **`created_by` is the calling Owner's user id**
      (decided by Munif, 21 Nov, after Farhan's point 3 on #32; replaces "`created_by` stays `NULL`"). `NULL` stays only for seeded
      rows, so #27's "`NULL` means provisioning or seeded" becomes "`NULL` means seeded". An `audit_log` row per
-     created business and branch comes with the activity record (plan B2), not A3c.
+     created business and branch comes with the activity record (plan B2), not A3c. ⚠ **Known gap, owned by
+     B2:** until then, provisioning writes no audit row (Farhan's point 3 on #32). The only record of who
+     created a business or branch, and when, is its `created_by` and `created_at`. Accepted for release 1 by
+     Munif (question 8).
 - **`createManagers`:**
   - It needs a role source, and **throws at start-up if none is supplied. It never defaults to "allowed"**
     (Munif, 20 Nov, answer 3).
@@ -107,9 +110,40 @@ erp_provisioner` policies. Part 1's test runs the create with all of those polic
     exception for the provisioner, not a second transaction inside a tenant one.
   - A route-coverage test fails if a `provisioning` route is mounted inside a tenant wrapper. Adding the route
     kind to `api/routes/types.ts` is shared code.
+  - **Every `provisioning` route needs a cross-organization case** (Farhan's point 1 on #32, 21 Nov). CLAUDE.md
+    requires a case in `api/test/isolation/cases.ts` only for tenant routes, so a new list,
+    `PROVISIONING_CASES`, sits next to it. The route-coverage test fails for a `provisioning` route without
+    one. The cases, as an Owner of organization A:
+    - **Organization in the body:** a body that names organization B is created in A. The organization always
+      comes from the caller's session; the schema strips any `organizationId` in the body.
+    - **Branch under another organization's business:** a branch under one of organization B's business ids
+      gets `404 NOT_FOUND`, not `403`, so the answer doesn't reveal that the id exists. The provisioner's RLS
+      hides B's business, so `findBusiness` returns nothing, and nothing is inserted.
+    - **Not an Owner:** a non-Owner of A is refused before any query.
+  - **CLAUDE.md** gets a line for the third kind next to `public` and `tenant`, in its own small PR (shared
+    rules: both review). Open question 7.
 - **Work after the create** (the walk-in party, ADR 0006 section 6 and #54) runs **after** the provisioner's
   commit, in a **new** `runInTenantScope` for the new business, as `erp_app`.
-  - It's idempotent (`ON CONFLICT DO NOTHING`), so if it fails the business stays and a retry finishes it.
+  - It's idempotent (`ON CONFLICT DO NOTHING` on `UNIQUE (business_id) WHERE is_walk_in`).
+  - **If it fails, two idempotent paths finish it** (Farhan's point 2 on #32, 21 Nov). A retried
+    `POST /v1/businesses` gets `409 business.name_taken` and would never reach the walk-in step again, so:
+    1. **On the `409` path,** when the existing business with that name is in the caller's organization, the
+       route runs the walk-in step for that business (a new `runInTenantScope`, as `erp_app`) before answering
+       `409`. So a retry finishes it, and the answer stays `409`.
+    2. **As a backstop,** Party's walk-in lookup creates the walk-in party if it's missing, with the same
+       statement, the first time a sale or payment needs it. That's ADR 0019's second option (#54), kept as a
+       backstop and not the main path. It's Party's code, so Farhan adds it in ADR 0019.
+
+    Two at once still leave exactly one row, because of the unique index.
+
+    **`Idempotency-Key` (ADR 0011) doesn't cover this retry, and the two paths above don't change.** ADR 0011's
+    key row is per business (`business_id` is the request's active business, with RLS on it), and the tenant
+    route wrapper claims it inside the tenant transaction (ADR 0014). A `provisioning` route has no business
+    before the create and runs outside `runInTenantScope`, so there's nothing to write the key against. A
+    retried create is recognised by the business name instead: the case-insensitive unique gives `409
+business.name_taken`, and path 1 finishes the walk-in from there. If provisioning ever needs replay with
+    the first `201` answer, that's a key table scoped to the organization, in a later ADR.
+
   - Each transaction is whole; nothing is half-done inside one.
 - **`shortCode` never changes:** enforced in ADR 0009 (#31, `e54b24c`). `erp_app` has no `UPDATE` on
   `branch.short_code`, and a trigger refuses the change for every role.
@@ -131,10 +165,10 @@ erp_provisioner` policies. Part 1's test runs the create with all of those polic
 
 ### Tests written first, and how they will fail
 
-| Part | Tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | First failure                                                                                    |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| 1    | Integration, as `erp_provisioner`: creates a business and a branch in organization A and gets the row back; cannot create a business with organization B's id; cannot see organization B's businesses; the transaction leaves `app.business_ids` unset (so `app_business_ids()` raises inside it); a missing `PROVISIONING_DATABASE_URL` fails at start-up in production; elsewhere provisioning is refused with `503` and `provisioning.not_configured`. **With ADR 0009's `TO erp_app` and owner policies on the table**, the create still succeeds. `created_by` is the calling Owner's id. A branch under an inactive business is refused by the `WITH CHECK`. A second business with the same name in any letter case in the organization gets `409` with `business.name_taken`. **`shortCode`:** a branch with `UTT` is created and reads back `UTT`; a second branch with `UTT` in the same business gets `409` with `branch.short_code_taken` and inserts nothing; `UTT` in another business of the same organization is accepted. | `ProvisioningQuery` and the factory do not exist (import errors), then RLS refusals once they do |
-| 2    | Unit, with fakes: a non-Owner is refused and the fake Query is **never called**; an Owner's call reaches the Query with the caller's organization; a branch under a deactivated or unknown business is refused after `findBusiness`, with no insert; `createManagers` throws when no role source is supplied; `branchShortCodeSchema` accepts `UTT` and `AG2` and refuses `utt`, `U`, `TOOLONG`, `U-T` and `2UT`, and a refused code never reaches the fake Query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | the Manager methods and contracts do not exist                                                   |
+| Part | Tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | First failure                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1    | Integration, as `erp_provisioner`: creates a business and a branch in organization A and gets the row back; cannot create a business with organization B's id; cannot see organization B's businesses; the transaction leaves `app.business_ids` unset (so `app_business_ids()` raises inside it); a missing `PROVISIONING_DATABASE_URL` fails at start-up in production; elsewhere provisioning is refused with `503` and `provisioning.not_configured`. **With ADR 0009's `TO erp_app` and owner policies on the table**, the create still succeeds. `created_by` is the calling Owner's id. A branch under an inactive business is refused by the `WITH CHECK`. A second business with the same name in any letter case in the organization gets `409` with `business.name_taken`. **`PROVISIONING_CASES`** (the three cross-organization cases above) pass, and the route-coverage test fails for a `provisioning` route without a case. **`shortCode`:** a branch with `UTT` is created and reads back `UTT`; a second branch with `UTT` in the same business gets `409` with `branch.short_code_taken` and inserts nothing; `UTT` in another business of the same organization is accepted. | `ProvisioningQuery` and the factory do not exist (import errors), then RLS refusals once they do |
+| 2    | Unit, with fakes: a non-Owner is refused and the fake Query is **never called**; an Owner's call reaches the Query with the caller's organization; a branch under a deactivated or unknown business is refused after `findBusiness`, with no insert; `createManagers` throws when no role source is supplied; **walk-in retry:** a fake walk-in step that fails leaves the business committed; a retried create gets `409 business.name_taken` and now runs the walk-in step, so it exists after the retry; `branchShortCodeSchema` accepts `UTT` and `AG2` and refuses `utt`, `U`, `TOOLONG`, `U-T` and `2UT`, and a refused code never reaches the fake Query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | the Manager methods and contracts do not exist                                                   |
 
 ### Order
 
@@ -161,6 +195,11 @@ erp_provisioner` policies. Part 1's test runs the create with all of those polic
 6. **Business names unique per organization, case-insensitive.** Munif's answer (21 Nov), open until Farhan
    agrees; the detail is in ADR 0009 (#31). ⚠ A deactivated business keeps its name taken; the Owner renames it
    to free the name.
+7. **(Both, new) The CLAUDE.md line for the `provisioning` route kind.** Its own small PR, after this ADR is
+   agreed, reviewed by both. Recommended: Munif opens it.
+8. ~~**(Munif) No audit row for provisioning until B2.**~~ Decided by Munif (21 Nov): accepted for release 1,
+   as a **known gap owned by B2**. Until B2, the record is the row's `created_by` and `created_at` only. When
+   B2 lands, provisioning writes one audit row per created business and branch.
 
 ## Consequences
 
