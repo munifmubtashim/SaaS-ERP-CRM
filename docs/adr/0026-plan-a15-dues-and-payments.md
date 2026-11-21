@@ -46,8 +46,9 @@ The columns ADR 0016 section 4 asks for, and nothing that can be computed:
 | `created_at`        | `updated_at`, `created_by` (the caller), `version`                                                                                            |
 
 - **One transaction id once per method:** a partial unique index on `(business_id, method, external_ref)`,
-  where `external_ref IS NOT NULL`, so the same bKash transaction can't be entered twice (#47 question 4).
-  Open question 2.
+  where `external_ref IS NOT NULL AND status = 'posted'`, so the same bKash transaction can't be entered twice
+  (#47 question 4). Only posted payments count: a payment voided for a wrong amount leaves the index, so it can
+  be entered again with its real transaction id (ADR 0016: voided and entered again). Open question 2.
 - **Posted is permanent:** a trigger allows one change only, `posted → voided` with the four void columns.
 - **RLS and grants** as every tenant table (ADR 0008, #27): forced, branch-scoped, with `branch_is_active` in
   `WITH CHECK`; `erp_app` `TO erp_app` for `SELECT`, `INSERT` and `UPDATE`, `UPDATE` only on the void columns,
@@ -111,7 +112,9 @@ Real Postgres, through the routes:
 3. Three partial payments on one invoice get three consecutive receipt numbers, and the invoice's due falls
    each time; a fourth above the remaining due gets `payment.above_due` and writes nothing.
 4. Bank, bKash and Card without an external id are refused (`CHECK` and schema); Cash is accepted without one.
-5. The same bKash transaction id twice in one business is refused; in another business it's accepted.
+5. The same bKash transaction id twice in one business is refused; in another business it's accepted. After
+   the first payment is voided, the same id is accepted on a new payment; two posted payments with it are
+   still refused.
 6. An advance (no invoice) posts to `customer_advance`, never revenue (invariant 8); the dues show it.
 7. Dues: with sales and payments only, the sum of open invoice dues equals the ledger's receivable for the party.
 8. A posted payment refuses every change but a void; a void posts the mirror journal and keeps the receipt
