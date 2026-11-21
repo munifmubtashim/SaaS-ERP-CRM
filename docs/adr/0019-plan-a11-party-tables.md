@@ -100,16 +100,17 @@ Prisma relations and back-relations (ADR 0008 section 5):
 ### 3. RLS and grants (in the migration and in `dal/sql/rls/party.sql`)
 
 - `ENABLE` and `FORCE ROW LEVEL SECURITY`.
-- One policy for `erp_app`, using the #19 functions in the `(SELECT …)::uuid[]` form:
-  `USING` and `WITH CHECK` both `business_id = ANY ((SELECT app_business_ids())::uuid[])`. No branch
-  condition: Party is business-wide (ADR 0006 section 1).
+- **`erp_app`'s policies are `TO erp_app`, with a `FOR` clause per granted command** (`FOR SELECT`, `FOR INSERT`,
+  `FOR UPDATE`), as ADR 0008 now requires for every policy ([#27](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/27), `2b835a1`). Each uses the #19
+  functions in the `(SELECT …)::uuid[]` form: `business_id = ANY ((SELECT app_business_ids())::uuid[])`, as
+  `USING` and, on writes, `WITH CHECK`. No branch condition: Party is business-wide (ADR 0006 section 1).
+- **The migration adds the owner policies, like every tenant table** (ADR 0008, [#27](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/27), `2b835a1`):
+  `TO CURRENT_USER` (the migrating owner), `FOR SELECT`, `FOR INSERT` and `FOR UPDATE`, with the same scope
+  expression and `WITH CHECK` on writes. **No owner `DELETE` policy.** So RLS stays forced on the owner too: a
+  seed writes sample customers only inside the `app.*` values it has set, and no role needs `BYPASSRLS`.
 - `REVOKE DELETE ON party FROM erp_app`. The default privileges grant it, and a party is deactivated, never
   deleted.
-- The source file and the migration must define the same policy (the `RlsSqlSource` pattern).
-- **The owner role has no policy on `party`.** The policy is `TO erp_app` only, so under forced RLS a migration
-  owner that isn't a superuser (the Neon demo host in #17) is refused every row, for example when a seed inserts
-  sample customers. This must follow Munif's answer to [question 1 on #31](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/31#issuecomment-7060072315), so the tree tables and
-  `party` treat the owner the same way.
+- The source file and the migration must define the same policies (the `RlsSqlSource` pattern).
 
 ### 4. Shared code first (both reviewers)
 
@@ -221,20 +222,24 @@ Parts 1 and 2 need no table, so they can start as soon as this ADR is agreed. Be
 
 2. **Where is the walk-in party created?** ADR 0006 section 6 (decided on #15) says that when a business is
    created, Organization calls a Party interface that creates it. But a business is created by
-   `erp_provisioner`, which may insert only into `business` and `branch` (ADR 0008 test 17). Three options:
-   - **A seed** creates it, as the migration owner. That depends on [#31 question 1](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/31#issuecomment-7060072315), and every new
-     business needs the seed run again. `created_by` would be `NULL`.
+   `erp_provisioner`, which may insert only into `business` and `branch` (ADR 0008 test 17). The options:
+   - **Right after the business is created, in a new scope** (Munif's approach, ADR 0010 at `31044ac` on
+     [#32](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/32), and ADR 0005's exception on #27). The `provisioning` route commits the business, then opens
+     a new `runInTenantScope` for the new business and creates the walk-in party as `erp_app`, through Party's
+     interface. `INSERT … ON CONFLICT DO NOTHING` on the partial unique index `(business_id) WHERE is_walk_in`,
+     so a repeat leaves exactly one. `created_by` is the calling Owner.
    - **The app creates it in the business's own scope, on first use** (the first sale or payment that needs a
-     walk-in customer), as `erp_app`. `INSERT … ON CONFLICT DO NOTHING` on the partial unique index
-     `(business_id) WHERE is_walk_in`, then a read, so two first uses at the same moment still leave exactly one.
-     `created_by` would be the user of that request, so the `CHECK` could become a plain `NOT NULL`.
+     walk-in customer), as `erp_app`, with the same `ON CONFLICT DO NOTHING`. `created_by` would be the user of
+     that request.
+   - **A seed** creates it, as the migration owner, through the owner policies (section 3). `created_by` would be
+     `NULL`.
    - **A grant to `erp_provisioner` on `party`.** That would change ADR 0008, which keeps the provisioner to two
-     tables. `created_by` would be `NULL` (#27).
+     tables.
 
-   Recommended: the app on first use, with the unique index so each business has exactly one walk-in party.
-   Then `created_by` is never `NULL` on `party`, and the `OR is_walk_in` part of the `CHECK` goes. It changes the
-   #15 decision, so ADR 0006 section 6 would be updated to match. Your call; if you pick a seed or the grant, the
-   `CHECK` stays as written.
+   Recommended: right after the business is created, in a new scope, with the unique index so each business has
+   exactly one walk-in party. It keeps the #15 decision (Organization calls Party's interface when a business is
+   created), so ADR 0006 section 6 doesn't change. The seed does the same for seeded businesses, with
+   `created_by` `NULL`, so the `CHECK (created_by IS NOT NULL OR is_walk_in)` stays as written. Your call.
 
 3. **`text` with `CHECK`, or a PostgreSQL enum,** for `kind` and `status`? Recommended: `text` with `CHECK`.
    Adding `merged` later is then a constraint swap in a new migration. A new enum value can't be used in the
