@@ -172,3 +172,27 @@ review only.
 | 0034-1 | Bins in release 1?                             | Munif, Moto Mart | **Decided by Munif, 21 Nov:** locations only, no bins                                                                              | no               |
 | 0034-2 | Which location does a POS sale take from?      | Munif            | **Decided by Munif, 21 Nov:** the default `sales_floor` location per branch; not changeable per line in release 1 (a later change) | yes              |
 | 0034-3 | Amend ADR 0021 (#59) to include `location_id`? | Munif            | **Decided by Munif, 21 Nov:** amended now (#59, `0c1989b`)                                                                         | yes              |
+
+### #74 ADR 0035: month lock and integrity check
+
+| #      | Question                                        | Who   | Recommendation                                            | Blocks building? |
+| ------ | ----------------------------------------------- | ----- | --------------------------------------------------------- | ---------------- |
+| 0035-1 | Reopen a locked month in release 1?             | Munif | Never                                                     | yes              |
+| 0035-2 | Require every day closed before the month lock? | Munif | Yes                                                       | yes              |
+| 0035-3 | Who runs the integrity check, how often?        | Munif | Nightly, a scheduled job on the server set up by a person | no (part 2)      |
+
+### #75 ADR 0036: chart of accounts and manual journals
+
+| #      | Question                                                      | Who   | Recommendation                             | Blocks building? |
+| ------ | ------------------------------------------------------------- | ----- | ------------------------------------------ | ---------------- |
+| 0036-1 | Every manual journal needs approval, or only above an amount? | Munif | Every one in release 1                     | yes (part 2)     |
+| 0036-2 | Who approves manual journals?                                 | Munif | Owner and Accountant                       | yes (part 2)     |
+| 0036-3 | Who may edit the role → account mapping?                      | Munif | Owner and Accountant, each change recorded | no               |
+
+### #76 ADR 0037: expenses and recurring expenses
+
+| #      | Question                                      | Who          | Recommendation                        | Blocks building? |
+| ------ | --------------------------------------------- | ------------ | ------------------------------------- | ---------------- |
+| 0037-1 | Expense approval limit?                       | Munif, owner | Per-business rule; default ৳10,000.00 | yes              |
+| 0037-2 | Payee as free text with an optional supplier? | Munif        | Yes                                   | yes              |
+| 0037-3 | Receipt required once attachments exist?      | Munif        | Above the approval limit only         | no               |
