@@ -287,3 +287,30 @@ review only.
 | 0046-1 | Previous period for a whole month?                           | Munif  | **Decided by Munif, 21 Nov:** the previous calendar month; otherwise the same number of days | yes              |
 | 0046-2 | VAT report in release 1?                                     | Munif  | **Decided by Munif, 21 Nov:** no                                                             | no               |
 | 0046-3 | A `salesperson_id` on the invoice for profit by salesperson? | Farhan | **Open, Farhan's decision.** Munif leans yes: nullable, defaulting to the creator            | yes (part 3)     |
+
+## 14. Batch 6 (drafted 21 Nov): cash forecast, vehicle service, VAT summary
+
+### #89 ADR 0047: cash forecast (F5)
+
+| #      | Question                                                       | Who   | Recommendation                                              | Blocks building? |
+| ------ | -------------------------------------------------------------- | ----- | ----------------------------------------------------------- | ---------------- |
+| 0047-1 | Which day does a forecast week start?                          | Munif | Saturday (Saturday to Friday; Friday is the weekly holiday) | yes              |
+| 0047-2 | Who sees the forecast?                                         | Munif | Owner and Accountant only (totals would reveal salaries)    | yes              |
+| 0047-3 | Expected collections at 100 %, or weighted by payment history? | Munif | 100 % in release 1, with overdue dues on their own line     | no               |
+
+### #90 ADR 0048: plate, odometer, km warranty, reminders (E5, Vehicle pack)
+
+| #      | Question                                                                         | Who    | Recommendation                                   | Blocks building? |
+| ------ | -------------------------------------------------------------------------------- | ------ | ------------------------------------------------ | ---------------- |
+| 0048-1 | An odometer reading lower than the last: refuse, or allow with a note?           | Munif  | Allow with a note, kept with the reading         | yes              |
+| 0048-2 | Warranty km and service intervals per model: who enters them; any defaults?      | Munif  | The Owner, from the maker's booklet; no defaults | no (part 2)      |
+| 0048-3 | Does ADR 0029 take `IWarrantyLimit` from the pack, and hand part 5 to this plan? | Farhan | Yes to both                                      | yes              |
+
+### #91 ADR 0049: VAT accounts and the monthly summary (D12; conditional on Q15)
+
+| #      | Question                                        | Who               | Recommendation                                           | Blocks building? |
+| ------ | ----------------------------------------------- | ----------------- | -------------------------------------------------------- | ---------------- |
+| 0049-1 | Q15: is the business VAT registered?            | owner, accountant | Nothing is built until "yes"                             | yes (all of it)  |
+| 0049-2 | Q16: VAT rounding per line or per invoice?      | accountant        | Per line, as A8 computes                                 | yes (Sales)      |
+| 0049-3 | Q25: prices VAT-inclusive?                      | owner, accountant | Ask before Sales' VAT line                               | yes (Sales)      |
+| 0049-4 | Which VAT rates apply to motorcycles and parts? | accountant        | A rate per product, set by the Owner; nothing hard-coded | yes              |
