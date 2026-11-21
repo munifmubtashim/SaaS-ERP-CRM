@@ -4,8 +4,8 @@ import { createDbClient, type DbClient } from '../config/db.js';
 /**
  * ADR 0008 section 1: the provisioning path connects as a separate least-privilege role, erp_provisioner, created
  * by docker/postgres/init/02-provisioner-role.sh. Not the migration owner, not BYPASSRLS, owner of nothing.
- * Its INSERT and SELECT on business and branch come with the organization_tree migration (A3b, test 17); until
- * then it has no table privileges at all. Read through the catalog as the application role.
+ * Its INSERT and SELECT on business and branch come with the organization_provisioning migration (ADR 0009
+ * part 2, test 17), and nothing else. Read through the catalog as the application role.
  */
 const appUrl = process.env.DATABASE_URL;
 if (!appUrl) throw new Error('DATABASE_URL is not set. Copy .env.example to .env and run npm run docker:up.');
@@ -61,7 +61,7 @@ describe('erp_provisioner role (ADR 0008 section 1)', () => {
     expect(memberOf).toEqual([]);
   });
 
-  it('has no table privilege of any kind yet (business and branch grants come with A3b)', async () => {
+  it('has INSERT and SELECT on business and branch, and no other table privilege (ADR 0008 test 17)', async () => {
     const granted = await app.$queryRaw<{ name: string; privilege: string }[]>`
       SELECT c.relname AS name, p.privilege
         FROM pg_class c
@@ -69,7 +69,13 @@ describe('erp_provisioner role (ADR 0008 section 1)', () => {
        CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'])
                AS p(privilege)
        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm')
-         AND has_table_privilege(${ROLE}, c.oid, p.privilege)`;
-    expect(granted).toEqual([]);
+         AND has_table_privilege(${ROLE}, c.oid, p.privilege)
+       ORDER BY 1, 2`;
+    expect(granted).toEqual([
+      { name: 'branch', privilege: 'INSERT' },
+      { name: 'branch', privilege: 'SELECT' },
+      { name: 'business', privilege: 'INSERT' },
+      { name: 'business', privilege: 'SELECT' },
+    ]);
   });
 });
