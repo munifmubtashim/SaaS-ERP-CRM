@@ -63,6 +63,12 @@ RLS forced with `branch_is_active` in `WITH CHECK`, `TO` and `FOR` on every poli
 - **Under warranty (SV-05):** a warranty line is charged at zero to the customer; its part cost posts Dr
   `warranty_expense`, Cr `service_wip`. A supplier warranty claim (SV-09, E7) later turns that cost into a
   receivable from the supplier.
+- **A known gap: a job done entirely under warranty.** Part cost leaves `service_wip` only through the invoice.
+  A job whose every line is under warranty has nothing to charge, so without a step for it the cost stays in
+  `service_wip` for good. Two options, not decided here (Munif's accounting rule, open question 5):
+  - **a zero invoice** through the same service-invoice path: total ৳0.00, posting only Dr `warranty_expense`,
+    Cr `service_wip`;
+  - **its own journal** when the job is delivered (`source = service_job`), with no invoice.
 
 ### 4. Warranty
 
@@ -75,7 +81,21 @@ RLS forced with `branch_is_active` in `WITH CHECK`, `TO` and `FOR` on every poli
 
 New permission codes: `service.job.create`, `service.job.update`, `service.job.view`, `service.part.issue`,
 `service.estimate.create`, `service.warranty.view`. Stock and money POSTs carry `{ idempotent: true }` and
-`X-Branch-Id`.
+`X-Branch-Id`. **The invoice route** (`POST /v1/service-jobs/:id/invoice`) needs `service.job.update`; **the
+part-return route** needs `service.part.issue`, the same code as issuing.
+
+Default roles, added to `permissions.ts` (#26) in part 1, provisional like every mapping (as #64 to #66 do):
+
+| Code                      | Owner | Business Manager | Branch Manager | Accountant | Cashier |
+| ------------------------- | ----- | ---------------- | -------------- | ---------- | ------- |
+| `service.job.create`      | yes   | yes              | yes            | no         | yes     |
+| `service.job.update`      | yes   | yes              | yes            | no         | yes     |
+| `service.job.view`        | yes   | yes              | yes            | yes        | yes     |
+| `service.part.issue`      | yes   | yes              | yes            | no         | no      |
+| `service.estimate.create` | yes   | yes              | yes            | no         | yes     |
+| `service.warranty.view`   | yes   | yes              | yes            | yes        | yes     |
+
+The Cashier gets job codes because the service desk opens and updates jobs; issuing stock stays with managers.
 
 `POST /v1/service-jobs` · `PATCH /v1/service-jobs/:id` (with `version`) · `POST /v1/service-jobs/:id/status` ·
 `POST /v1/service-jobs/:id/parts` (issue) · `POST /v1/service-jobs/:id/parts/:lineId/return` ·
@@ -135,7 +155,8 @@ E7 (free service schedule, supplier warranty claims) is deferred after release 1
 ## Consequences
 
 - **Easier:** service money, stock and dues use the same invoice, payment and ledger paths as sales.
-- **Harder:** a job's part cost sits in `service_wip` until it's invoiced; open jobs are a balance to watch.
+- **Harder:** a job's part cost sits in `service_wip` until it's invoiced (an all-warranty job: question 5); open
+  jobs are a balance to watch.
 - **Keep true:** no core field for vehicle data; parts leave stock only through movements.
 - **Undo:** before go-live, drop each part's tables in a new migration.
 
@@ -150,4 +171,7 @@ E7 (free service schedule, supplier warranty claims) is deferred after release 1
    a `warranty_months` field on the product (ADR 0020), 0 = none.
 3. **Warranty start:** on delivery of the unit, not on the invoice date? Recommended: delivery.
 4. **Estimate approval by the customer:** record how and when, with no staff approval rule? Recommended: yes;
-   staff approval for discounts on jobs comes with approvals (B7, B8).
+   staff approval for discounts on jobs comes with approvals (ADR 0030, [#68](https://github.com/munifmubtashim/SaaS-ERP-CRM/pull/68)).
+5. **A job done entirely under warranty** (section 3): clear its `service_wip` with a zero invoice through the
+   service-invoice path, or with its own journal when the job is delivered? No recommendation here: it's an
+   accounting rule for Munif.
