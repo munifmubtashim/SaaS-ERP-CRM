@@ -59,9 +59,23 @@ Both parts are **dal only**, plus the dal integration tests:
 
 - Ids: `@id @db.Uuid @default(dbgenerated("public.uuid_v7()"))` **(#27, #29)**.
 - `created_at`, `updated_at` as `timestamptz`, UTC. `created_by` is a plain `uuid` with no foreign key, and on
-  these four tables it is nullable: `NULL` means created by provisioning or seeded **(#27)**.
+  these four tables it is nullable, and **`NULL` only when seeded**: the provisioning path stores the calling
+  Owner's user id (ADR 0010; decided by Munif, 21 Nov) **(#27)**.
 - `legal_entity` gets `@@unique([organizationId, id])`, for `business (organization_id, legal_entity_id)`.
-  `branch` gets `@@unique([businessId, id])`, for A4's `user_scope`. `business` needs none **(#27 typo fix)**.
+  `branch` gets `@@unique([businessId, id])`, for A4's `user_scope`. `business` needs no composite key **(#27 typo
+  fix)**.
+- **`business` names are unique within an organization, case-insensitive** (decided by Munif, 21 Nov, after
+  Farhan's point 7 on #32), so a retried create can't make the same business twice, and "Demo Motors" and
+  "demo motors" can't both exist.
+  - A unique index on `(organization_id, lower(name))`, in raw SQL: Prisma can't express an expression index.
+    The PR checks that `db:migrate:check` doesn't report it as drift (the same check as A4's `lower(email)`,
+    question 4). If it does, the fallback is a plain `name_key` column the Query sets to `lower(name)`, with
+    `@@unique([organizationId, nameKey])`.
+  - The provisioning path maps a violation to `409 CONFLICT`, field code `business.name_taken` (ADR 0010).
+  - ⚠ **A deactivated business keeps its name taken** (decided here; flagged for Farhan). Reports, invoices and
+    the activity record show business names, so two businesses with one name, even years apart, would be
+    ambiguous. To reuse a name, the Owner first renames the old business, for example "Demo Motors (closed
+    2026)".
 - **`version` on `business` and `branch`** (Munif's answer, 21 Nov; open until Farhan agrees): `int NOT NULL
 DEFAULT 1`. CLAUDE.md asks for it where rows are edited concurrently.
   - **How it goes up:** no trigger. The edit's Query runs `UPDATE … SET …, version = version + 1 WHERE id = $1
@@ -97,9 +111,15 @@ erp_app`, they are never evaluated for `erp_provisioner`, whose transaction sets
   - `legal_entity`: `organization_id = (SELECT app_organization_id())`.
   - `business`: the organization check and `id = ANY ((SELECT app_business_ids())::uuid[])`.
   - `branch`: `business_id = ANY (…)` and `id = ANY ((SELECT app_branch_ids())::uuid[])`.
-- **Owner policies `TO CURRENT_USER`** (Munif, 21 Nov; see "Test fixtures"): `FOR SELECT`, `INSERT`, `UPDATE` and
-  `DELETE` on all four tables. They use the same scope expressions as `erp_app`'s, with `WITH CHECK` on writes,
-  so the owner can seed or clean up only inside the `app.*` values it has set.
+- **Owner policies `TO CURRENT_USER`** (decided by Munif, 21 Nov, as the rule for every tenant table, ADR 0008
+  #27; see "Test fixtures"): `FOR SELECT`, `INSERT` and `UPDATE`
+  on all four tables, with the same scope expressions as `erp_app`'s and `WITH CHECK` on writes, so the owner can
+  seed only inside the `app.*` values it has set. **No owner `DELETE` policy** (Farhan's point 5 on #27): a
+  branch can't be deleted, so its `short_code` is never freed. ADR 0008 makes this the rule for every tenant
+  table (#27).
+- **Nothing is deleted, by any role.** The demo reset recreates the database (drop, create, migrate, seed); it
+  never deletes rows. Erasing a person's data (for example a customer who asks to be forgotten) needs its own
+  later ADR.
 - **`UPDATE` for `erp_app` is column-level** (answers Farhan's point 2):
   - `organization`, `legal_entity`: **no `UPDATE`** in release 1. The owner or the seed changes them.
   - `business`: `UPDATE (name, bin, address, logo_key, invoice_prefix, opening_hours, fiscal_year_start_month,
@@ -125,6 +145,8 @@ is_active, version, updated_at)`.
   - Policies `TO erp_provisioner`: `business`: `organization_id = (SELECT app_organization_id())` for `USING`
     and `WITH CHECK`.
   - `branch`: `business_id IN (SELECT id FROM business WHERE organization_id = (SELECT app_organization_id()))`.
+    Its `WITH CHECK` adds `AND is_active` inside that subquery, so a branch can't be created under a
+    deactivated business, whatever the Manager checked (proposed after Farhan's point 4 on #32).
 - **`branch_is_active(branch_id uuid) RETURNS boolean`:** `SQL STABLE`, not `SECURITY DEFINER`, fixed
   `search_path`. A branch outside the caller's scope reads as `NULL`, which a `WITH CHECK` treats as refused.
   Each later branch-scoped table adds it to its `WITH CHECK`; that half of test 7 goes on the first such table's
@@ -149,6 +171,9 @@ is_active, version, updated_at)`.
 | 4      | `branch.short_code`: `UTT` and `AG2` are accepted; `utt`, `U`, `TOOLONG`, `U-T` and `2UT` are refused by the `CHECK`; a second branch with `UTT` in the same business is refused; `UTT` in another business is accepted.                                                                                                                                                                                                                  |
 | 5      | `erp_app` cannot `UPDATE` `organization` or `legal_entity`, nor `business.organization_id`, `business.legal_entity_id`, `branch.business_id` or `branch.short_code` (permission denied). As the owner, a change to any of those four key columns is refused by the trigger.                                                                                                                                                               |
 | 6      | **The owner path, without superuser or `BYPASSRLS`.** In the throwaway Postgres, the test creates such a role, a database it owns, and runs the migration as that role. Then, as that role: an insert with the `app.*` values set for the fixture's scope succeeds; an insert outside that scope, or with no `app.*` values set, is refused; a select returns only rows in the set scope. `erp_provisioner`'s own policies are unchanged. |
+| 7      | A second `business` named `Demo Motors` or `demo motors` in the same organization is refused, also while the first is deactivated; the same name in another organization is accepted. _(Part 1.)_                                                                                                                                                                                                                                         |
+| 8      | `erp_provisioner` can't insert a `branch` under a business with `is_active = false`, even inside its own organization. _(Part 2.)_                                                                                                                                                                                                                                                                                                        |
+| 9      | As the owner without superuser or `BYPASSRLS` (the test case 6 role), `DELETE` on any of the four tree tables is refused, so a `branch` and its `short_code` can't be removed. _(Part 1.)_                                                                                                                                                                                                                                                |
 
 Test 16 (`created_by` is the caller) applies to later modules' create routes, not to these tables (#27).
 
@@ -167,7 +192,8 @@ Test 16 (`created_by` is the caller) applies to later modules' create routes, no
     1. take each new id first (`SELECT public.uuid_v7()`);
     2. set `app.organization_id`, `app.business_ids` and `app.branch_ids` with `set_config(..., true)` in the same
        transaction;
-    3. insert, and delete in cleanup, inside that scope.
+    3. insert inside that scope. Nothing is deleted afterwards: each test uses fresh ids in its throwaway
+       database.
   - So the owner sees and writes only the scope it has set, like `erp_app`, and forced RLS means something for
     it. No role needs `BYPASSRLS`.
   - **Docker Compose and CI:** the owner there is the image's `POSTGRES_USER` (`erp_owner`), a superuser, which
