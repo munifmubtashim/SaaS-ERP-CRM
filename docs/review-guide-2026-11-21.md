@@ -3,6 +3,8 @@
 **For:** Farhan. **Written by:** Munif (with Claude Code), from the open PR list, the branches and the feature
 plan on 21 Nov. It's a snapshot; delete it once the queue is cleared.
 
+**Open questions** for each plan, with recommendations, are in `docs/decisions-2026-11-21.md`.
+
 **What counts as the critical path here:** A3 (organization tables), A4 (access tables), A5 (login), A6
 (tenant middleware), A11 (party tables) and the customer list.
 
@@ -70,19 +72,19 @@ The demo PRs (#48, #49) are in their own section below.
 
 In this order. Each item says what it unblocks.
 
-| Order | PR                                            | Reviewer | Min | Unblocks                                                               |
-| ----- | --------------------------------------------- | -------- | --- | ---------------------------------------------------------------------- |
-| 1     | #29 `uuid_v7()`                               | Farhan   | 35  | the default for every new key (A3, A11)                                |
-| 2     | #27 ADR 0008 amendment                        | Farhan   | 10  | A3 part 1 design                                                       |
-| 3     | #31 ADR 0009 (A3b plan)                       | Farhan   | 25  | **A3: Munif can't start the organization tables until this is agreed** |
-| 4     | #28 `erp_provisioner` role                    | Farhan   | 35  | A3 part 2 (needs #27)                                                  |
-| 5     | #26 permission codes                          | Farhan   | 25  | A4 seed, and Party's codes in #52                                      |
-| 6     | #45 ADR 0018 sessions and login               | Farhan   | 25  | A4 part 3 and A5                                                       |
-| 7     | #16 ADR 0007, then #8 tenant wrapper, then #9 | Farhan   | 90  | A5 and A6 (#9 needs #8 merged into it first)                           |
-| 8     | #52 ADR 0006 updates                          | Munif    | 15  | A11                                                                    |
-| 9     | #42 BaseDTO helpers                           | Munif    | 15  | A11 DTOs                                                               |
-| 10    | #54 ADR 0019 (A11 plan)                       | Munif    | 25  | A11 (after #52)                                                        |
-| 11    | #33 customer list                             | Munif    | 35  | the customer list                                                      |
+| Order | PR                                                                    | Reviewer | Min | Unblocks                                                               |
+| ----- | --------------------------------------------------------------------- | -------- | --- | ---------------------------------------------------------------------- |
+| 1     | #29 `uuid_v7()`                                                       | Farhan   | 35  | the default for every new key (A3, A11)                                |
+| 2     | #27 ADR 0008 amendment                                                | Farhan   | 10  | A3 part 1 design                                                       |
+| 3     | #31 ADR 0009 (A3b plan)                                               | Farhan   | 25  | **A3: Munif can't start the organization tables until this is agreed** |
+| 4     | #28 `erp_provisioner` role                                            | Farhan   | 35  | A3 part 2 (needs #27)                                                  |
+| 5     | #26 permission codes                                                  | Farhan   | 25  | A4 seed, and Party's codes in #52                                      |
+| 6     | #45 ADR 0018 sessions and login                                       | Farhan   | 25  | A4 part 3 and A5                                                       |
+| 7     | #16 ADR 0007, then #8 tenant wrapper, then #9                         | Farhan   | 90  | A5 and A6 (#9 needs #8 merged into it first)                           |
+| 8     | #52 ADR 0006 updates (waiting on Farhan's fixes to six review points) | Munif    | 15  | A11                                                                    |
+| 9     | #42 BaseDTO helpers (waiting on Farhan's fixes to four review points) | Munif    | 15  | A11 DTOs                                                               |
+| 10    | #54 ADR 0019 (A11 plan)                                               | Munif    | 25  | A11 (after #52)                                                        |
+| 11    | #33 customer list                                                     | Munif    | 35  | the customer list                                                      |
 
 About **4 hours** for Farhan (items 1 to 7) and about **1.5 hours** for Munif (items 8 to 11).
 
