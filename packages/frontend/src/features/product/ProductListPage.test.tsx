@@ -1,6 +1,7 @@
 import type { ProductListItem, ProductListQueryInput, ProductListResponse } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
@@ -41,13 +42,22 @@ class FakeProductService implements IProductService {
   }
 }
 
-function renderPage(product: IProductService, locale: 'en' | 'bn' = 'en') {
+/** Shows the current address, so a test can check what the page wrote into it. */
+function Location() {
+  const { pathname, search } = useLocation();
+  return <output aria-label="location">{pathname + search}</output>;
+}
+
+function renderPage(product: IProductService, locale: 'en' | 'bn' = 'en', url = '/inventory/products') {
   const services = fakeServices(new FakeHealthService(new Error('unused')), { product });
   render(
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <I18nProvider locale={locale}>
-          <ProductListPage />
+          <MemoryRouter initialEntries={[url]}>
+            <ProductListPage />
+            <Location />
+          </MemoryRouter>
         </I18nProvider>
       </QueryClientProvider>
     </ServicesContext.Provider>,
@@ -128,5 +138,39 @@ describe('ProductListPage', () => {
     renderPage(new FakeProductService([page([bike])]), 'bn');
     expect(await screen.findByRole('heading', { name: 'পণ্য' })).toBeInTheDocument();
     expect(await screen.findByText('সিরিয়াল নম্বর')).toBeInTheDocument();
+  });
+
+  it('starts from the search and status in the address, so a shared link opens the same list', async () => {
+    const product = new FakeProductService([page([pad])]);
+    renderPage(product, 'en', '/inventory/products?search=brake&status=archived');
+    await screen.findByText('Front brake pad');
+    expect(product.calls[0]).toMatchObject({ search: 'brake', status: 'archived' });
+    expect(screen.getByRole('searchbox', { name: 'Search products' })).toHaveValue('brake');
+    expect(screen.getByRole('button', { name: 'Archived', pressed: true })).toBeInTheDocument();
+  });
+
+  it('writes the submitted search and the chosen status into the address', async () => {
+    renderPage(new FakeProductService([page([bike])]));
+    await screen.findByText('Padma 110 Standard');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search products' }), {
+      target: { value: ' padma ' },
+    });
+    fireEvent.submit(screen.getByRole('search'));
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }));
+    expect(screen.getByRole('status', { name: 'location' })).toHaveTextContent(
+      '/inventory/products?search=padma&status=active',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByRole('status', { name: 'location' })).toHaveTextContent(
+      '/inventory/products?search=padma',
+    );
+  });
+
+  it('ignores a status in the address that is not a known one', async () => {
+    const product = new FakeProductService([page([bike])]);
+    renderPage(product, 'en', '/inventory/products?status=deleted');
+    await screen.findByText('Padma 110 Standard');
+    expect(product.calls[0]?.status).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'All', pressed: true })).toBeInTheDocument();
   });
 });

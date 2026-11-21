@@ -1,5 +1,6 @@
-import type { ProductListItem, ProductStatus } from '@erp/shared';
+import { productStatusSchema, type ProductListItem, type ProductStatus } from '@erp/shared';
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router';
 import { Button, Card } from '../../components/ui';
 import { useI18n, type MessageKey } from '../../i18n';
 import { ApiRequestError } from '../../services';
@@ -17,14 +18,23 @@ const segment =
 /** Products: what do we sell, and how do I find one fast? Next action: search or filter the list. */
 export function ProductListPage() {
   const { t } = useI18n();
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState<string | undefined>();
-  const [status, setStatus] = useState<ProductStatus | undefined>();
+  // The search and status live in the address, so a link, a refresh or Back opens the same list.
+  const [params, setParams] = useSearchParams();
+  const search = params.get('search')?.trim() || undefined;
+  const parsedStatus = productStatusSchema.safeParse(params.get('status'));
+  const status = parsedStatus.success ? parsedStatus.data : undefined;
+  const [searchInput, setSearchInput] = useState(search ?? '');
   const products = useProducts({ search, status });
 
+  const show = (next: { search: string | undefined; status: ProductStatus | undefined }) => {
+    const query = new URLSearchParams();
+    if (next.search) query.set('search', next.search);
+    if (next.status) query.set('status', next.status);
+    setParams(query);
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    setSearch(searchInput.trim() || undefined);
+    show({ search: searchInput.trim() || undefined, status });
   };
 
   return (
@@ -55,7 +65,7 @@ export function ProductListPage() {
               type="button"
               className={segment}
               aria-pressed={status === f.value}
-              onClick={() => setStatus(f.value)}
+              onClick={() => show({ search, status: f.value })}
             >
               {t(f.key)}
             </button>
