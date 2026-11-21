@@ -20,6 +20,29 @@ plan on 21 Nov. It's a snapshot; delete it once the queue is cleared.
   merged in before it can merge. Never a rebase.
 - **Reviewer:** Munif's PRs are for Farhan; Farhan's are for Munif.
 
+## 0. Code PRs in merge order
+
+The built code, stacked: each PR is based on the one before it, so **review and merge in this order**. After one
+merges, retarget the next to `main` (its diff then shrinks to its own lines). All are drafts; Munif undrafts each
+when it's next.
+
+**Slow review:** every one of these touches tenancy, RLS, roles, permissions or a migration, so CLAUDE.md asks for
+a slow, line-by-line human review (the AI review is extra, never the approval). The minutes allow for that.
+
+| Order | PR  | What                                                                  | Own size (lines)                                               | Min | Unlocks once merged                                                                                              |
+| ----- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------- | --- | ---------------------------------------------------------------------------------------------------------------- |
+| 1     | #29 | `uuid_v7()` function (migration)                                      | ~250                                                           | 35  | the default for every new id; #80 can merge                                                                      |
+| 2     | #26 | permission codes and the five roles (shared)                          | ~165                                                           | 25  | `RoleCode` for #92's Owner check; Party's codes (#52); the A4 seed                                               |
+| 3     | #28 | `erp_provisioner` role, init script, lint guard                       | ~215                                                           | 35  | the role #81 grants to; CI creates it                                                                            |
+| 4     | #80 | organization tree tables with forced RLS (ADR 0009 part 1)            | ~960 (243 are the migration's copy of the SQL source; skim it) | 75  | the first tenant tables; every later table's `business_id` and `branch_id` foreign keys; A11's party table       |
+| 5     | #81 | provisioner grants and policies, `branch_is_active` (ADR 0009 part 2) | ~325 after #28 merges                                          | 40  | creating a business or branch at all; `branch_is_active` for every branch-scoped table's `WITH CHECK`            |
+| 6     | #82 | `ProvisioningQuery` and `PROVISIONING_DATABASE_URL` (ADR 0010 part 1) | ~570                                                           | 50  | the dal half of provisioning; a lint exemption in `eslint.config.mjs` (shared)                                   |
+| 7     | #92 | Owner-only creation in `OrganizationManager` (ADR 0010 part 2)        | ~540 after #26 merges                                          | 45  | the businessLogic half; with #93 (CLAUDE.md route kind, docs, 5 minutes) merged first, the provisioning route PR |
+
+**About 5 hours in all**, best split over two sittings: #29 to #28 (about 1.5 hours), then #80 to #92 (about 3.5
+hours). #93, the one-paragraph CLAUDE.md change for the `provisioning` route kind, needs both reviewers and should
+merge before the route PR that follows #92.
+
 ## 1. Review first for the demo (Munif's order, 21 Nov)
 
 In this exact order. "When agreed" is what gets built once the plan is agreed (or, for #29, what merging it
