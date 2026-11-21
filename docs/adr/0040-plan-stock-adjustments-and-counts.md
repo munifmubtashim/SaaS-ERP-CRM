@@ -83,10 +83,9 @@ new adjustments), 6 (conditional decrement), and permissions (no self-approval).
 - **Harder:** every adjustment waits for a second person.
 - **Undo:** before go-live, drop the tables in a new migration.
 
-## Open questions (with recommended answers)
+## Open questions (decided)
 
-1. **Munif:** does every adjustment need approval, or only above a value? Recommended: every one in release 1.
-2. **Accountant:** which account takes losses and gains: one `inventory_loss` role (recommended) or separate
-   accounts per reason?
-3. **Munif:** may a count cover a whole branch at once, or one location at a time? Recommended: one location at a
-   time.
+1. ~~Every adjustment needs approval?~~ **Decided by Munif, 21 Nov:** yes, every adjustment in release 1.
+2. ~~One account or per reason?~~ **Decided by Munif, 21 Nov:** one account (`inventory_loss` role) for stock
+   losses and gains.
+3. ~~Whole branch or one location?~~ **Decided by Munif, 21 Nov:** a count covers one location at a time.
