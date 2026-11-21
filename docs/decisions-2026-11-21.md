@@ -124,11 +124,11 @@ review only.
 
 ### #59 ADR 0021: stock ledger
 
-| #      | Question                                       | Who    | Recommendation             | Blocks building? |
-| ------ | ---------------------------------------------- | ------ | -------------------------- | ---------------- |
-| 0021-1 | Stock by location                              | Munif  | Answered by ADR 0034 (#73) | yes              |
-| 0021-2 | Average cost rounded to paisa at each receipt? | both   | Yes                        | yes              |
-| 0021-3 | `sale_return` in release 1?                    | Farhan | Wait with returns (C14)    | no               |
+| #      | Question                                       | Who    | Recommendation                                                                                               | Blocks building? |
+| ------ | ---------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ | ---------------- |
+| 0021-1 | Stock by location                              | Munif  | **Decided by Munif, 21 Nov:** locations now; ADR 0021 amended (#59); average cost per branch in `stock_cost` | yes              |
+| 0021-2 | Average cost rounded to paisa at each receipt? | both   | Yes                                                                                                          | yes              |
+| 0021-3 | `sale_return` in release 1?                    | Farhan | Wait with returns (C14)                                                                                      | no               |
 
 ### #60 ADR 0022: sale posting (owner Farhan)
 
@@ -150,25 +150,25 @@ review only.
 
 ### #71 ADR 0032: activity record
 
-| #      | Question                                    | Who    | Recommendation                                       | Blocks building? |
-| ------ | ------------------------------------------- | ------ | ---------------------------------------------------- | ---------------- |
-| 0032-1 | Who may open the Activity Log?              | Munif  | Owner, Business Manager (own businesses), Accountant | no (part 2)      |
-| 0032-2 | Partition by month now?                     | both   | No, later                                            | no               |
-| 0032-3 | Viewing a full NID writes `view_sensitive`? | Farhan | Yes                                                  | no               |
+| #      | Question                                    | Who    | Recommendation                                                                     | Blocks building? |
+| ------ | ------------------------------------------- | ------ | ---------------------------------------------------------------------------------- | ---------------- |
+| 0032-1 | Who may open the Activity Log?              | Munif  | **Decided by Munif, 21 Nov:** Owner, Business Manager (own businesses), Accountant | no (part 2)      |
+| 0032-2 | Partition by month now?                     | both   | **Decided by Munif, 21 Nov:** no partitioning now                                  | no               |
+| 0032-3 | Viewing a full NID writes `view_sensitive`? | Farhan | Yes                                                                                | no               |
 
 ### #72 ADR 0033: permissions and hidden fields
 
-| #      | Question                                          | Who    | Recommendation                  | Blocks building? |
-| ------ | ------------------------------------------------- | ------ | ------------------------------- | ---------------- |
-| 0033-1 | Every tenant route declares a permission?         | both   | Yes                             | yes              |
-| 0033-2 | Hidden field absent or `null`?                    | both   | Absent                          | yes              |
-| 0033-3 | Role mapping fixed from #26 in release 1?         | Munif  | Yes; per-business editing later | no               |
-| 0033-4 | Party's per-kind codes need more than this check? | Farhan | No                              | no               |
+| #      | Question                                          | Who    | Recommendation                                                               | Blocks building? |
+| ------ | ------------------------------------------------- | ------ | ---------------------------------------------------------------------------- | ---------------- |
+| 0033-1 | Every tenant route declares a permission?         | both   | **Decided by Munif, 21 Nov:** yes, a test fails any tenant route without one | yes              |
+| 0033-2 | Hidden field absent or `null`?                    | both   | **Decided by Munif, 21 Nov:** absent, not `null`                             | yes              |
+| 0033-3 | Role mapping fixed from #26 in release 1?         | Munif  | **Decided by Munif, 21 Nov:** yes, fixed from #26 for release 1              | no               |
+| 0033-4 | Party's per-kind codes need more than this check? | Farhan | No                                                                           | no               |
 
 ### #73 ADR 0034: stock by location
 
-| #      | Question                                       | Who              | Recommendation                                                   | Blocks building? |
-| ------ | ---------------------------------------------- | ---------------- | ---------------------------------------------------------------- | ---------------- |
-| 0034-1 | Bins in release 1?                             | Munif, Moto Mart | No; locations only                                               | no               |
-| 0034-2 | Which location does a POS sale take from?      | Munif            | A default `sales_floor` location per branch, changeable per line | yes              |
-| 0034-3 | Amend ADR 0021 (#59) to include `location_id`? | Munif            | Yes, once both are agreed                                        | yes              |
+| #      | Question                                       | Who              | Recommendation                                                                                                                     | Blocks building? |
+| ------ | ---------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 0034-1 | Bins in release 1?                             | Munif, Moto Mart | **Decided by Munif, 21 Nov:** locations only, no bins                                                                              | no               |
+| 0034-2 | Which location does a POS sale take from?      | Munif            | **Decided by Munif, 21 Nov:** the default `sales_floor` location per branch; not changeable per line in release 1 (a later change) | yes              |
+| 0034-3 | Amend ADR 0021 (#59) to include `location_id`? | Munif            | **Decided by Munif, 21 Nov:** amended now (#59, `0c1989b`)                                                                         | yes              |
