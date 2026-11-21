@@ -1,4 +1,4 @@
-import { createManagers } from '@erp/business-logic';
+import { createManagers, DenyAllRoleSource } from '@erp/business-logic';
 import { createApp } from './app.js';
 import { loadEnv } from './config/env.js';
 import { createLogger } from './config/logger.js';
@@ -10,6 +10,9 @@ const { managers, close } = createManagers({
   version: env.APP_VERSION,
   dbPoolMax: env.DB_POOL_MAX,
   dbTxTimeoutMs: env.DB_TX_TIMEOUT_MS,
+  provisioningDatabaseUrl: env.PROVISIONING_DATABASE_URL,
+  // Until A5 reads roles from the session (ADR 0010, decided by Farhan on #32): nobody may provision yet.
+  roleSource: new DenyAllRoleSource(),
 });
 
 const server = createApp({ logger, managers }).listen(env.API_PORT, () => {
