@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ARGON2_SETTINGS, Argon2PasswordHasher } from './Argon2PasswordHasher.js';
 
 /** ADR 0018 section 5: argon2id at 19 MiB, time cost 2, parallelism 1; older settings are detected for rehash. */
@@ -10,6 +10,19 @@ describe('Argon2PasswordHasher', () => {
     expect(hash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
     await expect(hasher.verify(hash, 'correct horse battery')).resolves.toBe(true);
     await expect(hasher.verify(hash, 'correct horse batterY')).resolves.toBe(false);
+  });
+
+  it('makes the dummy hash when it is built, so the first unknown login pays no extra hash (Farhan, #95)', async () => {
+    const spy = vi.spyOn(Argon2PasswordHasher.prototype, 'hash');
+    try {
+      const fresh = new Argon2PasswordHasher();
+      expect(spy).toHaveBeenCalledTimes(1);
+      await expect(fresh.dummyHash()).resolves.toMatch(/^\$argon2id\$/);
+      await fresh.dummyHash();
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('salts every hash', async () => {

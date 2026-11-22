@@ -44,6 +44,7 @@ CREATE TABLE "permission" (
 CREATE TABLE "role_permission" (
     "role_id" UUID NOT NULL,
     "permission_code" TEXT NOT NULL,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "role_permission_pkey" PRIMARY KEY ("role_id","permission_code")
@@ -174,7 +175,7 @@ CREATE TRIGGER permission_no_truncate BEFORE TRUNCATE ON permission
 
 -- 4. Grants for erp_app ---------------------------------------------------------------------------------------
 -- 01-app-role.sh grants SELECT, INSERT, UPDATE, DELETE on every new table; take back what erp_app must not
--- have. Nothing is deleted: users, roles and scopes are deactivated.
+-- have. Nothing is deleted: users, roles, a role's permissions and scopes are deactivated.
 
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON app_user, role, permission, role_permission, user_scope FROM erp_app;
 
@@ -185,6 +186,8 @@ GRANT UPDATE (email, phone, password_hash, display_name, is_active, locked_until
               mfa_secret_enc, updated_at) ON app_user TO erp_app;
 -- A role's code and is_system never change; a system role's name and is_active don't either (trigger above).
 GRANT UPDATE (name, is_active, updated_at) ON role TO erp_app;
+-- A permission leaves (or rejoins) a custom role by is_active only; the role and the permission never change.
+GRANT UPDATE (is_active) ON role_permission TO erp_app;
 -- A scope is never moved to another user, role, business or branch: a new row is added and the old one
 -- deactivated.
 GRANT UPDATE (is_active, updated_at) ON user_scope TO erp_app;
@@ -228,10 +231,16 @@ CREATE POLICY role_app_update ON role FOR UPDATE TO erp_app
   USING (organization_id = (SELECT app_organization_id()))
   WITH CHECK (organization_id = (SELECT app_organization_id()));
 
--- erp_app can't add a permission to a system role: their mapping comes from the seed only.
+-- erp_app can't add, deactivate or reactivate a permission on a system role: their mapping comes from the seed
+-- only.
 CREATE POLICY role_permission_app_select ON role_permission FOR SELECT TO erp_app
   USING (EXISTS (SELECT 1 FROM role r WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id())));
 CREATE POLICY role_permission_app_insert ON role_permission FOR INSERT TO erp_app
+  WITH CHECK (EXISTS (SELECT 1 FROM role r
+                      WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system));
+CREATE POLICY role_permission_app_update ON role_permission FOR UPDATE TO erp_app
+  USING (EXISTS (SELECT 1 FROM role r
+                 WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system))
   WITH CHECK (EXISTS (SELECT 1 FROM role r
                       WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system));
 
@@ -291,17 +300,18 @@ CREATE POLICY user_scope_owner_update ON user_scope FOR UPDATE TO CURRENT_USER
 -- after rls/auth_access.sql. Readable source: AuthAccess.int.test.ts fails when this file and the migration
 -- differ. One function per rule; both run as the caller (not SECURITY DEFINER, ADR 0005).
 
--- 1. Group scope (both columns null) is for the Owner role only.
+-- 1. Group scope (both columns null) is for the system Owner role only. The code alone isn't enough: erp_app can
+-- create a custom role (is_system = false) coded 'owner' (Farhan, #94; ADR 0050).
 CREATE FUNCTION public.user_scope_group_is_owner() RETURNS trigger
   LANGUAGE plpgsql
   SET search_path = pg_catalog
 AS $$
 DECLARE
-  role_code text;
+  is_system_owner boolean;
 BEGIN
   IF NEW.business_id IS NULL AND NEW.branch_id IS NULL THEN
-    SELECT r.code INTO role_code FROM public.role r WHERE r.id = NEW.role_id;
-    IF role_code IS DISTINCT FROM 'owner' THEN
+    SELECT r.is_system AND r.code = 'owner' INTO is_system_owner FROM public.role r WHERE r.id = NEW.role_id;
+    IF is_system_owner IS NOT TRUE THEN
       RAISE EXCEPTION 'user_scope: only the owner role can hold the whole group'
         USING ERRCODE = 'check_violation';
     END IF;
