@@ -68,6 +68,7 @@ model Business {
   idempotencyKeys IdempotencyKey[]
   numberSeries    NumberSeries[]
   products        Product[]
+  staff           Staff[]
 
   @@map("business")
 }
@@ -91,9 +92,36 @@ model Branch {
   userScopes   UserScope[]
   numberSeries NumberSeries[]
   serialUnits  SerialUnit[]
+  staff        Staff[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])
   @@unique([businessId, shortCode])
   @@map("branch")
+}
+
+/// People of a business, with or without a login (ADR 0008 section 2, spec U-10): a technician or a salesperson
+/// can be assigned work with no login. A null branch is business-level staff, seen by every scope of the business.
+model Staff {
+  id          String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId  String   @map("business_id") @db.Uuid
+  /// Null: business-level. Set: a branch of the same business (composite key).
+  branchId    String?  @map("branch_id") @db.Uuid
+  /// The login, when this person has one. No foreign key: only AuthQuery may relate to app_user (ADR 0008 test 15).
+  userId      String?  @map("user_id") @db.Uuid
+  name        String
+  phone       String?
+  designation String?
+  isActive    Boolean  @default(true) @map("is_active")
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  business Business @relation(fields: [businessId], references: [id])
+  branch   Branch?  @relation(fields: [businessId, branchId], references: [businessId, id])
+
+  /// For party.assigned_to (business_id, assigned_to): a party can't be assigned to another business's staff.
+  @@unique([businessId, id])
+  @@map("staff")
 }
