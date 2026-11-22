@@ -17,9 +17,20 @@ const METHODS_WITHOUT_EXTERNAL_REF: ReadonlySet<string> = new Set(['cash']);
 
 export const paymentStatusSchema = z.enum(['posted', 'voided']);
 
+/** Optional free text, trimmed; a blank value counts as none (null). */
+const blankAsNull = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((s) => (s === '' ? null : s))
+    .nullable();
+
 /**
- * POST /v1/payments body, the payment entry form. The server sets the branch (ADR 0007), the receipt
- * number (ADR 0015) and the business date, so the client cannot send them: unknown keys are stripped.
+ * POST /v1/payments body, the payment entry form. Refusals carry a stable code in the issue's `params.code`,
+ * the same codes as SalesPaymentRecorder (#99): `payment.amount_invalid`, `payment.external_ref_required`.
+ * The server sets the branch (ADR 0007), the receipt number (ADR 0015) and the business date, so the client
+ * cannot send them: unknown keys are stripped.
  * The request also carries an `Idempotency-Key` header (ADR 0011); that is not part of the body.
  */
 export const recordPaymentSchema = z
@@ -29,22 +40,17 @@ export const recordPaymentSchema = z
     invoiceId: z.uuid().nullable(),
     method: paymentMethodSchema,
     // Zod runs a refine even when the regex failed, so the pattern is checked first.
-    amount: moneySchema.refine(
-      (amount) => MONEY_PATTERN.test(amount) && parseMoney(amount) > ZERO,
-      'The amount must be above zero',
-    ),
-    /** A blank id counts as no id. */
-    externalRef: z
-      .string()
-      .trim()
-      .max(64)
-      .transform((s) => (s === '' ? null : s))
-      .nullable(),
-    note: z.string().trim().max(500).nullable(),
+    amount: moneySchema.refine((amount) => MONEY_PATTERN.test(amount) && parseMoney(amount) > ZERO, {
+      message: 'The amount must be above zero',
+      params: { code: 'payment.amount_invalid' },
+    }),
+    externalRef: blankAsNull(64),
+    note: blankAsNull(500),
   })
   .refine((p) => METHODS_WITHOUT_EXTERNAL_REF.has(p.method) || p.externalRef !== null, {
     message: 'This payment method needs the transaction id.',
     path: ['externalRef'],
+    params: { code: 'payment.external_ref_required' },
   });
 
 /** A recorded payment, read back (a receipt or a row of the customer's payments). */
@@ -69,8 +75,8 @@ export const salesPaymentListResponseSchema = cursorPageSchema(salesPaymentSchem
 export const openInvoiceSchema = z.object({
   invoiceId: z.uuid(),
   invoiceNumber: z.string().min(1).max(32),
-  /** ISO 8601, UTC. */
-  invoiceDate: z.iso.datetime(),
+  /** The invoice's business date in Asia/Dhaka (YYYY-MM-DD), not a timestamp. */
+  invoiceDate: z.iso.date(),
   total: moneySchema,
   paid: moneySchema,
   due: moneySchema,

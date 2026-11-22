@@ -6,7 +6,8 @@ import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
  * Party module, Zod schemas shared by backend and frontend. Owner: Farhan.
  * One party is a customer, a supplier or both, and belongs to one business (ADR 0006 draft).
  * Read shapes only for now (task F1). Create and edit payloads come with F2.
- * Never add the national ID here: it has its own restricted route and schema (ADR 0001 row 2).
+ * The national ID appears here only as its last four digits (`nidLast4` on the profile); the full NID has its
+ * own restricted route and schema (ADR 0001 row 2).
  */
 export const partyKindSchema = z.enum(['person', 'company']);
 export const partyStatusSchema = z.enum(['active', 'inactive']);
@@ -52,11 +53,14 @@ const customerOrSupplierIssue = {
 
 export const partySchema = partyBaseSchema.refine(isCustomerOrSupplier, customerOrSupplierIssue);
 
-/** A credit limit: a money string of zero or more. Null means no limit is set, so no check (C17). */
+/**
+ * A credit limit: a money string of zero or more. Null means no limit is set, so no check (C17).
+ * The refusal carries the stable code `credit.limit_invalid` in the issue's `params.code`.
+ */
 const creditLimitSchema = moneySchema.refine(
   // Zod runs a refine even when the regex failed, so the pattern is checked first.
   (amount) => MONEY_PATTERN.test(amount) && parseMoney(amount) >= ZERO,
-  'A credit limit cannot be negative',
+  { message: 'A credit limit cannot be negative', params: { code: 'credit.limit_invalid' } },
 );
 
 /**
@@ -74,6 +78,8 @@ export const partyDetailSchema = partyBaseSchema
     /** Days a customer has to pay an invoice; null means the business default. */
     payTermDays: z.number().int().min(0).max(365).nullable(),
     onCreditHold: z.boolean(),
+    /** The business's walk-in customer (ADR 0006): no advance, credit limit or dues. */
+    isWalkIn: z.boolean(),
   })
   .refine(isCustomerOrSupplier, customerOrSupplierIssue);
 

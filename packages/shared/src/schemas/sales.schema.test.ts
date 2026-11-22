@@ -63,6 +63,29 @@ describe('recordPaymentSchema (the payment entry form)', () => {
     }
   });
 
+  it('gives every amount refusal the stable code payment.amount_invalid (as #99 does)', () => {
+    for (const amount of ['0.00', '-100.00', '12500', 'abc']) {
+      const result = recordPaymentSchema.safeParse({ ...cashPayment, amount });
+      const codes = result.error?.issues.map(
+        (issue) => (issue as { params?: { code?: string } }).params?.code,
+      );
+      expect(codes).toContain('payment.amount_invalid');
+    }
+  });
+
+  it('gives a missing transaction id the stable code payment.external_ref_required (as #99 does)', () => {
+    const result = recordPaymentSchema.safeParse({ ...cashPayment, method: 'bank' });
+    const issue = result.error?.issues[0] as { params?: { code?: string } } | undefined;
+    expect(issue?.params?.code).toBe('payment.external_ref_required');
+  });
+
+  it('treats a blank note as no note, the same rule as the external id', () => {
+    expect(recordPaymentSchema.parse({ ...cashPayment, note: '   ' }).note).toBeNull();
+    expect(recordPaymentSchema.parse({ ...cashPayment, note: ' paid at the counter ' }).note).toBe(
+      'paid at the counter',
+    );
+  });
+
   it('trims the external id, and treats a blank one as missing', () => {
     expect(
       recordPaymentSchema.parse({ ...cashPayment, method: 'bkash', externalRef: ' TXN-0001 ' }).externalRef,
@@ -126,7 +149,7 @@ describe('customerDuesSchema (what the customer owes, with open invoices)', () =
       {
         invoiceId,
         invoiceNumber: 'INV-000001',
-        invoiceDate: '2026-11-01T04:00:00.000Z',
+        invoiceDate: '2026-11-01',
         total: '50000.00',
         paid: '12500.00',
         due: '37500.00',
@@ -137,6 +160,15 @@ describe('customerDuesSchema (what the customer owes, with open invoices)', () =
   it('accepts dues with open invoices, and a customer who owes nothing', () => {
     expect(customerDuesSchema.safeParse(dues).success).toBe(true);
     expect(customerDuesSchema.safeParse({ ...dues, totalDue: '0.00', openInvoices: [] }).success).toBe(true);
+  });
+
+  it('takes the invoice date as a Dhaka business date, not a timestamp', () => {
+    const withDate = (invoiceDate: string) => ({
+      ...dues,
+      openInvoices: [{ ...dues.openInvoices[0], invoiceDate }],
+    });
+    expect(customerDuesSchema.safeParse(withDate('2026-11-01')).success).toBe(true);
+    expect(customerDuesSchema.safeParse(withDate('2026-11-01T04:00:00.000Z')).success).toBe(false);
   });
 
   it('takes every amount as a money string', () => {
