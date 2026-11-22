@@ -1,8 +1,7 @@
 import { HealthService, type IHealthService } from './healthService';
 import { HttpClient, type IHttpClient } from './HttpClient';
-import type { IAuthService } from './authService';
-import { MockAuthService } from './mock/MockAuthService';
-import type { IOrganizationService } from './organizationService';
+import { AuthService, type IAuthService } from './authService';
+import { OrganizationService, type IOrganizationService } from './organizationService';
 import { MockOrganizationService } from './mock/MockOrganizationService';
 import { ProductService, type IProductService } from './productService';
 import { InventoryService, type IInventoryService } from './inventoryService';
@@ -37,14 +36,25 @@ export interface Services {
   crm: ICrmService;
 }
 
+export interface CreateServicesOptions {
+  /**
+   * Use mocks for routes that don't exist yet. On only in a development build (`vite dev`), so a deployed app
+   * never shows invented data.
+   */
+  useMocks?: boolean;
+}
+
 /** Frontend composition root: the ONLY place services are constructed (lint-enforced). */
-export function createServices(http: IHttpClient = new HttpClient()): Services {
+export function createServices(
+  http: IHttpClient = new HttpClient(),
+  { useMocks = import.meta.env.DEV }: CreateServicesOptions = {},
+): Services {
   return {
     health: new HealthService(http),
-    // Mock until the M3 login API exists; then new AuthService(http).
-    auth: new MockAuthService(),
-    // Mock until GET /v1/me/businesses exists (M2); then new OrganizationService(http).
-    organization: new MockOrganizationService(),
+    // The login routes exist (ADR 0018): the real service in every build.
+    auth: new AuthService(http),
+    // Mock in development until GET /v1/me/businesses exists (M2); a production build calls the API.
+    organization: useMocks ? new MockOrganizationService() : new OrganizationService(http),
     product: new ProductService(http),
     inventory: new InventoryService(http),
     accounting: new AccountingService(http),

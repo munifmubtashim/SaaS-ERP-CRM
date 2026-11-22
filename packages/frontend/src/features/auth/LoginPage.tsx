@@ -45,7 +45,9 @@ export function LoginPage() {
   const failure = login.error
     ? login.error instanceof ApiRequestError && login.error.status === 401
       ? t('login.error.wrong')
-      : t('login.error.unavailable')
+      : login.error instanceof ApiRequestError && login.error.status === 429
+        ? t('login.error.tooMany')
+        : t('login.error.unavailable')
     : null;
 
   return (

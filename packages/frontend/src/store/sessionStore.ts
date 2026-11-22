@@ -19,7 +19,9 @@ function load(): Session | null {
 
 let state: Session | null = load();
 
-function save(next: Session | null): void {
+function save(input: Session | null): void {
+  // Only what sessionSchema allows is kept: never a token, password or email, whatever the caller passed.
+  const next = input ? sessionSchema.parse(input) : null;
   state = next;
   try {
     if (next) sessionStorage.setItem(KEY, JSON.stringify(next));

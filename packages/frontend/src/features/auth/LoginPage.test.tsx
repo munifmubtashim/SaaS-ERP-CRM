@@ -1,6 +1,6 @@
 import type { LoginRequest, Session } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
@@ -119,6 +119,39 @@ describe('LoginPage', () => {
     renderApp(new FakeAuthService(new TypeError('Failed to fetch')));
     fillAndSubmit('demo@example.com', 'long-enough-1');
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign in. Try again in a moment.');
+  });
+
+  it('shows the same message for a wrong password and an unknown login, never the API message', async () => {
+    const shown: string[] = [];
+    for (const message of ['Login or password is wrong.', 'Some other server wording']) {
+      const refused = new ApiRequestError(401, {
+        code: 'UNAUTHENTICATED',
+        message,
+        fields: [],
+        requestId: 'r',
+      });
+      renderApp(new FakeAuthService(refused));
+      fillAndSubmit('demo@example.com', 'long-enough-1');
+      const alert = await screen.findByRole('alert');
+      expect(alert).not.toHaveTextContent(message);
+      shown.push(alert.textContent ?? '');
+      cleanup();
+    }
+    expect(shown[0]).toBe(shown[1]);
+  });
+
+  it('after too many attempts (429) asks to wait, without saying whether the account exists', async () => {
+    const limited = new ApiRequestError(429, {
+      code: 'RATE_LIMITED',
+      message: 'Too many login attempts. Try again later.',
+      fields: [],
+      requestId: 'r',
+    });
+    renderApp(new FakeAuthService(limited));
+    fillAndSubmit('demo@example.com', 'long-enough-1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many attempts. Wait 15 minutes, then try again.',
+    );
   });
 
   it('renders in Bangla', () => {

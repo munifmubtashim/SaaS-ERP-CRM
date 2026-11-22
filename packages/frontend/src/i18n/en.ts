@@ -44,6 +44,7 @@ export const en = {
   'login.error.password': 'The password has at least 8 characters.',
   'login.error.wrong': 'The phone, email or password is not right.',
   'login.error.unavailable': 'Could not sign in. Try again in a moment.',
+  'login.error.tooMany': 'Too many attempts. Wait 15 minutes, then try again.',
   'shell.signedInAs': 'Signed in as',
   'shell.signOut': 'Sign out',
 } as const;

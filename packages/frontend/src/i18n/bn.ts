@@ -48,6 +48,7 @@ export const bn: Record<MessageKey, string> = {
   'login.error.password': 'পাসওয়ার্ডে অন্তত ৮টি অক্ষর থাকে।',
   'login.error.wrong': 'ফোন, ইমেইল বা পাসওয়ার্ড সঠিক নয়।',
   'login.error.unavailable': 'সাইন ইন করা যায়নি। একটু পরে আবার চেষ্টা করুন।',
+  'login.error.tooMany': 'অনেকবার চেষ্টা করা হয়েছে। ১৫ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।',
   'shell.signedInAs': 'সাইন ইন করেছেন',
   'shell.signOut': 'সাইন আউট',
   'error.home': 'হোমে ফিরে যান',
