@@ -1,3 +1,21 @@
 // Vehicle module: vehicle pack: units, reservations, registration; pack only (roadmap 5.9, spec O-11)
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// The Vehicle pack's extra columns for a serial unit (ADR 0020 section 1). The core never names these fields.
+model VehicleUnit {
+  /// The unit this row extends; one vehicle row per unit.
+  serialUnitId String   @id @map("serial_unit_id") @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  /// Unique per business (C5); never changed by erp_app (no column grant).
+  engineNo     String   @map("engine_no")
+  colour       String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  serialUnit SerialUnit @relation(fields: [businessId, serialUnitId], references: [businessId, id])
+
+  @@unique([businessId, engineNo])
+  @@map("vehicle_unit")
+}
