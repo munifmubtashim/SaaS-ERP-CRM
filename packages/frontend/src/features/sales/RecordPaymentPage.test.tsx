@@ -43,6 +43,7 @@ const profile: PartyDetail = {
   creditLimit: null,
   payTermDays: null,
   onCreditHold: false,
+  isWalkIn: false,
 };
 
 const dues: CustomerDues = {
