@@ -1,4 +1,9 @@
-import { partyListResponseSchema, type PartyListItem, type PartyListQueryInput } from '@erp/shared';
+import {
+  partyDetailSchema,
+  partyListResponseSchema,
+  type PartyListItem,
+  type PartyListQueryInput,
+} from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import { ApiRequestError } from '../HttpClient';
 import { MockPartyService, SAMPLE_BUSINESS_IDS } from './MockPartyService';
@@ -82,5 +87,22 @@ describe('MockPartyService (stands in for GET /v1/parties until F2)', () => {
     await expect(serviceFor(A).list({ role: 'customer', cursor: 'not-a-cursor' })).rejects.toBeInstanceOf(
       ApiRequestError,
     );
+  });
+});
+
+describe('MockPartyService.get (stands in for GET /v1/parties/:id until F2)', () => {
+  it('answers in the shared profile shape for a customer of the active business', async () => {
+    const [row] = (await serviceFor(A).list({ role: 'customer' })).items;
+    const detail = await serviceFor(A).get(row?.id ?? '');
+    expect(partyDetailSchema.safeParse(detail).success).toBe(true);
+    expect(detail).toMatchObject({ id: row?.id, code: row?.code, name: row?.name, businessId: A });
+  });
+
+  it('answers 404 for a customer of another business, like the tenant scope', async () => {
+    const [row] = (await serviceFor(A).list({ role: 'customer' })).items;
+    await expect(serviceFor(B).get(row?.id ?? '')).rejects.toMatchObject({ status: 404 });
+    await expect(serviceFor(A).get('0196f000-0000-7000-8000-00000000ffff')).rejects.toMatchObject({
+      status: 404,
+    });
   });
 });

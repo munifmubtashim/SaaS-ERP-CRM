@@ -1,5 +1,6 @@
 import {
   DEFAULT_PAGE_SIZE,
+  type PartyDetail,
   type PartyListItem,
   type PartyListQueryInput,
   type PartyListResponse,
@@ -73,6 +74,47 @@ const SAMPLE_PARTIES: Record<string, PartyListItem[]> = {
   [SAMPLE_BUSINESS_IDS.sampleTraders]: Array.from({ length: 5 }, (_, i) => sampleParty(201 + i)),
 };
 
+/** A sample party of this business, or undefined: the mock's tenant scope. Also used by MockSalesService. */
+export function findSampleParty(businessId: string, id: string): PartyListItem | undefined {
+  return (SAMPLE_PARTIES[businessId] ?? []).find((p) => p.id === id);
+}
+
+/** The sample number in a party's id (its last three digits), which seeds the other sample fields. */
+export const sampleNumber = (id: string) => Number(id.slice(-3));
+
+/** The answer the API gives for a party outside the active business: the same as for no party at all. */
+export function notFound(): ApiRequestError {
+  return new ApiRequestError(404, {
+    code: 'NOT_FOUND',
+    message: 'Not found.',
+    fields: [],
+    requestId: 'mock',
+  });
+}
+
+/** The profile fields a list row does not carry, made up from the sample number. */
+function sampleDetail(row: PartyListItem, businessId: string): PartyDetail {
+  const n = sampleNumber(row.id);
+  const nnn = String(n).padStart(3, '0');
+  return {
+    ...row,
+    businessId,
+    altPhone: n % 4 === 1 ? `+8801800000${nnn}` : null,
+    email: null,
+    address: `House ${n}, Road ${(n % 9) + 1}`,
+    createdAt: '2026-10-01T04:00:00.000Z',
+    updatedAt: '2026-10-01T04:00:00.000Z',
+    version: 1,
+    // Companies have no NID; the digits are made up and never a real NID.
+    nidLast4: row.kind === 'person' ? String(1000 + ((n * 37) % 9000)) : null,
+    creditLimit: n % 3 === 0 ? null : n % 3 === 1 ? '100000.00' : '250000.00',
+    payTermDays: n % 3 === 0 ? null : 30,
+    onCreditHold: n % 13 === 0,
+    // The sample list has no walk-in party: it is a system party, not a customer the user picks.
+    isWalkIn: false,
+  };
+}
+
 const PHONE_LIKE = /^[\d\s+-]+$/;
 
 /** Digits a typed phone number shares with the stored E.164 number: "01700000001" and "+8801700000001" match. */
@@ -139,5 +181,14 @@ export class MockPartyService implements IPartyService {
       items: rows.slice(start, end),
       nextCursor: end < rows.length ? encodeCursor(end) : null,
     };
+  }
+
+  /** Stands in for GET /v1/parties/:id: 404 for a party of another business, like the tenant scope. */
+  async get(id: string): Promise<PartyDetail> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    const businessId = this.activeBusinessId();
+    const row = findSampleParty(businessId, id);
+    if (!row) throw notFound();
+    return sampleDetail(row, businessId);
   }
 }
