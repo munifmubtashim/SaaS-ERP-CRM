@@ -25,6 +25,11 @@ const envSchema = z
      * `erp_sid` without Secure, for http://localhost in development only.
      */
     SESSION_COOKIE_SECURE: z.stringbool().default(true),
+    /**
+     * The app's origin (scheme, host, port): every non-GET request must carry it in Origin (ADR 0018 section 2).
+     * Required in production; elsewhere the Vite dev server, http://localhost:5173.
+     */
+    APP_ORIGIN: z.url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && !env.PROVISIONING_DATABASE_URL) {
@@ -40,6 +45,9 @@ const envSchema = z
         path: ['SESSION_COOKIE_SECURE'],
         message: 'must be true in production: the cookie is always __Host- and Secure (ADR 0018)',
       });
+    }
+    if (env.NODE_ENV === 'production' && !env.APP_ORIGIN) {
+      ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'required in production (ADR 0018)' });
     }
     if (env.SESSION_IDLE_HOURS > env.SESSION_ABSOLUTE_DAYS * 24) {
       ctx.addIssue({

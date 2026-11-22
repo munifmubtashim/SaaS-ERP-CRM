@@ -72,6 +72,7 @@ describe('error shape {code, message, fields[], requestId}', () => {
   it('rejects malformed JSON with VALIDATION_FAILED, not a 500', async () => {
     const res = await request(appWith(true))
       .post('/health')
+      .set('Origin', 'http://localhost:5173')
       .set('Content-Type', 'application/json')
       .send('{"broken":');
     expect(res.status).toBe(400);
