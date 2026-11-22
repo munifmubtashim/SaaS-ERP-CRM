@@ -15,6 +15,8 @@ export interface StoredKey {
   requestHash: Buffer;
   statusCode: number;
   responseBody: unknown;
+  /** The headers the first answer sent (a 201's Location, for example); {} when it sent none (Farhan, #96). */
+  responseHeaders: Record<string, string>;
 }
 
 /**
@@ -27,6 +29,6 @@ export interface IIdempotencyQuery {
    * have waited for a concurrent request that rolled back), or the stored row when the key was already used.
    */
   claim(input: ClaimInput): Promise<StoredKey | null>;
-  /** Stores the answer once; the database refuses a second store (ADR 0011 section 5). */
-  complete(key: string, statusCode: number, body: unknown): Promise<void>;
+  /** Stores the answer, headers included, once; the database refuses a second store (ADR 0011 section 5). */
+  complete(key: string, statusCode: number, body: unknown, headers: Record<string, string>): Promise<void>;
 }

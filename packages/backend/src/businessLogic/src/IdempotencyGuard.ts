@@ -11,7 +11,10 @@ export interface IdempotentRequest {
   body: unknown;
 }
 
-export type ClaimResult = { kind: 'claimed' } | { kind: 'replay'; statusCode: number; body: unknown };
+/** A replay answers with the first request's status, body and headers, so a retry sees the same response. */
+export type ClaimResult =
+  | { kind: 'claimed' }
+  | { kind: 'replay'; statusCode: number; body: unknown; headers: Record<string, string> };
 
 /** 1 to 255 visible ASCII characters (ADR 0011 section 1). */
 const KEY_FORMAT = /^[\x21-\x7e]{1,255}$/;
@@ -69,11 +72,19 @@ export class IdempotencyGuard {
         },
       ]);
     }
-    return { kind: 'replay', statusCode: stored.statusCode, body: stored.responseBody };
+    return {
+      kind: 'replay',
+      statusCode: stored.statusCode,
+      body: stored.responseBody,
+      headers: stored.responseHeaders,
+    };
   }
 
-  /** Stores the handler's answer; called only after the handler succeeded, in the same transaction. */
-  complete(key: string, result: { status: number; body: unknown }): Promise<void> {
-    return this.query.complete(key, result.status, result.body);
+  /** Stores the handler's answer, headers included; called only after the handler succeeded, in the same transaction. */
+  complete(
+    key: string,
+    result: { status: number; body: unknown; headers?: Record<string, string> },
+  ): Promise<void> {
+    return this.query.complete(key, result.status, result.body, result.headers ?? {});
   }
 }
