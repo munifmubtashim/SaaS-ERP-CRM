@@ -59,11 +59,12 @@ model Business {
   updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy            String?  @map("created_by") @db.Uuid
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  legalEntity  LegalEntity  @relation(fields: [organizationId, legalEntityId], references: [organizationId, id])
-  branches     Branch[]
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  legalEntity     LegalEntity      @relation(fields: [organizationId, legalEntityId], references: [organizationId, id])
+  branches        Branch[]
   /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
-  userScopes   UserScope[]
+  userScopes      UserScope[]
+  idempotencyKeys IdempotencyKey[]
 
   @@map("business")
 }

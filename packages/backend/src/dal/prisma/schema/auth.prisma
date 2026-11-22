@@ -26,8 +26,10 @@ model AppUser {
   /// NULL only when seeded. No foreign key (ADR 0008 section 5).
   createdBy      String?   @map("created_by") @db.Uuid
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  scopes       UserScope[]
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  scopes          UserScope[]
+  /// Back-relation for idempotency_key.user_id (ON DELETE RESTRICT); only the idempotency Query uses that table.
+  idempotencyKeys IdempotencyKey[]
 
   @@map("app_user")
 }

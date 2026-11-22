@@ -11,11 +11,18 @@ import { DAL_DIR } from './sqlFunctions.js';
  *    fields Prisma requires on Organization, Business and Branch. The migration source files that create them
  *    (sql/rls/auth_access.sql, sql/triggers/user_scope.sql) are the only other exceptions.
  * 2. No schema file other than auth.prisma declares a relation to those models, except the list back-relations
- *    in organization.prisma named in BACK_RELATIONS (Prisma refuses a foreign key without them).
+ *    in organization.prisma named in BACK_RELATIONS (Prisma refuses a foreign key without them) and the foreign
+ *    keys named in NAMED_RELATIONS.
  */
 const AUTH_QUERY = 'query/AuthQuery.ts';
 const DEFINITIONS = ['sql/rls/auth_access.sql', 'sql/triggers/user_scope.sql'];
 const BACK_RELATIONS = ['appUsers', 'authRoles', 'userScopes'];
+/**
+ * Named exceptions to rule 2: a foreign key from another table to an auth model. Each one is a column that names a
+ * user, nothing more; no Query may follow it into the auth table (rule 1 still applies to every source file).
+ * idempotency_key.user_id (ADR 0011 section 4, Munif 22 Nov): a retry by another user is refused.
+ */
+const NAMED_RELATIONS = [{ file: 'platform.prisma', field: 'user', model: 'AppUser' }];
 
 const FORBIDDEN = new RegExp(
   [
@@ -62,8 +69,12 @@ describe('ADR 0008 test 15: only AuthQuery touches the access tables', () => {
       for (const line of readFileSync(join(schemaDir, file), 'utf8').split('\n')) {
         const field = /^\s*(\w+)\s+(AppUser|Role|RolePermission|UserScope)(\[\]|\?)?(\s|$)/.exec(line);
         if (!field) continue;
-        const [, name = '', , list] = field;
-        const allowed = file === 'organization.prisma' && list === '[]' && BACK_RELATIONS.includes(name);
+        const [, name = '', model = '', list] = field;
+        const named = NAMED_RELATIONS.some(
+          (relation) => relation.file === file && relation.field === name && relation.model === model,
+        );
+        const allowed =
+          named || (file === 'organization.prisma' && list === '[]' && BACK_RELATIONS.includes(name));
         if (!allowed) offenders.push(`${file}: ${line.trim()}`);
       }
     }
