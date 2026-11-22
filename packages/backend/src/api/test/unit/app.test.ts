@@ -33,11 +33,19 @@ describe('GET /health (HealthRoutes -> HealthController -> HealthManager)', () =
 });
 
 describe('error shape {code, message, fields[], requestId}', () => {
-  it('is used for unknown routes, including stub module paths with no routes yet', async () => {
-    const res = await request(appWith(true)).get('/v1/sales/anything');
+  it('is used for unknown routes', async () => {
+    const res = await request(appWith(true)).get('/not-a-route');
     expect(res.status).toBe(404);
     const err = apiErrorSchema.parse(res.body);
     expect(err.code).toBe('NOT_FOUND');
+    expect(err.requestId).toBe(res.headers['x-request-id']);
+  });
+
+  it('is used when a /v1 request has no session, before any 404 (ADR 0018 section 6)', async () => {
+    const res = await request(appWith(true)).get('/v1/sales/anything');
+    expect(res.status).toBe(401);
+    const err = apiErrorSchema.parse(res.body);
+    expect(err.code).toBe('UNAUTHENTICATED');
     expect(err.requestId).toBe(res.headers['x-request-id']);
   });
 

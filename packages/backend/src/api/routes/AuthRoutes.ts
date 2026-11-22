@@ -13,5 +13,9 @@ export function authRoutes(controller: AuthController, wrap: RouteWrappers): Mod
     '/login',
     wrap.public((req) => controller.login(req)),
   );
+  router.post(
+    '/logout',
+    wrap.public((req) => controller.logout(req)),
+  );
   return { module: 'Auth', basePath: '/v1/auth', scope: 'public', router };
 }

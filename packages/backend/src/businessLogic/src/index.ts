@@ -43,7 +43,7 @@ export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
 export type { ActiveSession, IAuthQuery, LoginUser, NewSession, UserRef } from './contracts/IAuthQuery.js';
 export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
-export type { LoginOutcome, SessionLifetimes, VerifiedLogin } from './AuthManager.js';
+export type { AuthenticatedSession, LoginOutcome, SessionLifetimes, VerifiedLogin } from './AuthManager.js';
 export type { ISessionTokens } from './contracts/ISessionTokens.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
 export type { IProductQuery } from './contracts/IProductQuery.js';

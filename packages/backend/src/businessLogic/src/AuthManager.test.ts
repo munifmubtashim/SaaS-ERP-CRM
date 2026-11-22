@@ -291,3 +291,75 @@ describe('AuthManager.login (ADR 0018 sections 1 to 4)', () => {
     expect(query.sessions.size).toBe(0);
   });
 });
+
+describe('AuthManager.authenticate and logout (ADR 0018 sections 3 and 6)', () => {
+  const MINUTE = 60_000;
+  const at = (ms: number): IClock => ({ now: () => new Date(NOW.getTime() + ms) });
+
+  /** Logs in at NOW and returns the query, the token and a function that builds a Manager at a later time. */
+  async function signedIn(lifetimes = LIFETIMES) {
+    const query = new FakeAuthQuery(user());
+    const sessionTokens = new FakeTokens();
+    const { token } = await new AuthManager(query, new FakeHasher(), clock, sessionTokens, lifetimes).login(
+      'owner@example.com',
+      'right-password',
+      null,
+    );
+    const later = (ms: number) => new AuthManager(query, new FakeHasher(), at(ms), sessionTokens, lifetimes);
+    return { query, token, later, stored: () => [...query.sessions.values()][0] };
+  }
+
+  it('a valid session gives who is calling: user, organization and session', async () => {
+    const { token, later } = await signedIn();
+    await expect(later(MINUTE).authenticate(token)).resolves.toEqual({
+      userId: USER,
+      organizationId: ORG,
+      sessionId: 'session-1',
+    });
+  });
+
+  it('an unknown token is a 401 that asks to sign in again', async () => {
+    const { later } = await signedIn();
+    expect(await refusal(later(0).authenticate('not-a-session'))).toEqual({
+      code: 'UNAUTHENTICATED',
+      message: 'Sign in again.',
+    });
+  });
+
+  it('within 5 minutes of the last activity, nothing is written', async () => {
+    const { token, later, stored } = await signedIn();
+    await later(4 * MINUTE).authenticate(token);
+    expect(stored()?.lastSeenAt).toEqual(NOW);
+  });
+
+  it('7. after more than 5 minutes, activity extends the idle expiry, never the absolute one', async () => {
+    const { token, later, stored } = await signedIn();
+    await later(6 * MINUTE).authenticate(token);
+    expect(stored()?.lastSeenAt).toEqual(new Date(NOW.getTime() + 6 * MINUTE));
+    expect(stored()?.idleExpiresAt).toEqual(new Date(NOW.getTime() + 6 * MINUTE + 8 * HOUR));
+    expect(stored()?.absoluteExpiresAt).toEqual(new Date(NOW.getTime() + 7 * 24 * HOUR));
+  });
+
+  it('7. the idle extension stops at the absolute expiry', async () => {
+    const { token, later, stored } = await signedIn({ idleMs: 8 * HOUR, absoluteMs: 10 * HOUR });
+    await later(5 * HOUR).authenticate(token);
+    expect(stored()?.idleExpiresAt).toEqual(new Date(NOW.getTime() + 10 * HOUR));
+  });
+
+  it('7. past the idle expiry the session is refused', async () => {
+    const { token, later } = await signedIn();
+    expect((await refusal(later(8 * HOUR).authenticate(token))).code).toBe('UNAUTHENTICATED');
+  });
+
+  it('6. logout revokes the session; the same token is then refused', async () => {
+    const { token, later } = await signedIn();
+    await later(MINUTE).logout(token);
+    expect((await refusal(later(2 * MINUTE).authenticate(token))).code).toBe('UNAUTHENTICATED');
+  });
+
+  it('logout with an unknown token does nothing and does not fail', async () => {
+    const { later, stored } = await signedIn();
+    await expect(later(0).logout('not-a-session')).resolves.toBeUndefined();
+    expect(stored()?.revokedAt).toBeNull();
+  });
+});

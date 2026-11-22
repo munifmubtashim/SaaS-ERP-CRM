@@ -3,9 +3,9 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from './config/logger.js';
-import type { SessionCookieConfig } from './config/sessionCookie.js';
+import { SECURE_SESSION_COOKIE, type SessionCookieConfig } from './config/sessionCookie.js';
 import { createControllers } from './controllers/index.js';
-import { authMiddleware } from './middleware/authMiddleware.js';
+import { createAuthMiddleware } from './middleware/authMiddleware.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
 import { requestIdFor } from './middleware/requestId.js';
 import { tenantMiddleware } from './middleware/tenantMiddleware.js';
@@ -45,12 +45,10 @@ export function createApp(deps: AppDeps): Express {
   app.use(express.json({ limit: '1mb' }));
 
   // Every business route lives under /v1 and passes auth and tenant resolution first.
-  app.use('/v1', authMiddleware, tenantMiddleware);
+  const cookie = deps.sessionCookie ?? SECURE_SESSION_COOKIE;
+  app.use('/v1', createAuthMiddleware(deps.managers.auth, cookie), tenantMiddleware);
 
-  const routes = buildRoutes(
-    createControllers(deps.managers, deps.sessionCookie),
-    createRouteWrappers(deps.tenantScope),
-  );
+  const routes = buildRoutes(createControllers(deps.managers, cookie), createRouteWrappers(deps.tenantScope));
   for (const { basePath, router } of routes) {
     app.use(basePath, router);
   }
