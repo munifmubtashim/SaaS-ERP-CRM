@@ -1,6 +1,5 @@
 /**
- * Party module, frontend feature folder: components, routes, hooks for this module. Owner: Farhan.
- * TODO(Farhan): customers, suppliers, contacts, dues (roadmap 5.3).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Party module, frontend feature folder. Owner: Farhan.
+ * F1b: the customer list against mock data (ADR 0006, order of work step 2). The profile comes in F1b-2.
  */
-export {};
+export { CustomerListPage } from './CustomerListPage';
