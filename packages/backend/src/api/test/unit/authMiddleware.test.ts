@@ -13,6 +13,8 @@ import { fakeManagers, FakeHealthManager, noTenantScope, silentLogger } from '..
  * valid token; the session rules (expiry, active user, same organization) are tested in businessLogic and dal.
  */
 const TOKEN = 'tok_valid_4f9c2b7d';
+/** createApp's default app origin (development); every non-GET request must carry it (ADR 0018 section 2). */
+const DEV_ORIGIN = 'http://localhost:5173';
 const WHO: AuthenticatedSession = {
   userId: '01937000-0000-7000-8000-0000000000b0',
   organizationId: '01937000-0000-7000-8000-0000000000a0',
@@ -93,7 +95,7 @@ describe('authMiddleware (ADR 0018 section 6)', () => {
 
   it('public routes pass without a session and without asking the Manager', async () => {
     const auth = new FakeAuthManager();
-    const res = await request(fullApp(auth)).post('/v1/auth/login').send({});
+    const res = await request(fullApp(auth)).post('/v1/auth/login').set('Origin', DEV_ORIGIN).send({});
     expect(res.status).toBe(400);
     expect(auth.authenticated).toEqual([]);
   });
@@ -111,7 +113,10 @@ describe('POST /v1/auth/logout (ADR 0018 section 3)', () => {
   it('6. revokes the session, clears the cookie, and the old cookie then gets 401', async () => {
     const auth = new FakeAuthManager();
     const app = fullApp(auth);
-    const res = await request(app).post('/v1/auth/logout').set('Cookie', `__Host-erp_sid=${TOKEN}`);
+    const res = await request(app)
+      .post('/v1/auth/logout')
+      .set('Origin', DEV_ORIGIN)
+      .set('Cookie', `__Host-erp_sid=${TOKEN}`);
     expect(res.status).toBe(204);
     expect(res.headers['set-cookie']).toEqual([CLEARED]);
     expect([...auth.revoked]).toEqual([TOKEN]);
@@ -121,7 +126,7 @@ describe('POST /v1/auth/logout (ADR 0018 section 3)', () => {
 
   it('without a cookie it still clears the cookie and revokes nothing', async () => {
     const auth = new FakeAuthManager();
-    const res = await request(fullApp(auth)).post('/v1/auth/logout');
+    const res = await request(fullApp(auth)).post('/v1/auth/logout').set('Origin', DEV_ORIGIN);
     expect(res.status).toBe(204);
     expect(res.headers['set-cookie']).toEqual([CLEARED]);
     expect(auth.revoked.size).toBe(0);

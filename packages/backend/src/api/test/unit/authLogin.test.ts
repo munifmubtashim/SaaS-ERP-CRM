@@ -41,6 +41,7 @@ function appWith(auth: FakeAuthManager, secure = true) {
 const post = (app: ReturnType<typeof appWith>, body: unknown) =>
   request(app)
     .post('/v1/auth/login')
+    .set('Origin', 'http://localhost:5173')
     .set('User-Agent', 'Vitest/1.0')
     .send(body as object);
 

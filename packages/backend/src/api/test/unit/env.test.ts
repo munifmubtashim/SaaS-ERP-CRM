@@ -40,9 +40,14 @@ describe('loadEnv: PROVISIONING_DATABASE_URL (ADR 0010, Munif 20 Nov on #32)', (
 
   it('is required in production: start-up fails without it', () => {
     expect(() => loadEnv({ ...base, NODE_ENV: 'production' })).toThrow('PROVISIONING_DATABASE_URL');
-    expect(loadEnv({ ...base, NODE_ENV: 'production', PROVISIONING_DATABASE_URL: url }).NODE_ENV).toBe(
-      'production',
-    );
+    expect(
+      loadEnv({
+        ...base,
+        NODE_ENV: 'production',
+        PROVISIONING_DATABASE_URL: url,
+        APP_ORIGIN: 'https://erp.example.com',
+      }).NODE_ENV,
+    ).toBe('production');
   });
 
   it('must be a URL when set', () => {
@@ -57,6 +62,7 @@ describe('loadEnv: sessions (ADR 0018 sections 2 and 3)', () => {
     ...base,
     NODE_ENV: 'production',
     PROVISIONING_DATABASE_URL: 'postgresql://erp_provisioner:x@localhost:5433/erp',
+    APP_ORIGIN: 'https://erp.example.com',
   };
 
   it('defaults to 8 hours idle, 7 days absolute, and a Secure __Host- cookie', () => {
@@ -88,6 +94,26 @@ describe('loadEnv: sessions (ADR 0018 sections 2 and 3)', () => {
   it('refuses an idle timeout longer than the absolute one', () => {
     expect(() => loadEnv({ ...base, SESSION_IDLE_HOURS: '200', SESSION_ABSOLUTE_DAYS: '7' })).toThrow(
       'SESSION_IDLE_HOURS',
+    );
+  });
+});
+
+describe('loadEnv: APP_ORIGIN (ADR 0018 section 2)', () => {
+  const prod = {
+    ...base,
+    NODE_ENV: 'production',
+    PROVISIONING_DATABASE_URL: 'postgresql://erp_provisioner:x@localhost:5433/erp',
+  };
+
+  it('is optional in development (the Vite dev server is assumed)', () => {
+    expect(loadEnv(base).APP_ORIGIN).toBeUndefined();
+  });
+
+  it('is required in production, and must be a URL', () => {
+    expect(() => loadEnv(prod)).toThrow('APP_ORIGIN');
+    expect(() => loadEnv({ ...prod, APP_ORIGIN: 'erp.example.com' })).toThrow('APP_ORIGIN');
+    expect(loadEnv({ ...prod, APP_ORIGIN: 'https://erp.example.com' }).APP_ORIGIN).toBe(
+      'https://erp.example.com',
     );
   });
 });

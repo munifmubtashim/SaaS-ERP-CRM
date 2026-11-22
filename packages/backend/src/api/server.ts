@@ -24,6 +24,7 @@ const server = createApp({
   managers,
   tenantScope,
   sessionCookie: { secure: env.SESSION_COOKIE_SECURE },
+  appOrigin: env.APP_ORIGIN,
 }).listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'api listening');
 });
