@@ -5,7 +5,8 @@ import { MockSalesService } from './mock/MockSalesService';
 import { PartyService } from './partyService';
 import { SalesService } from './salesService';
 
-const http: IHttpClient = { getJson: () => Promise.reject(new Error('no network in this test')) };
+const noNetwork = () => Promise.reject(new Error('no network in this test'));
+const http: IHttpClient = { getJson: noNetwork, postJson: noNetwork };
 
 describe('createServices: the mock Party service only in development (review on #33)', () => {
   it('builds the real PartyService when mocks are off, as in a production build', () => {

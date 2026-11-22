@@ -11,6 +11,9 @@ class RecordingHttp implements IHttpClient {
     this.calls.push({ path, schema });
     return schema.parse({ items: [], nextCursor: null });
   }
+  postJson(): Promise<never> {
+    return Promise.reject(new Error('PartyService does not POST yet.'));
+  }
 }
 
 describe('PartyService (GET /v1/parties, used from F2)', () => {

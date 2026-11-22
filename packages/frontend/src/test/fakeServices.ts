@@ -19,6 +19,7 @@ const unusedParty: IPartyService = {
 /** A sales service a test did not expect to be called: using it fails loudly. */
 const unusedSales: ISalesService = {
   dues: () => Promise.reject(new Error('This test did not expect a sales request.')),
+  recordPayment: () => Promise.reject(new Error('This test did not expect a sales request.')),
 };
 
 /** Services made of fakes. Stub modules have empty contracts, so `{}` satisfies them. Override per test. */

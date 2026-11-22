@@ -1,11 +1,15 @@
 import {
   formatMoney,
   parseMoney,
+  recordPaymentSchema,
   subtractMoney,
   sumMoney,
   type CustomerDues,
   type OpenInvoice,
+  type RecordPaymentInput,
+  type SalesPayment,
 } from '@erp/shared';
+import { ApiRequestError } from '../HttpClient';
 import type { ISalesService } from '../salesService';
 import { findSampleParty, notFound, sampleNumber } from './MockPartyService';
 
@@ -38,11 +42,36 @@ function sampleInvoices(n: number): OpenInvoice[] {
   });
 }
 
+/** The one sample branch every mock payment is received in; the real server takes it from the request. */
+const SAMPLE_BRANCH_ID = '0196f000-0000-7000-8000-0000000000c1';
+
+/** What ADR 0011 (#37, draft) says the server answers for a reused key with a different body. */
+function keyReused(): ApiRequestError {
+  return new ApiRequestError(409, {
+    code: 'CONFLICT',
+    message: 'This Idempotency-Key was already used for a different payment.',
+    fields: [
+      {
+        path: 'Idempotency-Key',
+        code: 'idempotency.key_reused',
+        message: 'This Idempotency-Key was already used for a different payment.',
+      },
+    ],
+    requestId: 'mock',
+  });
+}
+
 /**
  * Stands in for the Sales routes until A15. Answers like the API will: only the active business's
  * customers (the tenant scope, ADR 0007), and dues that add up.
  */
 export class MockSalesService implements ISalesService {
+  /**
+   * Payments by business and Idempotency-Key, with the body they were made from (ADR 0011). A repeat returns
+   * the first result; the same key with another body is refused; a key never crosses businesses.
+   */
+  private readonly payments = new Map<string, { body: string; payment: SalesPayment }>();
+
   constructor(
     private readonly activeBusinessId: () => string,
     private readonly delayMs = 400,
@@ -60,5 +89,33 @@ export class MockSalesService implements ISalesService {
       advance: n % 6 === 0 ? '5000.00' : '0.00',
       openInvoices,
     };
+  }
+
+  /**
+   * Stands in for POST /v1/payments. Shapes only: it does not change the dues above, and posts no journal
+   * (A16, ADR 0016).
+   */
+  async recordPayment(input: RecordPaymentInput, idempotencyKey: string): Promise<SalesPayment> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    const businessId = this.activeBusinessId();
+    const body = recordPaymentSchema.parse(input);
+    const slot = `${businessId}:${idempotencyKey}`;
+    const earlier = this.payments.get(slot);
+    if (earlier) {
+      if (earlier.body !== JSON.stringify(body)) throw keyReused();
+      return earlier.payment;
+    }
+    if (!findSampleParty(businessId, body.partyId)) throw notFound();
+    const n = this.payments.size + 1;
+    const payment: SalesPayment = {
+      ...body,
+      id: `0196f000-0000-7000-8000-0000002${String(n).padStart(5, '0')}`,
+      receiptNumber: `R-${String(n).padStart(6, '0')}`,
+      branchId: SAMPLE_BRANCH_ID,
+      status: 'posted',
+      receivedAt: new Date().toISOString(),
+    };
+    this.payments.set(slot, { body: JSON.stringify(body), payment });
+    return payment;
   }
 }

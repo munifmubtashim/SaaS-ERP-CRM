@@ -1,4 +1,4 @@
-import type { CustomerDues, ErrorCode, PartyDetail, PartyListResponse } from '@erp/shared';
+import type { CustomerDues, ErrorCode, PartyDetail, PartyListResponse, SalesPayment } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -94,6 +94,9 @@ class FakeSales implements ISalesService {
     if (this.failWith) throw this.failWith;
     return this.answer;
   }
+  recordPayment(): Promise<SalesPayment> {
+    return Promise.reject(new Error('not used'));
+  }
 }
 
 function apiError(status: number, code: ErrorCode) {
@@ -138,6 +141,7 @@ describe('CustomerDetailPage (mock data)', () => {
     // The real PartyService checks the reply with partyDetailSchema, which drops every unknown key.
     const http: IHttpClient = {
       getJson: async (_path, schema) => schema.parse({ ...profile, nid: fullNid, nationalId: fullNid }),
+      postJson: () => Promise.reject(new Error('not used')),
     };
     const { container } = renderPage(new PartyService(http), new FakeSales());
     expect(await screen.findByText('•••• 1234')).toBeInTheDocument();
