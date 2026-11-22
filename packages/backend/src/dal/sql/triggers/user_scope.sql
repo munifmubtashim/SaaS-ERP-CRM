@@ -2,17 +2,18 @@
 -- after rls/auth_access.sql. Readable source: AuthAccess.int.test.ts fails when this file and the migration
 -- differ. One function per rule; both run as the caller (not SECURITY DEFINER, ADR 0005).
 
--- 1. Group scope (both columns null) is for the Owner role only.
+-- 1. Group scope (both columns null) is for the system Owner role only. The code alone isn't enough: erp_app can
+-- create a custom role (is_system = false) coded 'owner' (Farhan, #94; ADR 0050).
 CREATE FUNCTION public.user_scope_group_is_owner() RETURNS trigger
   LANGUAGE plpgsql
   SET search_path = pg_catalog
 AS $$
 DECLARE
-  role_code text;
+  is_system_owner boolean;
 BEGIN
   IF NEW.business_id IS NULL AND NEW.branch_id IS NULL THEN
-    SELECT r.code INTO role_code FROM public.role r WHERE r.id = NEW.role_id;
-    IF role_code IS DISTINCT FROM 'owner' THEN
+    SELECT r.is_system AND r.code = 'owner' INTO is_system_owner FROM public.role r WHERE r.id = NEW.role_id;
+    IF is_system_owner IS NOT TRUE THEN
       RAISE EXCEPTION 'user_scope: only the owner role can hold the whole group'
         USING ERRCODE = 'check_violation';
     END IF;
