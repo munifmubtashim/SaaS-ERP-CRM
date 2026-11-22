@@ -1,10 +1,11 @@
-# CI for every push and pull request (roadmap 9.2). Job names are the required status checks in
-# branch protection, so renaming a job means updating the protection rule on main too.
+# CI for pull requests into main, and for main itself (roadmap 9.2). A push to a PR's branch runs CI once, as the
+# pull request; it used to run twice (push and pull_request). Job names are the required status checks in branch
+# protection, so renaming a job means updating the protection rule on main too (tools/src/ciWorkflow.test.ts).
 name: CI
 
 on:
   push:
-    branches: [main, 'dev-*', 'feat/**', 'hotfix/**']
+    branches: [main]
   pull_request:
     branches: [main]
 
