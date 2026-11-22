@@ -1,6 +1,6 @@
 import { AppError } from '@erp/shared';
 import type { INumberSeriesQuery } from './contracts/INumberSeriesQuery.js';
-import type { INumberSeries } from './contracts/provided/INumberSeries.js';
+import type { INumberSeries, NumberSeriesKind } from './contracts/provided/INumberSeries.js';
 
 const POSITIVE_WHOLE = /^[1-9]\d*$/;
 
@@ -11,7 +11,7 @@ const POSITIVE_WHOLE = /^[1-9]\d*$/;
 export class NumberSeries implements INumberSeries {
   constructor(private readonly query: INumberSeriesQuery) {}
 
-  async next(kind: string, branchId: string | null): Promise<string> {
+  async next(kind: NumberSeriesKind, branchId: string | null): Promise<string> {
     const taken = await this.query.take(kind, branchId);
     if (!taken) {
       const message = `No ${kind} number series is set up here.`;

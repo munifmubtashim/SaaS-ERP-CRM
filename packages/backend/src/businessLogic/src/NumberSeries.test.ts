@@ -1,15 +1,16 @@
 import { AppError } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import type { INumberSeriesQuery, TakenNumber } from './contracts/INumberSeriesQuery.js';
+import { NUMBER_SERIES_KINDS, type NumberSeriesKind } from './contracts/provided/INumberSeries.js';
 import { NumberSeries } from './NumberSeries.js';
 
 /** ADR 0015 unit tests 8 and 10 (fake Query). The atomic take, RLS and the +1 trigger are dal tests 1–7, 9. */
 const BRANCH = '01937000-0000-7000-8000-0000000000e0';
 
 class FakeSeriesQuery implements INumberSeriesQuery {
-  calls: { kind: string; branchId: string | null }[] = [];
+  calls: { kind: NumberSeriesKind; branchId: string | null }[] = [];
   constructor(private readonly taken: TakenNumber | null) {}
-  async take(kind: string, branchId: string | null): Promise<TakenNumber | null> {
+  async take(kind: NumberSeriesKind, branchId: string | null): Promise<TakenNumber | null> {
     this.calls.push({ kind, branchId });
     return this.taken;
   }
@@ -45,6 +46,13 @@ describe('NumberSeries.next (ADR 0015)', () => {
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).code).toBe('CONFLICT');
     expect((error as AppError).fields[0]?.code).toBe('number_series.missing');
+  });
+
+  it('kind is one of the series kinds ADR 0015 names; a typo does not compile (Farhan, #98)', async () => {
+    expect(NUMBER_SERIES_KINDS).toEqual(['invoice', 'receipt', 'journal', 'party_code']);
+    const series = new NumberSeries(new FakeSeriesQuery({ prefix: 'RC-', value: '1', width: 6 }));
+    // @ts-expect-error 'reciept' is not a series kind: typecheck fails here if kind is a plain string.
+    await series.next('reciept', BRANCH);
   });
 
   it('refuses a value that is not a positive whole number (a dal bug, never formatted)', async () => {

@@ -54,7 +54,8 @@ export type { IProvisioningQuery } from './contracts/IProvisioningQuery.js';
 export type { IRoleSource } from './contracts/IRoleSource.js';
 export type { IIdempotencyQuery, ClaimInput, StoredKey } from './contracts/IIdempotencyQuery.js';
 export type { INumberSeriesQuery, TakenNumber } from './contracts/INumberSeriesQuery.js';
-export type { INumberSeries } from './contracts/provided/INumberSeries.js';
+export type { INumberSeries, NumberSeriesKind } from './contracts/provided/INumberSeries.js';
+export { NUMBER_SERIES_KINDS } from './contracts/provided/INumberSeries.js';
 export type {
   IPostingService,
   JournalDraft,

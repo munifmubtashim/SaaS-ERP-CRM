@@ -74,6 +74,18 @@ Login is the only read before any organization is known.
   `NOT is_system`). Custom roles can be renamed and deactivated.
 - **The seed creates a new organization's five system roles and their permissions until onboarding is
   designed.** (Munif, 22 Nov; this is the ADR 0009 part 4 seed.)
+- **Only the system Owner role holds the whole group.** The `user_scope` trigger accepts a group scope (both
+  `business_id` and `branch_id` null) only when the role has `is_system AND code = 'owner'`. The code alone isn't
+  enough: `erp_app` can create a custom role coded `owner` (its `INSERT` policy only requires `NOT is_system`),
+  for example in an organization the seed hasn't reached yet (Farhan, #94).
+
+### 5. A permission leaves a custom role by deactivation
+
+- `role_permission` has `is_active` (default `true`), like `user_scope`. A permission is never deleted from a
+  role: it is deactivated, and can be reactivated. Permission checks count active rows only.
+- `erp_app` has `UPDATE` on `role_permission.is_active` **only** (a column-level grant): never on `role_id`,
+  `permission_code` or `created_at`. Its `UPDATE` policy, like its `INSERT` policy, requires a role in the caller's
+  organization with `NOT is_system`, so a system role's permissions change only through the seed.
 
 ## Known trade-offs (accepted)
 
@@ -90,13 +102,22 @@ that returns only what login needs, if that guard ever proves too weak.
 5). The lookup returns "no row" for an unknown login, which the login code must not reveal: the same `401`, the
 same message, and the dummy-hash cost spent so the timing matches. ADR 0018 test 2 checks both.
 
+**The timing is close, not identical.** A wrong password for a real account also runs `recordFailedLogin`, an
+`UPDATE` of that user's counter, which an unknown login doesn't. The difference is one indexed single-row
+`UPDATE`, small next to the argon2id verification both paths pay, but an attacker timing many attempts could
+measure it (Farhan, #95). Accepted for release 1; the per-IP and per-account rate limits (ADR 0018) bound how many
+attempts that takes. Revisit by running an equivalent write for an unknown login if it ever proves measurable in
+production.
+
 ## Tests (written first)
 
-`AuthAccess.int.test.ts` (41 tests), `AuthTablesOnlyInAuthQuery.int.test.ts` (test 15), and an
+`AuthAccess.int.test.ts` (47 tests), `AuthTablesOnlyInAuthQuery.int.test.ts` (test 15), and an
 `auth_access` block in `OrganizationTreeOwner.int.test.ts` for an owner that is neither superuser nor
 `BYPASSRLS`. They cover: RLS enabled and forced, no `DELETE` or unnamed-role policy; the login path and its
 limits; organization isolation including guessed ids (ADR 0008 test 10); E.164 and the login `CHECK`; the
-identical conflict answer; fixed system roles; ADR 0008 tests 6 and 9; the source files matching the migration.
+identical conflict answer; fixed system roles; a custom role coded `owner` refused a group scope;
+`role_permission.is_active` (deactivate and reactivate on a custom role, nothing on a system role or another
+organization's role, no other column writable); ADR 0008 tests 6 and 9; the source files matching the migration.
 
 ## Consequences
 
@@ -106,6 +127,7 @@ identical conflict answer; fixed system roles; ADR 0008 tests 6 and 9; the sourc
   `tenantMiddleware` (A6) reads `user_scope` with the session's organization set (the session row carries it,
   ADR 0018), not with the user id alone.
 - **Keep true:** only `AuthQuery` names the auth tables; only `findUserForLogin` sets `app.login_key`; login
-  answers never distinguish unknown users from wrong passwords.
+  answers never distinguish unknown users from wrong passwords; only the system Owner role holds group scope;
+  permission checks read active `role_permission` rows only.
 - **Undo:** a new migration dropping the policies and disabling RLS on the four tables returns to ADR 0008
   section 2 as written.

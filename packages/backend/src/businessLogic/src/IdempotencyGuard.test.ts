@@ -12,14 +12,19 @@ const ROUTE = 'POST /v1/payments';
 
 class FakeIdempotencyQuery implements IIdempotencyQuery {
   claims: ClaimInput[] = [];
-  completed: { key: string; statusCode: number; body: unknown }[] = [];
+  completed: { key: string; statusCode: number; body: unknown; headers: Record<string, string> }[] = [];
   constructor(private readonly existing: StoredKey | null = null) {}
   async claim(input: ClaimInput): Promise<StoredKey | null> {
     this.claims.push(input);
     return this.existing;
   }
-  async complete(key: string, statusCode: number, body: unknown): Promise<void> {
-    this.completed.push({ key, statusCode, body });
+  async complete(
+    key: string,
+    statusCode: number,
+    body: unknown,
+    headers: Record<string, string>,
+  ): Promise<void> {
+    this.completed.push({ key, statusCode, body, headers });
   }
 }
 
@@ -72,13 +77,34 @@ describe('IdempotencyGuard.claim (ADR 0014 test 7, ADR 0011 sections 1, 3, 4)', 
       requestHash: canonicalHash({ ...body }),
       statusCode: 201,
       responseBody: { id: 'pay-1' },
+      responseHeaders: { Location: '/v1/payments/pay-1' },
     };
     const guard = new IdempotencyGuard(new FakeIdempotencyQuery(stored));
     await expect(guard.claim({ key: 'k-1', route: ROUTE, userId: USER, body })).resolves.toEqual({
       kind: 'replay',
       statusCode: 201,
       body: { id: 'pay-1' },
+      headers: { Location: '/v1/payments/pay-1' },
     });
+  });
+
+  it('a replay carries the stored response headers, and none when the first answer had none (Farhan, #96)', async () => {
+    const stored: StoredKey = {
+      route: ROUTE,
+      userId: USER,
+      requestHash: canonicalHash(body),
+      statusCode: 200,
+      responseBody: { ok: true },
+      responseHeaders: {},
+    };
+    await expect(
+      new IdempotencyGuard(new FakeIdempotencyQuery(stored)).claim({
+        key: 'k-1',
+        route: ROUTE,
+        userId: USER,
+        body,
+      }),
+    ).resolves.toEqual({ kind: 'replay', statusCode: 200, body: { ok: true }, headers: {} });
   });
 
   it.each([
@@ -92,6 +118,7 @@ describe('IdempotencyGuard.claim (ADR 0014 test 7, ADR 0011 sections 1, 3, 4)', 
       requestHash: canonicalHash(body),
       statusCode: 201,
       responseBody: {},
+      responseHeaders: {},
       ...change,
     };
     const error = await errorOf(
@@ -114,15 +141,20 @@ describe('IdempotencyGuard.claim (ADR 0014 test 7, ADR 0011 sections 1, 3, 4)', 
     ['too long', 'k'.repeat(256)],
     ['not visible ASCII', 'key with space'],
     ['non-ASCII', 'কী'],
-  ])('a %s key is 400 idempotency.missing, and nothing is claimed', async (_case, key) => {
-    const query = new FakeIdempotencyQuery(null);
-    const error = await errorOf(new IdempotencyGuard(query).claim({ key, route: ROUTE, userId: USER, body }));
-    expect(error.code).toBe('VALIDATION_FAILED');
-    expect(error.fields).toEqual([
-      { path: 'Idempotency-Key', code: 'idempotency.missing', message: expect.any(String) },
-    ]);
-    expect(query.claims).toEqual([]);
-  });
+  ])(
+    'a %s key is 400 idempotency.missing (one code for absent and malformed, ADR 0011), and nothing is claimed',
+    async (_case, key) => {
+      const query = new FakeIdempotencyQuery(null);
+      const error = await errorOf(
+        new IdempotencyGuard(query).claim({ key, route: ROUTE, userId: USER, body }),
+      );
+      expect(error.code).toBe('VALIDATION_FAILED');
+      expect(error.fields).toEqual([
+        { path: 'Idempotency-Key', code: 'idempotency.missing', message: expect.any(String) },
+      ]);
+      expect(query.claims).toEqual([]);
+    },
+  );
 
   it('accepts a 255-character visible-ASCII key', async () => {
     await expect(
@@ -135,9 +167,21 @@ describe('IdempotencyGuard.claim (ADR 0014 test 7, ADR 0011 sections 1, 3, 4)', 
     ).resolves.toEqual({ kind: 'claimed' });
   });
 
-  it('complete stores the status and body through the Query', async () => {
+  it('complete stores the status, body and response headers through the Query', async () => {
     const query = new FakeIdempotencyQuery(null);
-    await new IdempotencyGuard(query).complete('k-1', { status: 201, body: { id: 'pay-1' } });
-    expect(query.completed).toEqual([{ key: 'k-1', statusCode: 201, body: { id: 'pay-1' } }]);
+    await new IdempotencyGuard(query).complete('k-1', {
+      status: 201,
+      body: { id: 'pay-1' },
+      headers: { Location: '/v1/payments/pay-1' },
+    });
+    expect(query.completed).toEqual([
+      { key: 'k-1', statusCode: 201, body: { id: 'pay-1' }, headers: { Location: '/v1/payments/pay-1' } },
+    ]);
+  });
+
+  it('complete stores no headers when the answer has none', async () => {
+    const query = new FakeIdempotencyQuery(null);
+    await new IdempotencyGuard(query).complete('k-1', { status: 200, body: { ok: true } });
+    expect(query.completed).toEqual([{ key: 'k-1', statusCode: 200, body: { ok: true }, headers: {} }]);
   });
 });
