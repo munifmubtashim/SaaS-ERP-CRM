@@ -16,4 +16,4 @@ export interface ModuleRoutes {
 }
 
 /** The only public routes. Adding one needs the other developer's review. */
-export const PUBLIC_ROUTES: ReadonlySet<string> = new Set(['GET /health']);
+export const PUBLIC_ROUTES: ReadonlySet<string> = new Set(['GET /health', 'POST /v1/auth/login']);

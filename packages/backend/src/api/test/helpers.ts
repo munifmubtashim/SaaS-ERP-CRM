@@ -1,6 +1,11 @@
 import { createLogger } from '../config/logger.js';
 import { AppError } from '@erp/shared';
-import type { ApiManagers, IHealthManager, ITenantScopeRunner } from '../controllers/contracts/index.js';
+import type {
+  ApiManagers,
+  IAuthManager,
+  IHealthManager,
+  ITenantScopeRunner,
+} from '../controllers/contracts/index.js';
 
 export const silentLogger = createLogger({ level: 'silent', pretty: false });
 
@@ -17,11 +22,16 @@ export class FakeHealthManager implements IHealthManager {
   }
 }
 
+/** An auth Manager for tests that never log in: using it is a test bug, so it fails loudly. */
+export const unusedAuth: IAuthManager = {
+  login: () => Promise.reject(new AppError('INTERNAL_ERROR', 'This test logged in without an auth Manager.')),
+};
+
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
 export function fakeManagers(health: IHealthManager): ApiManagers {
   return {
     health,
-    auth: {},
+    auth: unusedAuth,
     organization: {},
     product: {},
     inventory: {},

@@ -21,7 +21,7 @@ export { PUBLIC_ROUTES, type ModuleRoutes, type RouteScope } from './types.js';
 export function buildRoutes(c: Controllers, wrap: RouteWrappers): ModuleRoutes[] {
   return [
     healthRoutes(c.health, wrap),
-    authRoutes(c.auth),
+    authRoutes(c.auth, wrap),
     organizationRoutes(c.organization),
     productRoutes(c.product),
     inventoryRoutes(c.inventory),

@@ -1,14 +1,17 @@
 import { Router } from 'express';
 import type { AuthController } from '../controllers/AuthController.js';
+import type { RouteWrappers } from './tenantRoute.js';
 import type { ModuleRoutes } from './types.js';
 
 /**
- * Auth module, routes. Owner: Munif.
- * TODO(Munif): login, sessions, refresh tokens, 2FA (roadmap 5.1).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ * Auth module, routes. Owner: Munif. Public: no tenant data, and login runs before any session (ADR 0018).
+ * Every route here is on PUBLIC_ROUTES.
  */
-export function authRoutes(_controller: AuthController): ModuleRoutes {
+export function authRoutes(controller: AuthController, wrap: RouteWrappers): ModuleRoutes {
   const router = Router();
-  // TODO(Munif): router.get('/', _controller.list) ... Public routes must also be added to PUBLIC_ROUTES.
+  router.post(
+    '/login',
+    wrap.public((req) => controller.login(req)),
+  );
   return { module: 'Auth', basePath: '/v1/auth', scope: 'public', router };
 }

@@ -13,9 +13,18 @@ const { managers, tenantScope, close } = createManagers({
   provisioningDatabaseUrl: env.PROVISIONING_DATABASE_URL,
   // Until A5 reads roles from the session (ADR 0010, decided by Farhan on #32): nobody may provision yet.
   roleSource: new DenyAllRoleSource(),
+  sessionLifetimes: {
+    idleMs: env.SESSION_IDLE_HOURS * 3_600_000,
+    absoluteMs: env.SESSION_ABSOLUTE_DAYS * 24 * 3_600_000,
+  },
 });
 
-const server = createApp({ logger, managers, tenantScope }).listen(env.API_PORT, () => {
+const server = createApp({
+  logger,
+  managers,
+  tenantScope,
+  sessionCookie: { secure: env.SESSION_COOKIE_SECURE },
+}).listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'api listening');
 });
 

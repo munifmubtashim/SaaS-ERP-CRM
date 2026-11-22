@@ -3,6 +3,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from './config/logger.js';
+import type { SessionCookieConfig } from './config/sessionCookie.js';
 import { createControllers } from './controllers/index.js';
 import { authMiddleware } from './middleware/authMiddleware.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
@@ -16,6 +17,8 @@ export interface AppDeps {
   managers: ApiManagers;
   /** Opens the one transaction per tenant request (ADR 0005). */
   tenantScope: ITenantScopeRunner;
+  /** The session cookie (ADR 0018 section 2); default: the production cookie, `__Host-erp_sid` with Secure. */
+  sessionCookie?: SessionCookieConfig;
 }
 
 /**
@@ -44,7 +47,10 @@ export function createApp(deps: AppDeps): Express {
   // Every business route lives under /v1 and passes auth and tenant resolution first.
   app.use('/v1', authMiddleware, tenantMiddleware);
 
-  const routes = buildRoutes(createControllers(deps.managers), createRouteWrappers(deps.tenantScope));
+  const routes = buildRoutes(
+    createControllers(deps.managers, deps.sessionCookie),
+    createRouteWrappers(deps.tenantScope),
+  );
   for (const { basePath, router } of routes) {
     app.use(basePath, router);
   }
