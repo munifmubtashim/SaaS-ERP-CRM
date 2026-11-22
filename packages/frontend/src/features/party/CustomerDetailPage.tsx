@@ -20,6 +20,14 @@ function useTaka() {
   return (amount: string) => `৳${formatMoneyBDT(amount, locale === 'bn' ? 'bn-BD' : 'en-BD')}`;
 }
 
+/**
+ * An invoice amount: a "label ... amount" line in the narrow layout (label from data-label, muted), a
+ * right-aligned table cell in the wide one.
+ */
+const amountCell =
+  'num col-span-2 flex justify-between gap-3 whitespace-nowrap before:font-normal before:text-muted ' +
+  'before:content-[attr(data-label)] @xl:table-cell @xl:py-3 @xl:text-right @xl:before:content-none';
+
 const actionLink =
   'inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:brightness-110';
 
@@ -163,9 +171,16 @@ function Dues({ dues }: { dues: CustomerDues }) {
       ) : (
         <>
           <h2 className="mt-6 mb-2 text-[13px] font-medium text-muted">{t('customer.dues.openInvoices')}</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="text-[13px] text-muted">
+          {/*
+            One table, two layouts, chosen by the card's own width (container query), not the screen's.
+            Narrow (a phone, or the card beside the facts on a tablet): each invoice stacks as a small block,
+            number and date on top, then Total, Paid and Due as label and amount lines, so Due is never
+            scrolled out of view, even for a 9-digit amount. The labels come from data-label through CSS,
+            so they stay out of the cell text. Wide (36rem and up): the usual five-column table.
+          */}
+          <div className="@container">
+            <table className="block w-full text-left @xl:table">
+              <thead className="sr-only text-[13px] text-muted @xl:not-sr-only @xl:table-header-group">
                 <tr className="border-b border-row-border">
                   <th className="py-2 pr-4 font-medium">{t('customer.col.invoice')}</th>
                   <th className="py-2 pr-4 font-medium">{t('customer.col.date')}</th>
@@ -174,16 +189,25 @@ function Dues({ dues }: { dues: CustomerDues }) {
                   <th className="py-2 text-right font-medium">{t('customer.col.due')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block @xl:table-row-group">
                 {dues.openInvoices.map((inv) => (
-                  <tr key={inv.invoiceId} className="border-b border-row-border">
-                    <td className="num py-3 pr-4">{inv.invoiceNumber}</td>
-                    <td className="num py-3 pr-4 text-text2">{formatDateBD(inv.invoiceDate)}</td>
-                    <td className="num py-3 pr-4 text-right whitespace-nowrap">{taka(inv.total)}</td>
-                    <td className="num py-3 pr-4 text-right whitespace-nowrap text-text2">
+                  <tr
+                    key={inv.invoiceId}
+                    className="grid grid-cols-2 gap-x-3 gap-y-1 border-b border-row-border py-3 @xl:table-row @xl:py-0"
+                  >
+                    <td className="num font-medium @xl:py-3 @xl:pr-4 @xl:font-normal">{inv.invoiceNumber}</td>
+                    <td className="num text-right text-text2 @xl:py-3 @xl:pr-4 @xl:text-left">
+                      {formatDateBD(inv.invoiceDate)}
+                    </td>
+                    <td data-label={t('customer.col.total')} className={`${amountCell} @xl:pr-4`}>
+                      {taka(inv.total)}
+                    </td>
+                    <td data-label={t('customer.col.paid')} className={`${amountCell} text-text2 @xl:pr-4`}>
                       {taka(inv.paid)}
                     </td>
-                    <td className="num py-3 text-right font-semibold whitespace-nowrap">{taka(inv.due)}</td>
+                    <td data-label={t('customer.col.due')} className={`${amountCell} font-semibold`}>
+                      {taka(inv.due)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
