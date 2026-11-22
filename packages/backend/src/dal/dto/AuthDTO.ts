@@ -23,6 +23,7 @@ export interface LoginUserRow {
   isActive: boolean;
   lockedUntil: Date | null;
   failedAttempts: number;
+  displayName: string;
 }
 
 export class LoginUserDTO {
@@ -33,6 +34,7 @@ export class LoginUserDTO {
     readonly isActive: boolean,
     readonly lockedUntil: Date | null,
     readonly failedAttempts: number,
+    readonly displayName: string,
   ) {}
 
   static fromRow(row: LoginUserRow): LoginUserDTO {
@@ -43,6 +45,7 @@ export class LoginUserDTO {
       row.isActive,
       row.lockedUntil,
       row.failedAttempts,
+      row.displayName,
     );
   }
 }

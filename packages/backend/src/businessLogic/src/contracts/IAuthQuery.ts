@@ -6,6 +6,8 @@ export interface LoginUser {
   isActive: boolean;
   lockedUntil: Date | null;
   failedAttempts: number;
+  /** For the session body after login. */
+  displayName: string;
 }
 
 /** A user, named with its organization: every write runs inside that organization's RLS scope (ADR 0050). */

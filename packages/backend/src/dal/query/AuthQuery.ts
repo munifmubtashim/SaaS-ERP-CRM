@@ -85,10 +85,12 @@ export class AuthQuery extends UnscopedQuery {
           isActive: boolean;
           lockedUntil: Date | null;
           failedAttempts: number;
+          displayName: string;
         }[]
       >`
         SELECT id::text, organization_id::text AS "organizationId", password_hash AS "passwordHash",
-               is_active AS "isActive", locked_until AS "lockedUntil", failed_attempts AS "failedAttempts"
+               is_active AS "isActive", locked_until AS "lockedUntil", failed_attempts AS "failedAttempts",
+               display_name AS "displayName"
         FROM app_user
         WHERE lower(email) = ${key} OR phone = ${key}`;
     });

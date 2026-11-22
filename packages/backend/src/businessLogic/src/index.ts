@@ -31,6 +31,8 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import { SessionTokens } from './SessionTokens.js';
+import type { SessionLifetimes } from './AuthManager.js';
 import { Argon2PasswordHasher } from './Argon2PasswordHasher.js';
 import { DenyAllRoleSource } from './DenyAllRoleSource.js';
 import type { IRoleSource } from './contracts/IRoleSource.js';
@@ -41,7 +43,8 @@ export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
 export type { ActiveSession, IAuthQuery, LoginUser, NewSession, UserRef } from './contracts/IAuthQuery.js';
 export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
-export type { VerifiedLogin } from './AuthManager.js';
+export type { LoginOutcome, SessionLifetimes, VerifiedLogin } from './AuthManager.js';
+export type { ISessionTokens } from './contracts/ISessionTokens.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
 export type { IProductQuery } from './contracts/IProductQuery.js';
 export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
@@ -90,6 +93,12 @@ export interface Managers {
   crm: CrmManager;
 }
 
+/** ADR 0018 section 3: idle 8 hours, absolute 7 days. */
+export const DEFAULT_SESSION_LIFETIMES: SessionLifetimes = {
+  idleMs: 8 * 3_600_000,
+  absoluteMs: 7 * 24 * 3_600_000,
+};
+
 export interface ManagerConfig {
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
@@ -107,6 +116,8 @@ export interface ManagerConfig {
    * "allowed". Until A5, pass a DenyAllRoleSource.
    */
   roleSource: IRoleSource;
+  /** Session lifetimes (ADR 0018 section 3); the api reads them from env.ts. Default: 8 hours idle, 7 days absolute. */
+  sessionLifetimes?: SessionLifetimes;
 }
 
 /**
@@ -135,7 +146,13 @@ export function createManagers(config: ManagerConfig): {
   });
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
-    auth: new AuthManager(new AuthQuery(db), new Argon2PasswordHasher(), new SystemClock()),
+    auth: new AuthManager(
+      new AuthQuery(db),
+      new Argon2PasswordHasher(),
+      new SystemClock(),
+      new SessionTokens(),
+      config.sessionLifetimes ?? DEFAULT_SESSION_LIFETIMES,
+    ),
     organization: new OrganizationManager(new OrganizationQuery(), provisioning, config.roleSource),
     product: new ProductManager(new ProductQuery()),
     inventory: new InventoryManager(new InventoryQuery()),

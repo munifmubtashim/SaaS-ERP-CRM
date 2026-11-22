@@ -1,9 +1,10 @@
 import { AppError } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
-import { AuthManager } from './AuthManager.js';
+import { AuthManager, type SessionLifetimes } from './AuthManager.js';
 import type { ActiveSession, IAuthQuery, LoginUser, NewSession } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
+import type { ISessionTokens } from './contracts/ISessionTokens.js';
 
 /**
  * ADR 0018 section 4, steps 2 to 6 without the session (the auth_session table is part 1, not built yet): the
@@ -14,6 +15,21 @@ const NOW = new Date('2026-11-22T06:00:00Z');
 const ORG = '01937000-0000-7000-8000-0000000000a0';
 const USER = '01937000-0000-7000-8000-0000000000b0';
 const clock: IClock = { now: () => NOW };
+const HOUR = 3_600_000;
+const LIFETIMES: SessionLifetimes = { idleMs: 8 * HOUR, absoluteMs: 7 * 24 * HOUR };
+
+/** Predictable tokens: token-1, token-2, ...; the hash is the token's bytes reversed, so it never equals them. */
+class FakeTokens implements ISessionTokens {
+  private next = 0;
+  generate(): string {
+    this.next += 1;
+    return `token-${this.next}`;
+  }
+  hash(token: string): Uint8Array {
+    return Uint8Array.from(Buffer.from(token).reverse());
+  }
+}
+const tokens = new FakeTokens();
 
 class FakeHasher implements IPasswordHasher {
   verified: string[] = [];
@@ -107,6 +123,7 @@ const user = (fields: Partial<LoginUser> = {}): LoginUser => ({
   isActive: true,
   lockedUntil: null,
   failedAttempts: 0,
+  displayName: 'Rahim Uddin',
   ...fields,
 });
 
@@ -123,10 +140,11 @@ const refusal = async (promise: Promise<unknown>) => {
 describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
   it('6. the right password resets the counter and returns who logged in', async () => {
     const query = new FakeAuthQuery(user({ failedAttempts: 3 }));
-    const manager = new AuthManager(query, new FakeHasher(), clock);
+    const manager = new AuthManager(query, new FakeHasher(), clock, tokens, LIFETIMES);
     await expect(manager.verifyLogin('owner@example.com', 'right-password')).resolves.toEqual({
       userId: USER,
       organizationId: ORG,
+      displayName: 'Rahim Uddin',
     });
     expect(query.succeeded).toEqual([{ userId: USER, newHash: null }]);
     expect(query.failed).toEqual([]);
@@ -135,10 +153,13 @@ describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
   it('2. unknown user, wrong password, locked user and inactive user all get the same 401 and message', async () => {
     const answers = await Promise.all([
       refusal(
-        new AuthManager(new FakeAuthQuery(null), new FakeHasher(), clock).verifyLogin('x@example.com', 'p'),
+        new AuthManager(new FakeAuthQuery(null), new FakeHasher(), clock, tokens, LIFETIMES).verifyLogin(
+          'x@example.com',
+          'p',
+        ),
       ),
       refusal(
-        new AuthManager(new FakeAuthQuery(user()), new FakeHasher(), clock).verifyLogin(
+        new AuthManager(new FakeAuthQuery(user()), new FakeHasher(), clock, tokens, LIFETIMES).verifyLogin(
           'a@example.com',
           'bad',
         ),
@@ -148,13 +169,18 @@ describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
           new FakeAuthQuery(user({ lockedUntil: new Date(NOW.getTime() + 60_000) })),
           new FakeHasher(),
           clock,
+          tokens,
+          LIFETIMES,
         ).verifyLogin('a@example.com', 'right-password'),
       ),
       refusal(
-        new AuthManager(new FakeAuthQuery(user({ isActive: false })), new FakeHasher(), clock).verifyLogin(
-          'a@example.com',
-          'right-password',
-        ),
+        new AuthManager(
+          new FakeAuthQuery(user({ isActive: false })),
+          new FakeHasher(),
+          clock,
+          tokens,
+          LIFETIMES,
+        ).verifyLogin('a@example.com', 'right-password'),
       ),
     ]);
     for (const answer of answers) expect(answer).toEqual(WRONG);
@@ -163,7 +189,9 @@ describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
   it('3. an unknown user still costs one verification, against the dummy hash, and records nothing', async () => {
     const hasher = new FakeHasher();
     const query = new FakeAuthQuery(null);
-    await refusal(new AuthManager(query, hasher, clock).verifyLogin('nobody@example.com', 'p'));
+    await refusal(
+      new AuthManager(query, hasher, clock, tokens, LIFETIMES).verifyLogin('nobody@example.com', 'p'),
+    );
     expect(hasher.verified).toEqual(['dummy-hash']);
     expect(query.failed).toEqual([]);
   });
@@ -171,7 +199,9 @@ describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
   it('4. a locked user spends the dummy-hash cost, never checks the real hash, and counts nothing', async () => {
     const hasher = new FakeHasher();
     const query = new FakeAuthQuery(user({ lockedUntil: new Date(NOW.getTime() + 60_000) }));
-    await refusal(new AuthManager(query, hasher, clock).verifyLogin('a@example.com', 'right-password'));
+    await refusal(
+      new AuthManager(query, hasher, clock, tokens, LIFETIMES).verifyLogin('a@example.com', 'right-password'),
+    );
     expect(hasher.verified).toEqual(['dummy-hash']);
     expect(query.failed).toEqual([]);
     expect(query.succeeded).toEqual([]);
@@ -179,20 +209,85 @@ describe('AuthManager.verifyLogin (ADR 0018 section 4)', () => {
 
   it('5. a wrong password is recorded once, at the clock time', async () => {
     const query = new FakeAuthQuery(user());
-    await refusal(new AuthManager(query, new FakeHasher(), clock).verifyLogin('a@example.com', 'bad'));
+    await refusal(
+      new AuthManager(query, new FakeHasher(), clock, tokens, LIFETIMES).verifyLogin('a@example.com', 'bad'),
+    );
     expect(query.failed).toEqual([`${USER}@${NOW.toISOString()}`]);
   });
 
   it('a lock that has ended lets the right password in', async () => {
     const query = new FakeAuthQuery(user({ lockedUntil: new Date(NOW.getTime() - 1) }));
     await expect(
-      new AuthManager(query, new FakeHasher(), clock).verifyLogin('a@example.com', 'right-password'),
-    ).resolves.toEqual({ userId: USER, organizationId: ORG });
+      new AuthManager(query, new FakeHasher(), clock, tokens, LIFETIMES).verifyLogin(
+        'a@example.com',
+        'right-password',
+      ),
+    ).resolves.toEqual({ userId: USER, organizationId: ORG, displayName: 'Rahim Uddin' });
   });
 
   it('11. a hash with older settings is replaced after a successful login', async () => {
     const query = new FakeAuthQuery(user());
-    await new AuthManager(query, new FakeHasher(false), clock).verifyLogin('a@example.com', 'right-password');
+    await new AuthManager(query, new FakeHasher(false), clock, tokens, LIFETIMES).verifyLogin(
+      'a@example.com',
+      'right-password',
+    );
     expect(query.succeeded).toEqual([{ userId: USER, newHash: 'hash:right-password' }]);
+  });
+});
+
+describe('AuthManager.login (ADR 0018 sections 1 to 4)', () => {
+  const login = (query: FakeAuthQuery, agent: string | null = 'Mozilla/5.0') =>
+    new AuthManager(query, new FakeHasher(), clock, new FakeTokens(), LIFETIMES).login(
+      'owner@example.com',
+      'right-password',
+      agent,
+    );
+
+  it('1. creates a session holding the token hash, never the token, and returns the token for the cookie', async () => {
+    const query = new FakeAuthQuery(user());
+    const result = await login(query);
+    expect(result).toEqual({
+      token: 'token-1',
+      userId: USER,
+      displayName: 'Rahim Uddin',
+      expiresAt: new Date(NOW.getTime() + 8 * HOUR),
+      absoluteExpiresAt: new Date(NOW.getTime() + 7 * 24 * HOUR),
+    });
+    const [stored] = [...query.sessions.values()];
+    expect(stored).toMatchObject({
+      userId: USER,
+      organizationId: ORG,
+      idleExpiresAt: new Date(NOW.getTime() + 8 * HOUR),
+      absoluteExpiresAt: new Date(NOW.getTime() + 7 * 24 * HOUR),
+      userAgent: 'Mozilla/5.0',
+    });
+    expect(Buffer.from(stored?.tokenHash ?? []).toString()).not.toContain('token-1');
+  });
+
+  it('6. every login creates a new session with a new token (no session fixation)', async () => {
+    const query = new FakeAuthQuery(user());
+    const manager = new AuthManager(query, new FakeHasher(), clock, new FakeTokens(), LIFETIMES);
+    const first = await manager.login('owner@example.com', 'right-password', null);
+    const second = await manager.login('owner@example.com', 'right-password', null);
+    expect(first.token).not.toBe(second.token);
+    expect(query.sessions.size).toBe(2);
+  });
+
+  it('keeps only the first 200 characters of the user agent', async () => {
+    const query = new FakeAuthQuery(user());
+    await login(query, 'x'.repeat(500));
+    expect([...query.sessions.values()][0]?.userAgent).toHaveLength(200);
+  });
+
+  it('a refused login creates no session', async () => {
+    const query = new FakeAuthQuery(user());
+    await refusal(
+      new AuthManager(query, new FakeHasher(), clock, new FakeTokens(), LIFETIMES).login(
+        'a@example.com',
+        'bad',
+        null,
+      ),
+    );
+    expect(query.sessions.size).toBe(0);
   });
 });
