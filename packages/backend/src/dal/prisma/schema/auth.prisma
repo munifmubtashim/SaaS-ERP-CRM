@@ -1,8 +1,9 @@
 // Auth module: users, roles, permissions and the scopes users hold roles in (ADR 0008 section 2, ADR 0009 part 3).
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No tenant RLS on these tables: they are read before a scope exists, by AuthQuery only (ADR 0008 test 15).
-// The case-insensitive email index, the CHECKs, the user_scope triggers and the grants are raw SQL in
-// dal/sql/rls/auth_access.sql and dal/sql/triggers/user_scope.sql, copied into migration auth_access.
+// RLS is enabled and forced on app_user, role, role_permission and user_scope, scoped by organization, with one
+// login path on app_user keyed on app.login_key (ADR 0050). Only AuthQuery names these tables (ADR 0008 test 15).
+// The case-insensitive email index, the CHECKs, the user_scope triggers, the grants and the policies are raw SQL
+// in dal/sql/rls/auth_access.sql and dal/sql/triggers/user_scope.sql, copied into migration auth_access.
 
 model AppUser {
   id             String    @id @default(dbgenerated("uuid_v7()")) @db.Uuid
@@ -62,9 +63,11 @@ model Permission {
   @@map("permission")
 }
 
+/// A permission leaves a custom role by deactivation, never deletion (ADR 0050); erp_app updates is_active only.
 model RolePermission {
   roleId         String   @map("role_id") @db.Uuid
   permissionCode String   @map("permission_code")
+  isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   role       Role       @relation(fields: [roleId], references: [id])
