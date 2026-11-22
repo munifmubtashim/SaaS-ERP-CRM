@@ -1,7 +1,8 @@
 // Auth module: users, roles, permissions and the scopes users hold roles in (ADR 0008 section 2, ADR 0009 part 3).
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
 // RLS is enabled and forced on app_user, role, role_permission and user_scope, scoped by organization, with one
-// login path on app_user keyed on app.login_key (ADR 0050). Only AuthQuery names these tables (ADR 0008 test 15).
+// login path on app_user keyed on app.login_key (ADR 0050), and on auth_session, with a session path keyed on
+// app.session_key (ADR 0050 section 6). Only AuthQuery names these tables (ADR 0008 test 15, ADR 0018 test 12).
 // The case-insensitive email index, the CHECKs, the user_scope triggers, the grants and the policies are raw SQL
 // in dal/sql/rls/auth_access.sql and dal/sql/triggers/user_scope.sql, copied into migration auth_access.
 
@@ -30,7 +31,10 @@ model AppUser {
   scopes          UserScope[]
   /// Back-relation for idempotency_key.user_id (ON DELETE RESTRICT); only the idempotency Query uses that table.
   idempotencyKeys IdempotencyKey[]
+  sessions        AuthSession[]
 
+  /// For auth_session (user_id, organization_id): a session can't name a user of another organization (ADR 0050 §6).
+  @@unique([id, organizationId])
   @@map("app_user")
 }
 
@@ -99,4 +103,30 @@ model UserScope {
 
   @@index([userId])
   @@map("user_scope")
+}
+
+/// A signed-in session (ADR 0018 section 1, ADR 0050 section 6). The cookie holds the token; only its SHA-256 is
+/// stored. Rows are never deleted: a session expires or is revoked (a retention job comes later).
+model AuthSession {
+  id                String    @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  /// SHA-256 of the cookie token, 32 bytes (CHECK); the session path's key.
+  tokenHash         Bytes     @unique @map("token_hash")
+  userId            String    @map("user_id") @db.Uuid
+  /// Copied from the user; the composite foreign key keeps them in step.
+  organizationId    String    @map("organization_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Moved at most once every 5 minutes, with idle_expires_at.
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  idleExpiresAt     DateTime  @map("idle_expires_at") @db.Timestamptz(6)
+  /// Never extended.
+  absoluteExpiresAt DateTime  @map("absolute_expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// First 200 characters, for the session list later (U-08).
+  userAgent         String?   @map("user_agent") @db.VarChar(200)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         AppUser      @relation(fields: [userId, organizationId], references: [id, organizationId])
+
+  @@index([userId])
+  @@map("auth_session")
 }

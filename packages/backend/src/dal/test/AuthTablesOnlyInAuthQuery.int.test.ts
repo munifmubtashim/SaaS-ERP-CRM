@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { DAL_DIR } from './sqlFunctions.js';
 
 /**
- * ADR 0008 test 15, with no database: app_user, role, role_permission and user_scope have no tenant RLS, so only
+ * ADR 0008 test 15 (extended to auth_session by ADR 0018 test 12), with no database: app_user, role, role_permission,
+ * user_scope and auth_session are read before a tenant scope exists (ADR 0050), so only
  * AuthQuery may read or write them, always filtered by organization or by the user's own id.
  *
  * 1. No dal source file other than query/AuthQuery.ts names those tables, their Prisma models or the back-relation
@@ -15,8 +16,8 @@ import { DAL_DIR } from './sqlFunctions.js';
  *    keys named in NAMED_RELATIONS.
  */
 const AUTH_QUERY = 'query/AuthQuery.ts';
-const DEFINITIONS = ['sql/rls/auth_access.sql', 'sql/triggers/user_scope.sql'];
-const BACK_RELATIONS = ['appUsers', 'authRoles', 'userScopes'];
+const DEFINITIONS = ['sql/rls/auth_access.sql', 'sql/triggers/user_scope.sql', 'sql/rls/auth_session.sql'];
+const BACK_RELATIONS = ['appUsers', 'authRoles', 'userScopes', 'authSessions'];
 /**
  * Named exceptions to rule 2: a foreign key from another table to an auth model. Each one is a column that names a
  * user, nothing more; no Query may follow it into the auth table (rule 1 still applies to every source file).
@@ -29,11 +30,12 @@ const FORBIDDEN = new RegExp(
     String.raw`\bapp_user\b`,
     String.raw`\brole_permission\b`,
     String.raw`\buser_scope\b`,
+    String.raw`\bauth_session\b`,
     // The role table, as SQL names it (the word "role" alone is too common to ban).
     String.raw`\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+(?:public\.)?"?role"?\b`,
-    String.raw`\b(?:AppUser|RolePermission|UserScope)\b`,
+    String.raw`\b(?:AppUser|RolePermission|UserScope|AuthSession)\b`,
     // Prisma client accessors: db.appUser, tx.role, db.rolePermission, db.userScope.
-    String.raw`\.(?:appUser|role|rolePermission|userScope)\s*\.`,
+    String.raw`\.(?:appUser|role|rolePermission|userScope|authSession)\s*\.`,
     ...BACK_RELATIONS.map((name) => String.raw`\b${name}\b`),
   ].join('|'),
   'i',
@@ -67,7 +69,9 @@ describe('ADR 0008 test 15: only AuthQuery touches the access tables', () => {
       (name) => name.endsWith('.prisma') && name !== 'auth.prisma',
     )) {
       for (const line of readFileSync(join(schemaDir, file), 'utf8').split('\n')) {
-        const field = /^\s*(\w+)\s+(AppUser|Role|RolePermission|UserScope)(\[\]|\?)?(\s|$)/.exec(line);
+        const field = /^\s*(\w+)\s+(AppUser|Role|RolePermission|UserScope|AuthSession)(\[\]|\?)?(\s|$)/.exec(
+          line,
+        );
         if (!field) continue;
         const [, name = '', model = '', list] = field;
         const named = NAMED_RELATIONS.some(
@@ -85,6 +89,8 @@ describe('ADR 0008 test 15: only AuthQuery touches the access tables', () => {
     expect(FORBIDDEN.test('await tx.$queryRaw`SELECT * FROM app_user`')).toBe(true);
     expect(FORBIDDEN.test('SELECT 1 FROM public.role r')).toBe(true);
     expect(FORBIDDEN.test('db.userScope.findMany()')).toBe(true);
+    expect(FORBIDDEN.test('UPDATE auth_session SET revoked_at = now()')).toBe(true);
+    expect(FORBIDDEN.test('tx.authSession.findFirst()')).toBe(true);
     expect(FORBIDDEN.test('include: { userScopes: true }')).toBe(true);
     expect(FORBIDDEN.test('// runs as the erp_app role')).toBe(false);
   });
