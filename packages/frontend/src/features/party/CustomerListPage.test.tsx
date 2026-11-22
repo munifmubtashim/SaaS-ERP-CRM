@@ -155,6 +155,49 @@ describe('CustomerListPage (F1b, mock data)', () => {
     expect(await screen.findByText('No customer matches “zzz”.')).toBeInTheDocument();
   });
 
+  it('marks the old rows as out of date while a new search loads', async () => {
+    let release: () => void = () => undefined;
+    const party = new FakePartyService({ [BIZ_A]: [customer(1), customer(2, { name: 'Karim Traders' })] });
+    const list = party.list.bind(party);
+    party.list = async (query) => {
+      if (query.search) await new Promise<void>((resolve) => (release = resolve));
+      return list(query);
+    };
+    renderPage(party);
+    await screen.findByText('Sample Customer 01');
+    expect(screen.getByRole('table')).not.toHaveAttribute('aria-busy', 'true');
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search customers' }), {
+      target: { value: 'karim' },
+    });
+    await waitFor(() => expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'true'));
+    expect(rowNames()).toEqual(['Sample Customer 01', 'Karim Traders']);
+
+    act(() => release());
+    await waitFor(() => expect(rowNames()).toEqual(['Karim Traders']));
+    expect(screen.getByRole('table')).not.toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('keeps the column names for a screen reader on a phone: the header is visually hidden, not removed', async () => {
+    renderPage(new FakePartyService({ [BIZ_A]: [customer(1)] }));
+    await screen.findByText('Sample Customer 01');
+    const header = screen.getByRole('table').querySelector('thead');
+    expect(header).toHaveClass('sr-only');
+    expect(header).not.toHaveClass('hidden');
+    expect(screen.getAllByRole('columnheader')).toHaveLength(5);
+    // Explicit roles, because a row restyled as a card (display: block) loses its table role in some browsers.
+    for (const row of screen.getAllByRole('row')) expect(row).toHaveAttribute('role', 'row');
+    for (const cell of screen.getAllByRole('cell')) expect(cell).toHaveAttribute('role', 'cell');
+  });
+
+  it('makes each status filter button at least 44 px high', async () => {
+    renderPage(new FakePartyService({ [BIZ_A]: [customer(1)] }));
+    await screen.findByText('Sample Customer 01');
+    for (const name of ['All', 'Active', 'Inactive']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
+    }
+  });
+
   it('filters by status', async () => {
     const party = new FakePartyService({ [BIZ_A]: [customer(1)] });
     renderPage(party);
