@@ -89,6 +89,7 @@ model Branch {
   /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
   userScopes   UserScope[]
   numberSeries NumberSeries[]
+  serialUnits  SerialUnit[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])

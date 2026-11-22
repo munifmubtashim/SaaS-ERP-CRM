@@ -27,7 +27,8 @@ model Product {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy  String?  @map("created_by") @db.Uuid
 
-  business Business @relation(fields: [businessId], references: [id])
+  business    Business     @relation(fields: [businessId], references: [id])
+  serialUnits SerialUnit[]
 
   /// For serial_unit (business_id, product_id): a unit can't name another business's product.
   @@unique([businessId, id])
