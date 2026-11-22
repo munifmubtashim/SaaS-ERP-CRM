@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router';
 import { useLogout } from '../../features/auth';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
+import { ScopeSwitcher } from '../../features/organization';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
 import { LanguageSwitch, segment } from './LanguageSwitch';
 import { NAV } from './nav';
@@ -57,6 +58,9 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
+          <div className="mr-auto">
+            <ScopeSwitcher />
+          </div>
           <LanguageSwitch />
           <div
             role="group"
