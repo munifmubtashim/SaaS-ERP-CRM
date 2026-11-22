@@ -21,8 +21,8 @@ export interface StockMovementDraft {
 
 export interface IStockService {
   /**
-   * Records the movements, applied sorted by (productId, branchId) so two documents can't deadlock. **The returned
-   * `movementIds[i]` is the id of `movements[i]`**, in the order given, whatever order they were applied in.
+   * Records the movements, applied sorted by (productId, branchId). **The returned `movementIds[i]` is the id of
+   * `movements[i]`**, in the order given, whatever order they were applied in.
    * Refusals write nothing, for the whole call:
    * - a movement that would take on-hand below zero: 409 stock.insufficient (spec F-08; an atomic conditional
    *   UPDATE in the real service, invariant 6);

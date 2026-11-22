@@ -106,24 +106,14 @@ export const baseConfig = tseslint.config(
 );
 
 // ADR 0012: another module is reached only through its published interface (contracts/provided/*), never through
-// its Manager or service class, not even as a type. The ../ forms cover the fakes in businessLogic/src/test/.
+// its Manager, service or any other class, not even as a type. An allowlist (Farhan, #97): a relative import in
+// businessLogic/src may reach only ./contracts/** and the JournalDraftRules helper (pure functions the fakes share).
+// Every other relative import is refused, whatever the class is called. The ../ forms cover businessLogic/src/test/.
+// Classes are wired together only in index.ts (createManagers), which is not covered.
 const PROVIDED_INTERFACES_ONLY = {
-  group: [
-    './*Manager',
-    './*Manager.js',
-    './*Service',
-    './*Service.js',
-    '../*Manager',
-    '../*Manager.js',
-    '../*Service',
-    '../*Service.js',
-    // Interfaces are allowed even when their name ends in Service (IPostingService, IStockService).
-    '!./I*Service',
-    '!./I*Service.js',
-    '!../I*Service',
-    '!../I*Service.js',
-  ],
-  message: "Depend on the provider's published interface in ./contracts/provided/, not on its class.",
+  regex: String.raw`^\.\.?/(?!contracts/|JournalDraftRules(\.js)?$)`,
+  message:
+    "Depend on an interface in ./contracts/ (another module's in ./contracts/provided/), not on a class. Classes are wired in index.ts.",
 };
 
 export default tseslint.config(
@@ -216,7 +206,12 @@ export default tseslint.config(
     // class, only its published interface. The composition root and tests are exempt. Managers get the same patterns
     // in the next block, together with their @erp/dal rule (a later block replaces this one's options for them).
     files: ['packages/backend/src/businessLogic/src/**/*.ts'],
-    ignores: ['packages/backend/src/businessLogic/src/index.ts', '**/*.test.ts'],
+    // contracts/ holds interfaces only, which may name each other.
+    ignores: [
+      'packages/backend/src/businessLogic/src/index.ts',
+      'packages/backend/src/businessLogic/src/contracts/**',
+      '**/*.test.ts',
+    ],
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', { patterns: [PROVIDED_INTERFACES_ONLY] }],
     },
