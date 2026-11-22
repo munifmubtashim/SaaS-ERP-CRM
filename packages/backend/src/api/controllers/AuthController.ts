@@ -1,6 +1,11 @@
 import { loginRequestSchema, type Session } from '@erp/shared';
 import type { Request } from 'express';
-import { sessionCookie, type SessionCookieConfig } from '../config/sessionCookie.js';
+import {
+  clearedSessionCookie,
+  readSessionToken,
+  sessionCookie,
+  type SessionCookieConfig,
+} from '../config/sessionCookie.js';
 import { BaseController, type HttpResult } from './BaseController.js';
 import type { IAuthManager } from './contracts/IAuthManager.js';
 
@@ -28,5 +33,12 @@ export class AuthController extends BaseController {
       },
       headers: { 'Set-Cookie': sessionCookie(this.cookie, outcome.token, outcome.absoluteExpiresAt) },
     };
+  }
+
+  /** Logout (ADR 0018 section 3): revokes the session, if the cookie names one, and always clears the cookie. */
+  async logout(req: Request): Promise<HttpResult<undefined>> {
+    const token = readSessionToken(this.cookie, req.headers.cookie);
+    if (token) await this.manager.logout(token);
+    return { status: 204, body: undefined, headers: { 'Set-Cookie': clearedSessionCookie(this.cookie) } };
   }
 }

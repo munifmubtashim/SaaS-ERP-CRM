@@ -25,6 +25,8 @@ export class FakeHealthManager implements IHealthManager {
 /** An auth Manager for tests that never log in: using it is a test bug, so it fails loudly. */
 export const unusedAuth: IAuthManager = {
   login: () => Promise.reject(new AppError('INTERNAL_ERROR', 'This test logged in without an auth Manager.')),
+  authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
+  logout: () => Promise.resolve(),
 };
 
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */

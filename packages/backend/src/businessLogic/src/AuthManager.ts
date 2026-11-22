@@ -28,8 +28,17 @@ export interface LoginOutcome {
   absoluteExpiresAt: Date;
 }
 
+/** Who is calling, from a valid session (ADR 0018 section 6): what authMiddleware sets on req.auth. */
+export interface AuthenticatedSession {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+}
+
 /** The user agent stored on a session: its first 200 characters (ADR 0018 section 1). */
 const USER_AGENT_MAX = 200;
+/** A request extends the idle expiry at most once every 5 minutes, so a request isn't always a write (section 1). */
+const TOUCH_AFTER_MS = 5 * 60_000;
 
 /**
  * Auth module: business rules. No Express, no SQL. Owner: Munif.
@@ -66,6 +75,28 @@ export class AuthManager {
       userAgent: userAgent === null ? null : userAgent.slice(0, USER_AGENT_MAX),
     });
     return { token, userId: user.userId, displayName: user.displayName, expiresAt, absoluteExpiresAt };
+  }
+
+  /**
+   * authMiddleware's check on every non-public request (ADR 0018 section 6): the session must exist, not be revoked,
+   * be before both expiries, and its user must be active and still in the session's organization (the Query checks
+   * all of that). Activity extends the idle expiry, at most once every 5 minutes and never past the absolute one.
+   */
+  async authenticate(token: string): Promise<AuthenticatedSession> {
+    const tokenHash = this.tokens.hash(token);
+    const now = this.clock.now();
+    const session = await this.query.findActiveSession(tokenHash, now);
+    if (!session) throw new AppError('UNAUTHENTICATED', 'Sign in again.');
+    if (now.getTime() - session.lastSeenAt.getTime() > TOUCH_AFTER_MS) {
+      const idle = Math.min(now.getTime() + this.lifetimes.idleMs, session.absoluteExpiresAt.getTime());
+      await this.query.touchSession(tokenHash, now, new Date(idle));
+    }
+    return { userId: session.userId, organizationId: session.organizationId, sessionId: session.sessionId };
+  }
+
+  /** Logout (ADR 0018 section 3): revokes the session behind the token, if there is one. */
+  async logout(token: string): Promise<void> {
+    await this.query.revokeSession(this.tokens.hash(token), this.clock.now());
   }
 
   async verifyLogin(login: string, password: string): Promise<VerifiedLogin> {

@@ -13,7 +13,7 @@ import type { IServiceManager } from './IServiceManager.js';
 import type { ICrmManager } from './ICrmManager.js';
 
 export type { IHealthManager } from './IHealthManager.js';
-export type { IAuthManager, LoginOutcome } from './IAuthManager.js';
+export type { AuthenticatedSession, IAuthManager, LoginOutcome } from './IAuthManager.js';
 export type { IOrganizationManager } from './IOrganizationManager.js';
 export type { IProductManager } from './IProductManager.js';
 export type { IInventoryManager } from './IInventoryManager.js';

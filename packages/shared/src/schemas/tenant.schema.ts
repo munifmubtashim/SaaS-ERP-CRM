@@ -7,6 +7,8 @@ import { z } from 'zod';
 export const authContextSchema = z.object({
   userId: z.uuid(),
   organizationId: z.uuid(),
+  /** The session the request came with (ADR 0018 section 6). */
+  sessionId: z.uuid(),
   roles: z.array(z.string()),
 });
 

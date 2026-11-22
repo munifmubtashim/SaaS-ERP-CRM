@@ -21,3 +21,25 @@ export function sessionCookie(config: SessionCookieConfig, token: string, expire
   attributes.push('SameSite=Lax');
   return [`${sessionCookieName(config)}=${token}`, ...attributes].join('; ');
 }
+
+/** The Set-Cookie value that removes the cookie (logout): empty, expired, same attributes. */
+export function clearedSessionCookie(config: SessionCookieConfig): string {
+  return sessionCookie(config, '', new Date(0));
+}
+
+/** The session token from a Cookie header, or null when there is none (or it is empty). Other cookies are ignored. */
+export function readSessionToken(
+  config: SessionCookieConfig,
+  cookieHeader: string | undefined,
+): string | null {
+  if (!cookieHeader) return null;
+  const name = sessionCookieName(config);
+  for (const part of cookieHeader.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator > 0 && part.slice(0, separator).trim() === name) {
+      const value = part.slice(separator + 1).trim();
+      return value === '' ? null : value;
+    }
+  }
+  return null;
+}
