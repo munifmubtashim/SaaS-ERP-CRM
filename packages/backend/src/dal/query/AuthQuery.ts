@@ -1,6 +1,11 @@
 import { AppError } from '@erp/shared';
 import { LoginUserDTO } from '../dto/AuthDTO.js';
+import type { TxClient } from '../config/tenantScope.js';
 import { UnscopedQuery } from './UnscopedQuery.js';
+
+/** Lockout (ADR 0018 section 4, U-04): 5 wrong passwords lock the account for 15 minutes. */
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
 
 /** A new user, already validated and hashed by the Manager. Phone in E.164; at least one of email and phone. */
 export interface CreateUserInput {
@@ -77,11 +82,42 @@ export class AuthQuery extends UnscopedQuery {
     return row ? LoginUserDTO.fromRow(row) : null;
   }
 
+  /**
+   * A wrong password (ADR 0018 section 4, step 5): one atomic UPDATE, so parallel attempts never lose a count.
+   * The fifth failure sets a 15-minute lock and resets the counter. Runs inside the user's own organization.
+   */
+  async recordFailedLogin(user: { id: string; organizationId: string }, now: Date): Promise<void> {
+    await this.inOrganization(
+      user.organizationId,
+      (tx) => tx.$executeRaw`
+      UPDATE app_user SET
+        failed_attempts = CASE WHEN failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS} THEN 0 ELSE failed_attempts + 1 END,
+        locked_until = CASE WHEN failed_attempts + 1 >= ${MAX_FAILED_ATTEMPTS}
+                            THEN ${now}::timestamptz + make_interval(mins => ${LOCK_MINUTES})
+                            ELSE locked_until END,
+        updated_at = now()
+      WHERE id = ${user.id}::uuid AND organization_id = ${user.organizationId}::uuid`,
+    );
+  }
+
+  /** A right password (step 6): counter and lock reset; an upgraded hash stored when given (test 11). */
+  async recordSuccessfulLogin(
+    user: { id: string; organizationId: string },
+    newHash: string | null,
+  ): Promise<void> {
+    await this.inOrganization(
+      user.organizationId,
+      (tx) => tx.$executeRaw`
+      UPDATE app_user SET failed_attempts = 0, locked_until = NULL,
+        password_hash = COALESCE(${newHash}, password_hash), updated_at = now()
+      WHERE id = ${user.id}::uuid AND organization_id = ${user.organizationId}::uuid`,
+    );
+  }
+
   /** Creates a user in `organizationId`; a taken email or phone is a 409 that never names the other organization. */
   async createUser(organizationId: string, input: CreateUserInput): Promise<string> {
     try {
-      return await this.db.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT set_config('app.organization_id', ${organizationId}, true)`;
+      return await this.inOrganization(organizationId, async (tx) => {
         const created = await tx.appUser.create({
           data: {
             organizationId,
@@ -98,5 +134,13 @@ export class AuthQuery extends UnscopedQuery {
     } catch (error) {
       asLoginConflict(error);
     }
+  }
+
+  /** One short transaction with only app.organization_id set (transaction-local), for writes to one user. */
+  private inOrganization<T>(organizationId: string, fn: (tx: TxClient) => Promise<T>): Promise<T> {
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT set_config('app.organization_id', ${organizationId}, true)`;
+      return fn(tx);
+    });
   }
 }
