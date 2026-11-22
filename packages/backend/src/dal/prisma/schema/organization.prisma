@@ -65,6 +65,7 @@ model Business {
   /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
   userScopes      UserScope[]
   idempotencyKeys IdempotencyKey[]
+  numberSeries    NumberSeries[]
 
   @@map("business")
 }
@@ -83,9 +84,10 @@ model Branch {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy    String?  @map("created_by") @db.Uuid
 
-  business   Business    @relation(fields: [businessId], references: [id])
+  business     Business       @relation(fields: [businessId], references: [id])
   /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
-  userScopes UserScope[]
+  userScopes   UserScope[]
+  numberSeries NumberSeries[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])
