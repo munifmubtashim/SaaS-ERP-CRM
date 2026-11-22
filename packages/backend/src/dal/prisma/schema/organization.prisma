@@ -17,6 +17,7 @@ model Organization {
   /// Back-relations required by Prisma for auth.prisma's foreign keys; only AuthQuery may use them (ADR 0008 test 15).
   appUsers      AppUser[]
   authRoles     Role[]
+  authSessions  AuthSession[]
 
   @@map("organization")
 }
