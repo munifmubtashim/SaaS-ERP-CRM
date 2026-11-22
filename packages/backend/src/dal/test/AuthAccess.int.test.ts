@@ -144,6 +144,27 @@ describe('ADR 0008 test 6: user_scope rules', () => {
     );
   });
 
+  it('a group scope is refused for a custom role coded owner (only the system owner role holds the group)', async () => {
+    // Farhan, #94: before the seed creates an organization's system roles, erp_app can insert a custom role
+    // whose code is 'owner'. It must not get the whole group.
+    const z = await createTree(owner);
+    const userId = await addUser(z);
+    const [customOwner] = (await newIds(owner, 1)) as [string];
+    await asApp(z, async () => {
+      await expect(
+        currentClient().$executeRaw`
+          INSERT INTO role (id, organization_id, code, name, is_system)
+          VALUES (${customOwner}::uuid, ${z.organizationId}::uuid, 'owner', 'Owner (custom)', false)`,
+      ).resolves.toBe(1);
+    });
+    await expect(
+      addScope(z, { userId, roleId: customOwner, businessId: null, branchId: null }),
+    ).rejects.toThrow(/only the owner role can hold the whole group/);
+    await expect(
+      addScope(z, { userId, roleId: customOwner, businessId: z.businessId, branchId: null }),
+    ).resolves.toBeTypeOf('string');
+  });
+
   it("a branch scope whose business isn't the branch's business is refused (composite foreign key)", async () => {
     const userId = await addUser(x);
     const cashier = await addRole(x, 'cashier');
@@ -443,6 +464,87 @@ describe('system roles are fixed (Munif, 22 Nov)', () => {
         INSERT INTO role_permission (role_id, permission_code) VALUES (${systemRole}::uuid, ${`test.${code}`})`,
       ),
     ).resolves.toBe(1);
+  });
+});
+
+describe('role_permission.is_active: a permission leaves a custom role by deactivation (Farhan, #94)', () => {
+  /** A permission row on `roleId`, written by the owner's seed path. Returns the permission code. */
+  async function grant(roleId: string): Promise<string> {
+    const [id] = (await newIds(owner, 1)) as [string];
+    const code = `test.${id}`;
+    await owner.$executeRaw`INSERT INTO permission (code, description) VALUES (${code}, 'test')`;
+    await asOwner(
+      x,
+      (tx) => tx.$executeRaw`
+        INSERT INTO role_permission (role_id, permission_code) VALUES (${roleId}::uuid, ${code})`,
+    );
+    return code;
+  }
+
+  it('a new role_permission row is active', async () => {
+    const custom = await addRole(x, `custom_${(await newIds(owner, 1))[0]?.slice(-6)}`, false);
+    const code = await grant(custom);
+    const rows = await asOwner(
+      x,
+      (tx) => tx.$queryRaw<{ is_active: boolean }[]>`
+        SELECT is_active FROM role_permission WHERE role_id = ${custom}::uuid AND permission_code = ${code}`,
+    );
+    expect(rows).toEqual([{ is_active: true }]);
+  });
+
+  it('erp_app can deactivate and reactivate a permission on a custom role', async () => {
+    const custom = await addRole(x, `custom_${(await newIds(owner, 1))[0]?.slice(-6)}`, false);
+    const code = await grant(custom);
+    await asApp(x, async () => {
+      const db = currentClient();
+      await expect(
+        db.$executeRaw`UPDATE role_permission SET is_active = false
+                       WHERE role_id = ${custom}::uuid AND permission_code = ${code}`,
+      ).resolves.toBe(1);
+      await expect(
+        db.$executeRaw`UPDATE role_permission SET is_active = true
+                       WHERE role_id = ${custom}::uuid AND permission_code = ${code}`,
+      ).resolves.toBe(1);
+    });
+  });
+
+  it("erp_app cannot change a system role's permissions", async () => {
+    const systemRole = await addRole(x, 'stock_keeper', true);
+    const code = await grant(systemRole);
+    await asApp(x, async () => {
+      await expect(
+        currentClient().$executeRaw`UPDATE role_permission SET is_active = false
+                                    WHERE role_id = ${systemRole}::uuid AND permission_code = ${code}`,
+      ).resolves.toBe(0);
+    });
+  });
+
+  it('erp_app can update is_active only: not the role, the permission or created_at', async () => {
+    const custom = await addRole(x, `custom_${(await newIds(owner, 1))[0]?.slice(-6)}`, false);
+    const code = await grant(custom);
+    for (const assignment of [
+      `role_id = role_id`,
+      `permission_code = permission_code`,
+      `created_at = created_at`,
+    ]) {
+      await expect(
+        app.$executeRawUnsafe(
+          `UPDATE role_permission SET ${assignment} WHERE role_id = '${custom}'::uuid AND permission_code = '${code}'`,
+        ),
+        assignment,
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it("in organization Y's scope, erp_app cannot deactivate organization X's permission", async () => {
+    const custom = await addRole(x, `custom_${(await newIds(owner, 1))[0]?.slice(-6)}`, false);
+    const code = await grant(custom);
+    await asApp(y, async () => {
+      await expect(
+        currentClient().$executeRaw`UPDATE role_permission SET is_active = false
+                                    WHERE role_id = ${custom}::uuid AND permission_code = ${code}`,
+      ).resolves.toBe(0);
+    });
   });
 });
 
