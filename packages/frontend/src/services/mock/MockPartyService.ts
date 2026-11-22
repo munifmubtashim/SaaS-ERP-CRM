@@ -110,6 +110,8 @@ function sampleDetail(row: PartyListItem, businessId: string): PartyDetail {
     creditLimit: n % 3 === 0 ? null : n % 3 === 1 ? '100000.00' : '250000.00',
     payTermDays: n % 3 === 0 ? null : 30,
     onCreditHold: n % 13 === 0,
+    // The sample list has no walk-in party: it is a system party, not a customer the user picks.
+    isWalkIn: false,
   };
 }
 

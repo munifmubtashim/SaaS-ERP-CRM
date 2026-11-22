@@ -122,6 +122,7 @@ describe('partyDetailSchema (customer profile, ADR 0006)', () => {
     creditLimit: '50000.00',
     payTermDays: 30,
     onCreditHold: false,
+    isWalkIn: false,
   };
 
   it('accepts a complete profile', () => {
@@ -162,6 +163,18 @@ describe('partyDetailSchema (customer profile, ADR 0006)', () => {
     expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '50000' }).success).toBe(false);
     expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '-1.00' }).success).toBe(false);
     expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '0.00' }).success).toBe(true);
+  });
+
+  it('gives a negative credit limit the stable code credit.limit_invalid', () => {
+    const result = partyDetailSchema.safeParse({ ...detail, creditLimit: '-1.00' });
+    const codes = result.error?.issues.map((issue) => (issue as { params?: { code?: string } }).params?.code);
+    expect(codes).toContain('credit.limit_invalid');
+  });
+
+  it('says whether the party is the walk-in customer (ADR 0006: no advance, credit limit or dues)', () => {
+    expect(partyDetailSchema.parse({ ...detail, isWalkIn: true }).isWalkIn).toBe(true);
+    const { isWalkIn: _omitted, ...withoutFlag } = detail;
+    expect(partyDetailSchema.safeParse(withoutFlag).success).toBe(false);
   });
 
   it('rejects negative or fractional pay terms', () => {

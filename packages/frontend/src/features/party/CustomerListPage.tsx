@@ -15,7 +15,7 @@ const STATUS_FILTERS: { value: PartyStatus | undefined; key: MessageKey }[] = [
 ];
 
 const segment =
-  'min-h-10 rounded-full px-4 text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
+  'min-h-11 rounded-full px-4 text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
 
 /**
  * Customers (F1b): who are my customers, and how do I find one fast? Next action: open a customer.
@@ -107,7 +107,7 @@ function CustomerListBody({
 
   const rows = customers.data.pages.flatMap((page) => page.items);
   if (rows.length === 0) {
-    if (search) return <p className="text-muted">{t('customers.noMatch').replace('{search}', search)}</p>;
+    if (search) return <p className="text-muted">{t('customers.noMatch', { search })}</p>;
     if (status) return <p className="text-muted">{t('customers.noMatchStatus')}</p>;
     return (
       <div className="space-y-1">
@@ -119,7 +119,8 @@ function CustomerListBody({
 
   return (
     <>
-      <CustomerTable rows={rows} />
+      {/* Old rows stay on screen while a new search loads (keepPreviousData), dimmed and marked busy. */}
+      <CustomerTable rows={rows} stale={customers.isPlaceholderData} />
       {customers.isFetchNextPageError && (
         <p role="alert" className="mt-4 text-muted">
           {t('customers.error')}
@@ -138,28 +139,48 @@ function CustomerListBody({
 
 const cell = 'block md:table-cell md:py-3 md:pr-4';
 
-/** A table on desktop; on a phone each row stacks into a small card, name first. */
-function CustomerTable({ rows }: { rows: PartyListItem[] }) {
+/**
+ * A table on desktop; on a phone each row stacks into a small card, name first. On a phone the header is only
+ * visually hidden, so a screen reader still names each cell's column; the explicit roles keep the table
+ * semantics that `display: block` removes in some browsers.
+ */
+function CustomerTable({ rows, stale }: { rows: PartyListItem[]; stale: boolean }) {
   const { t } = useI18n();
   return (
-    <table className="w-full text-left">
-      <thead className="hidden text-[13px] text-muted md:table-header-group">
-        <tr className="border-b border-row-border">
-          <th className="py-2 pr-4 font-medium">{t('customers.col.code')}</th>
-          <th className="py-2 pr-4 font-medium">{t('customers.col.name')}</th>
-          <th className="py-2 pr-4 font-medium">{t('customers.col.phone')}</th>
-          <th className="py-2 pr-4 font-medium">{t('customers.col.area')}</th>
-          <th className="py-2 font-medium">{t('customers.col.status')}</th>
+    <table
+      aria-busy={stale || undefined}
+      className={`w-full text-left transition-opacity ${stale ? 'opacity-60' : ''}`}
+    >
+      <thead className="sr-only text-[13px] text-muted md:not-sr-only md:table-header-group">
+        <tr role="row" className="border-b border-row-border">
+          <th role="columnheader" className="py-2 pr-4 font-medium">
+            {t('customers.col.code')}
+          </th>
+          <th role="columnheader" className="py-2 pr-4 font-medium">
+            {t('customers.col.name')}
+          </th>
+          <th role="columnheader" className="py-2 pr-4 font-medium">
+            {t('customers.col.phone')}
+          </th>
+          <th role="columnheader" className="py-2 pr-4 font-medium">
+            {t('customers.col.area')}
+          </th>
+          <th role="columnheader" className="py-2 font-medium">
+            {t('customers.col.status')}
+          </th>
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
           <tr
             key={row.id}
+            role="row"
             className="flex flex-wrap gap-x-3 border-b border-row-border py-3 md:table-row md:py-0"
           >
-            <td className={`${cell} num order-2 text-muted`}>{row.code}</td>
-            <td className={`${cell} order-1 w-full md:w-auto`}>
+            <td role="cell" className={`${cell} num order-2 text-muted`}>
+              {row.code}
+            </td>
+            <td role="cell" className={`${cell} order-1 w-full md:w-auto`}>
               <Link to={`/customers/${row.id}`} className="font-medium hover:text-accent-text">
                 {row.name}
               </Link>
@@ -170,9 +191,13 @@ function CustomerTable({ rows }: { rows: PartyListItem[] }) {
                 </span>
               )}
             </td>
-            <td className={`${cell} num order-3`}>{row.phone}</td>
-            <td className={`${cell} order-4 text-text2`}>{row.area ?? '—'}</td>
-            <td className={`${cell} order-5`}>
+            <td role="cell" className={`${cell} num order-3`}>
+              {row.phone}
+            </td>
+            <td role="cell" className={`${cell} order-4 text-text2`}>
+              {row.area ?? '—'}
+            </td>
+            <td role="cell" className={`${cell} order-5`}>
               <StatusText status={row.status} />
             </td>
           </tr>

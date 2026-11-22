@@ -38,6 +38,7 @@ const profile: PartyDetail = {
   creditLimit: '50000.00',
   payTermDays: 30,
   onCreditHold: false,
+  isWalkIn: false,
 };
 
 const dues: CustomerDues = {
@@ -48,7 +49,7 @@ const dues: CustomerDues = {
     {
       invoiceId: '0196f000-0000-7000-8000-000000000201',
       invoiceNumber: 'INV-000101',
-      invoiceDate: '2026-11-02T04:00:00.000Z',
+      invoiceDate: '2026-11-02',
       total: '185000.00',
       paid: '50000.00',
       due: '135000.00',
@@ -56,7 +57,7 @@ const dues: CustomerDues = {
     {
       invoiceId: '0196f000-0000-7000-8000-000000000202',
       invoiceNumber: 'INV-000118',
-      invoiceDate: '2026-11-10T04:00:00.000Z',
+      invoiceDate: '2026-11-10',
       total: '2500.00',
       paid: '0.00',
       due: '2500.00',
@@ -217,7 +218,7 @@ describe('CustomerDetailPage (mock data)', () => {
           {
             invoiceId: '0196f000-0000-7000-8000-000000000203',
             invoiceNumber: 'INV-000180',
-            invoiceDate: '2026-11-19T04:00:00.000Z',
+            invoiceDate: '2026-11-19',
             total: '123456789.00',
             paid: '0.00',
             due: '123456789.00',
