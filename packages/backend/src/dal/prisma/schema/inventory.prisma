@@ -26,8 +26,11 @@ model SerialUnit {
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy     String?  @map("created_by") @db.Uuid
 
-  branch  Branch  @relation(fields: [businessId, branchId], references: [businessId, id])
-  product Product @relation(fields: [businessId, productId], references: [businessId, id])
+  branch       Branch        @relation(fields: [businessId, branchId], references: [businessId, id])
+  product      Product       @relation(fields: [businessId, productId], references: [businessId, id])
+  /// Back-relation Prisma requires for the Vehicle pack's vehicle_unit; a list because the pair isn't declared
+  /// unique there (serial_unit_id alone is its primary key). The core reads no pack column through it.
+  vehicleUnits VehicleUnit[]
 
   /// For vehicle_unit (business_id, serial_unit_id): a vehicle row can't name another business's unit.
   @@unique([businessId, id])
