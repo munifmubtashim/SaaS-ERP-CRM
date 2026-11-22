@@ -29,7 +29,7 @@ function sampleInvoices(n: number): OpenInvoice[] {
     return {
       invoiceId: `0196f000-0000-7000-8000-0000001${String(n).padStart(3, '0')}${i}0`,
       invoiceNumber: `INV-${String(n * 10 + i).padStart(6, '0')}`,
-      invoiceDate: `2026-11-${day}T04:00:00.000Z`,
+      invoiceDate: `2026-11-${day}`,
       total: bill.total,
       paid: bill.paid,
       // Money only through the shared helpers: no float arithmetic.
