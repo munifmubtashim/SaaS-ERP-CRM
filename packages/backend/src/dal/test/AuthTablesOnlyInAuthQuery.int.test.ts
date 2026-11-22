@@ -22,6 +22,8 @@ const DEFINITIONS = [
   'sql/rls/auth_session.sql',
   // The seed (ADR 0009 part 4) writes roles and their permissions as the migration owner, outside any request.
   'prisma/seeds/systemRoles.ts',
+  // The demo organization seed writes the owner user and its group scope, as the migration owner.
+  'prisma/seeds/demoOrganization.ts',
 ];
 const BACK_RELATIONS = ['appUsers', 'authRoles', 'userScopes', 'authSessions'];
 /**

@@ -39,3 +39,9 @@ export { CrmDTO } from './dto/CrmDTO.js';
 export { CrmQuery } from './query/CrmQuery.js';
 // Seeds (ADR 0009 part 4): run as the migration owner, outside requests, by the seed script.
 export { seedPermissions, seedSystemRoles } from './prisma/seeds/systemRoles.js';
+export {
+  DEMO_IDS,
+  seedDemoOrganization,
+  type DemoIds,
+  type DemoOwner,
+} from './prisma/seeds/demoOrganization.js';
