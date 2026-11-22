@@ -263,6 +263,7 @@ describe('the login lookup (ADR 0018 section 4): app.login_key and nothing wider
       organizationId: x.organizationId,
       passwordHash: HASH,
       failedAttempts: 0,
+      displayName: 'Test User',
     });
     expect((await auth.findUserForLogin(phone))?.id).toBe(id);
     expect(await auth.findUserForLogin('nobody-here@example.com')).toBeNull();

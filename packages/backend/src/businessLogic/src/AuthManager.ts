@@ -2,12 +2,34 @@ import { AppError } from '@erp/shared';
 import type { IAuthQuery, LoginUser } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
+import type { ISessionTokens } from './contracts/ISessionTokens.js';
 
-/** Who passed the password check. The session is created from this once auth_session exists (ADR 0018 part 1). */
+/** Who passed the password check. */
 export interface VerifiedLogin {
   userId: string;
   organizationId: string;
+  displayName: string;
 }
+
+/** Session lifetimes (ADR 0018 section 3), from env.ts: idle 8 hours and absolute 7 days by default. */
+export interface SessionLifetimes {
+  idleMs: number;
+  absoluteMs: number;
+}
+
+/** A successful login: the token goes into the cookie only; the rest makes the session body. */
+export interface LoginOutcome {
+  token: string;
+  userId: string;
+  displayName: string;
+  /** When the session ends if unused (the idle expiry); the session body's expiresAt. */
+  expiresAt: Date;
+  /** When it ends regardless (never extended); the cookie's Expires. */
+  absoluteExpiresAt: Date;
+}
+
+/** The user agent stored on a session: its first 200 characters (ADR 0018 section 1). */
+const USER_AGENT_MAX = 200;
 
 /**
  * Auth module: business rules. No Express, no SQL. Owner: Munif.
@@ -21,7 +43,30 @@ export class AuthManager {
     protected readonly query: IAuthQuery,
     private readonly hasher: IPasswordHasher,
     private readonly clock: IClock,
+    private readonly tokens: ISessionTokens,
+    private readonly lifetimes: SessionLifetimes,
   ) {}
+
+  /**
+   * Steps 2 to 6: checks the password, then creates a new session (never reuses one: no session fixation) and
+   * returns its token for the cookie. Only the token's hash is stored.
+   */
+  async login(login: string, password: string, userAgent: string | null): Promise<LoginOutcome> {
+    const user = await this.verifyLogin(login, password);
+    const now = this.clock.now();
+    const token = this.tokens.generate();
+    const absoluteExpiresAt = new Date(now.getTime() + this.lifetimes.absoluteMs);
+    const expiresAt = new Date(Math.min(now.getTime() + this.lifetimes.idleMs, absoluteExpiresAt.getTime()));
+    await this.query.createSession({
+      userId: user.userId,
+      organizationId: user.organizationId,
+      tokenHash: this.tokens.hash(token),
+      idleExpiresAt: expiresAt,
+      absoluteExpiresAt,
+      userAgent: userAgent === null ? null : userAgent.slice(0, USER_AGENT_MAX),
+    });
+    return { token, userId: user.userId, displayName: user.displayName, expiresAt, absoluteExpiresAt };
+  }
 
   async verifyLogin(login: string, password: string): Promise<VerifiedLogin> {
     const user = await this.query.findUserForLogin(login);
@@ -36,7 +81,7 @@ export class AuthManager {
     }
     const newHash = this.hasher.needsRehash(user.passwordHash) ? await this.hasher.hash(password) : null;
     await this.query.recordSuccessfulLogin(user, newHash);
-    return { userId: user.id, organizationId: user.organizationId };
+    return { userId: user.id, organizationId: user.organizationId, displayName: user.displayName };
   }
 
   private isLocked(user: LoginUser, now: Date): boolean {
