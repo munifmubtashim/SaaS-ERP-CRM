@@ -29,6 +29,19 @@ export async function tablePrivileges(owner: DbClient, table: string, role: stri
   return rows.map((row) => row.privilege);
 }
 
+/**
+ * The BEFORE TRUNCATE statement triggers on `table` that call refuse_truncate(). Once another table references
+ * `table`, a plain TRUNCATE is refused by PostgreSQL's foreign key check before any trigger runs, so tests check the
+ * trigger here as well as trying the TRUNCATE.
+ */
+export async function truncateRefusers(owner: DbClient, table: string): Promise<string[]> {
+  const rows = await owner.$queryRaw<{ name: string }[]>`
+    SELECT t.tgname AS name FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
+    WHERE t.tgrelid = ${table}::regclass AND p.proname = 'refuse_truncate'
+      AND (t.tgtype & 32) <> 0 AND (t.tgtype & 2) <> 0 AND (t.tgtype & 1) = 0`;
+  return rows.map((row) => row.name);
+}
+
 const normalise = (sql: string) =>
   sql
     .replace(/--[^\n]*/g, '')
