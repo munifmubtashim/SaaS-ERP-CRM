@@ -3,7 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { createOwnerDatabase, type OwnerDatabase } from './support/ownerDatabase.js';
 import { createTree, newIds, setScope, type Tree } from './support/orgTree.js';
-import { policies, rlsState, sourceIsInMigration, tablePrivileges } from './support/tableRules.js';
+import {
+  policies,
+  rlsState,
+  sourceIsInMigration,
+  tablePrivileges,
+  truncateRefusers,
+} from './support/tableRules.js';
 
 /**
  * Migration product_catalogue (ADR 0020 part 1): the product table's rules, tested in SQL. ADR 0020 tests 1, 7 and
@@ -202,12 +208,17 @@ describe('constraints', () => {
     );
   });
 
-  it('TRUNCATE is refused for the superuser owner (trigger)', async () => {
+  it('a BEFORE TRUNCATE trigger refuses TRUNCATE for every role', async () => {
+    expect(await truncateRefusers(owner, 'product')).toEqual(['product_no_truncate']);
+  });
+
+  it('TRUNCATE is refused for the superuser owner, even with CASCADE', async () => {
     const attempt = owner.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe('TRUNCATE product');
+      await tx.$executeRawUnsafe('TRUNCATE product CASCADE');
       throw new Error('TRUNCATE ran: the trigger is missing (rolled back)');
     });
-    await expect(attempt).rejects.toThrow(/TRUNCATE is refused on product/);
+    // With CASCADE, a table that references product (serial_unit, later) may refuse first; every one does.
+    await expect(attempt).rejects.toThrow(/TRUNCATE is refused on/);
   });
 });
 
@@ -254,8 +265,10 @@ describe('ADR 0020 test 8 (product half): an owner that is neither superuser nor
     }));
     expect(result.deleted).toBe(0);
     expect(result.left).toBeGreaterThan(0);
+    // Refused by the trigger, or first by PostgreSQL once another table references product (same as
+    // OrganizationTreeOwner.int.test.ts).
     await expect(db.client.$executeRawUnsafe('TRUNCATE product')).rejects.toThrow(
-      /TRUNCATE is refused on product/,
+      /TRUNCATE is refused on product|cannot truncate a table referenced/,
     );
   });
 });
