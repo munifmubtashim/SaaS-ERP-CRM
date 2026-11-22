@@ -1,13 +1,18 @@
+import type { LoginRequest, Session } from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TODO(Munif): add one small method per use case (interface segregation)
-export interface IAuthService {}
+/** What the login screen and the shell need from Auth. Interface segregation: one small method per use. */
+export interface IAuthService {
+  /** Resolves with the session; rejects with ApiRequestError 401 when the login or password is wrong. */
+  login(request: LoginRequest): Promise<Session>;
+  logout(): Promise<void>;
+}
 
 /**
- * Auth module: frontend API calls, one method per endpoint. Owner: Munif.
- * TODO(Munif): login, sessions, refresh tokens, 2FA (roadmap 5.1).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle). Pattern: the Health slice.
+ * Auth module: frontend API calls. Owner: Munif.
+ * TODO(Munif, M3): implement IAuthService over HTTP (POST /v1/auth/login, /logout) and switch createServices
+ * from MockAuthService to this class. Until then it stays a stub.
  */
-export class AuthService implements IAuthService {
+export class AuthService {
   constructor(protected readonly http: IHttpClient) {}
 }
