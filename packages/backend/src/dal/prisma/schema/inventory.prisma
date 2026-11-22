@@ -1,3 +1,36 @@
 // Inventory module: stock movements, balances, transfers, counts (roadmap 4.3, 5.5)
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// One row per physical unit of a serial-tracked product (ADR 0020 section 1). Status changes only by a
+/// conditional UPDATE and only along the allowed paths (trigger, section 2).
+model SerialUnit {
+  id            String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId    String   @map("business_id") @db.Uuid
+  /// Where the unit is. Never changed in release 1 (no grant): transfers (C6) and ADR 0034 decide later.
+  branchId      String   @map("branch_id") @db.Uuid
+  /// Must be a serial-tracked product (trigger).
+  productId     String   @map("product_id") @db.Uuid
+  /// Unique per business (F-03). The Vehicle pack labels it "Chassis number".
+  serialNo      String   @map("serial_no")
+  /// in_stock, reserved, sold or delivered (CHECK and trigger).
+  status        String   @default("in_stock")
+  /// The unit's own cost (invariant 7). A hidden field: no list or detail DTO returns it (ADR 0020 section 3).
+  unitCost      Decimal  @map("unit_cost") @db.Decimal(18, 2)
+  /// The sale that sold it (ADR 0022).
+  invoiceId     String?  @map("invoice_id") @db.Uuid
+  /// The booking that reserved it (plan 3.5, later).
+  reservedByRef String?  @map("reserved_by_ref") @db.Uuid
+  version       Int      @default(1)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy     String?  @map("created_by") @db.Uuid
+
+  branch  Branch  @relation(fields: [businessId, branchId], references: [businessId, id])
+  product Product @relation(fields: [businessId, productId], references: [businessId, id])
+
+  /// For vehicle_unit (business_id, serial_unit_id): a vehicle row can't name another business's unit.
+  @@unique([businessId, id])
+  @@unique([businessId, serialNo])
+  @@map("serial_unit")
+}
