@@ -5,7 +5,7 @@ import { createLogger } from './config/logger.js';
 
 const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
-const { managers, close } = createManagers({
+const { managers, tenantScope, close } = createManagers({
   databaseUrl: env.DATABASE_URL,
   version: env.APP_VERSION,
   dbPoolMax: env.DB_POOL_MAX,
@@ -15,7 +15,7 @@ const { managers, close } = createManagers({
   roleSource: new DenyAllRoleSource(),
 });
 
-const server = createApp({ logger, managers }).listen(env.API_PORT, () => {
+const server = createApp({ logger, managers, tenantScope }).listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'api listening');
 });
 
