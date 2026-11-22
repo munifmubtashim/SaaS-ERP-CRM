@@ -191,7 +191,7 @@ describe('CustomerDetailPage (mock data)', () => {
     expect(await screen.findByLabelText('Total due')).toHaveTextContent('৳12,34,56,789.00');
   });
 
-  it('lets both cards shrink to a phone screen, so a wide invoice table scrolls inside its card', async () => {
+  it('lets both cards shrink to a phone screen, so a wide invoice row never widens the page', async () => {
     // jsdom can't measure layout. Without min-w-0, a grid item can't be narrower than its content, so a
     // 9-digit invoice row made the page wider than a 390 px phone (checked in Chromium on #51).
     const { container } = renderPage(new FakeParty(), new FakeSales({ ...dues, totalDue: '123456789.00' }));
@@ -200,6 +200,54 @@ describe('CustomerDetailPage (mock data)', () => {
     expect(cards).toHaveLength(2);
     for (const card of cards) expect(card).toHaveClass('min-w-0');
   });
+
+  it.each([
+    ['en', ['Total', 'Paid', 'Due']],
+    ['bn', ['মোট', 'পরিশোধ', 'বাকি']],
+  ] as const)(
+    'on a narrow card (%s), the open invoices stack with each amount labelled, so Paid and Due never scroll away',
+    async (locale, labels) => {
+      // jsdom can't measure layout. In Chromium on #51, a 9-digit invoice in a 390 px phone pushed Paid and
+      // Due off the side of the card (the table scrolled inside it). Now the table sits in a container query:
+      // below 36rem each row is a block and every amount cell names its column through data-label.
+      const nineDigits: CustomerDues = {
+        ...dues,
+        totalDue: '123456789.00',
+        openInvoices: [
+          {
+            invoiceId: '0196f000-0000-7000-8000-000000000203',
+            invoiceNumber: 'INV-000180',
+            invoiceDate: '2026-11-19T04:00:00.000Z',
+            total: '123456789.00',
+            paid: '0.00',
+            due: '123456789.00',
+          },
+        ],
+      };
+      const { container } = renderPage(new FakeParty(), new FakeSales(nineDigits), locale);
+      const table = await screen.findByRole('table');
+      expect(table.parentElement).toHaveClass('@container');
+      expect(table.parentElement).not.toHaveClass('overflow-x-auto');
+      expect(table).toHaveClass('block', '@xl:table');
+
+      const [row] = within(table).getAllByRole('row').slice(1);
+      const amounts = within(row as HTMLElement)
+        .getAllByRole('cell')
+        .slice(2);
+      expect(amounts.map((cell) => cell.getAttribute('data-label'))).toEqual(labels);
+      for (const cell of amounts) expect(cell).toHaveClass('before:content-[attr(data-label)]');
+      // The labels come from CSS, so the cell text stays just the amount.
+      const due = locale === 'en' ? '৳12,34,56,789.00' : '৳১২,৩৪,৫৬,৭৮৯.০০';
+      expect(amounts[2]?.textContent).toBe(due);
+
+      // Screen readers still get the column headers.
+      const headers = within(table)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent);
+      expect(headers.slice(2)).toEqual(labels);
+      expect(container.querySelector('thead')).toHaveClass('sr-only', '@xl:not-sr-only');
+    },
+  );
 
   it('offers "Record payment" as the next action', async () => {
     renderPage(new FakeParty(), new FakeSales());
