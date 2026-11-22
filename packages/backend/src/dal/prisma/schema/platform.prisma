@@ -1,0 +1,31 @@
+// Platform tables: request plumbing that belongs to no business module (ADR 0014 open question 2).
+// Shared code: both developers review. RLS, grants and triggers are raw SQL in the migration (dal/sql/).
+
+/// One row per (business, Idempotency-Key): the claim, then the first answer, replayed on a retry (ADR 0011).
+/// Rows are never deleted by the app; a retention job comes later.
+model IdempotencyKey {
+  id              String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  /// The active business of the request (ADR 0007); RLS on it.
+  businessId      String   @map("business_id") @db.Uuid
+  /// The header value: 1 to 255 visible ASCII characters (CHECK in raw SQL).
+  key             String
+  /// Who sent it; a different user with the same key is refused (ADR 0011 section 4).
+  userId          String   @map("user_id") @db.Uuid
+  /// Method and route pattern, e.g. "POST /v1/payments".
+  route           String
+  /// SHA-256 of the canonical JSON body, 32 bytes (CHECK in raw SQL).
+  requestHash     Bytes    @map("request_hash")
+  /// Null while the first request runs; then status, body and headers are stored together, once.
+  statusCode      Int?     @map("status_code")
+  responseBody    Json?    @map("response_body")
+  /// The first answer's headers, replayed with the body (Farhan, #96).
+  responseHeaders Json?    @map("response_headers")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  business Business @relation(fields: [businessId], references: [id])
+  /// The only relation to an auth model outside auth.prisma (named exception in ADR 0008 test 15's check).
+  user     AppUser  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, key])
+  @@map("idempotency_key")
+}
