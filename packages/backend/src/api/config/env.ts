@@ -17,6 +17,14 @@ const envSchema = z
      * branches. Required in production; elsewhere, when missing, provisioning answers 503 and all else runs.
      */
     PROVISIONING_DATABASE_URL: z.url().optional(),
+    /** Session lifetimes (ADR 0018 section 3): idle, extended by activity; absolute, never extended. */
+    SESSION_IDLE_HOURS: z.coerce.number().int().positive().default(8),
+    SESSION_ABSOLUTE_DAYS: z.coerce.number().int().positive().default(7),
+    /**
+     * The session cookie (ADR 0018 section 2): true is `__Host-erp_sid` with Secure (production, always); false is
+     * `erp_sid` without Secure, for http://localhost in development only.
+     */
+    SESSION_COOKIE_SECURE: z.stringbool().default(true),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && !env.PROVISIONING_DATABASE_URL) {
@@ -24,6 +32,20 @@ const envSchema = z
         code: 'custom',
         path: ['PROVISIONING_DATABASE_URL'],
         message: 'required in production (ADR 0010)',
+      });
+    }
+    if (env.NODE_ENV === 'production' && !env.SESSION_COOKIE_SECURE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SESSION_COOKIE_SECURE'],
+        message: 'must be true in production: the cookie is always __Host- and Secure (ADR 0018)',
+      });
+    }
+    if (env.SESSION_IDLE_HOURS > env.SESSION_ABSOLUTE_DAYS * 24) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SESSION_IDLE_HOURS'],
+        message: 'must not be longer than SESSION_ABSOLUTE_DAYS',
       });
     }
   });
