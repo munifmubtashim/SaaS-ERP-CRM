@@ -1,21 +1,18 @@
 import { NavLink, Outlet } from 'react-router';
-import { useEffect } from 'react';
-import { LOCALES, useI18n } from '../../i18n';
+import { useLogout } from '../../features/auth';
+import { useI18n } from '../../i18n';
+import { useSession } from '../../store/sessionStore';
+import { ScopeSwitcher } from '../../features/organization';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
+import { LanguageSwitch, segment } from './LanguageSwitch';
 import { NAV } from './nav';
-
-const segment =
-  'min-h-10 rounded-full px-4 text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
 
 /** App shell: collapsible sidebar, header with language and theme. Shared: both developers review. */
 export function AppShell() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { theme, sidebarCollapsed } = usePreferences();
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.lang = locale;
-  }, [theme, locale]);
+  const session = useSession();
+  const logout = useLogout();
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -60,24 +57,11 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
-          <div
-            role="group"
-            aria-label={t('shell.language')}
-            className="inline-flex rounded-full border border-row-border p-0.5"
-          >
-            {LOCALES.map((l) => (
-              <button
-                key={l}
-                type="button"
-                className={segment}
-                aria-pressed={locale === l}
-                onClick={() => preferencesStore.set({ locale: l })}
-              >
-                {l === 'en' ? 'English' : 'বাংলা'}
-              </button>
-            ))}
+        <header className="flex flex-wrap items-center justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
+          <div className="mr-auto">
+            <ScopeSwitcher />
           </div>
+          <LanguageSwitch />
           <div
             role="group"
             aria-label="Theme"
@@ -95,6 +79,20 @@ export function AppShell() {
               </button>
             ))}
           </div>
+          {session && (
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] text-muted">
+                {t('shell.signedInAs')} <span className="font-semibold text-text">{session.user.name}</span>
+              </span>
+              <button
+                type="button"
+                className="min-h-10 rounded-full border border-row-border px-4 text-text2 hover:border-accent"
+                onClick={() => logout.mutate()}
+              >
+                {t('shell.signOut')}
+              </button>
+            </div>
+          )}
         </header>
         <main className="w-full max-w-5xl p-4 md:p-6">
           <Outlet />
