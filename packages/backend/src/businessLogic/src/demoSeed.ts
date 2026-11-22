@@ -10,7 +10,12 @@ export interface DemoSeedInput {
   ownerEmail: string;
   /** DEMO_OWNER_PASSWORD. Hashed here; never stored, logged or put in an error. */
   ownerPassword: string;
+  /** NODE_ENV: the demo seed refuses to run in production. */
+  nodeEnv: string | undefined;
 }
+
+/** The demo seed writes a known owner login, so it runs only against a database on this machine. */
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /** The login form's own rules (shared loginRequestSchema): a valid login, and here an email, not a phone. */
 const loginSchema = loginRequestSchema.shape.login;
@@ -26,6 +31,12 @@ export async function runDemoSeed(
   hasher: IPasswordHasher,
   ids: DemoIds = DEMO_IDS,
 ): Promise<{ organizationId: string; ownerUserId: string }> {
+  if (input.nodeEnv === 'production') {
+    throw new AppError('FORBIDDEN', 'The demo seed never runs with NODE_ENV=production.');
+  }
+  if (!LOCAL_HOSTS.has(new URL(input.migrationDatabaseUrl).hostname)) {
+    throw new AppError('FORBIDDEN', 'The demo seed runs only against a database on localhost.');
+  }
   const email = input.ownerEmail.trim();
   if (!email.includes('@') || !loginSchema.safeParse(email).success) {
     throw new AppError('VALIDATION_FAILED', 'DEMO_OWNER_EMAIL must be an email address.');

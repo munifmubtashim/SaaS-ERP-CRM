@@ -52,7 +52,12 @@ const refusal = async (promise: Promise<unknown>) => {
 
 describe('runDemoSeed, then login', () => {
   it('seeds twice without error and returns the same organization and owner', async () => {
-    const input = { migrationDatabaseUrl: ownerUrl, ownerEmail: email, ownerPassword: password };
+    const input = {
+      migrationDatabaseUrl: ownerUrl,
+      ownerEmail: email,
+      ownerPassword: password,
+      nodeEnv: 'test',
+    };
     const first = await runDemoSeed(input, hasher, ids);
     expect(first).toEqual({ organizationId: ids.organizationId, ownerUserId: ids.ownerUserId });
     await expect(runDemoSeed(input, hasher, ids)).resolves.toEqual(first);
@@ -75,14 +80,19 @@ describe('runDemoSeed, then login', () => {
     const other = { ...ids, organizationId: randomUUID(), ownerUserId: randomUUID() };
     await expect(
       runDemoSeed(
-        { migrationDatabaseUrl: ownerUrl, ownerEmail: 'not-an-email', ownerPassword: password },
+        {
+          migrationDatabaseUrl: ownerUrl,
+          ownerEmail: 'not-an-email',
+          ownerPassword: password,
+          nodeEnv: 'test',
+        },
         hasher,
         other,
       ),
     ).rejects.toThrow(/DEMO_OWNER_EMAIL/);
     await expect(
       runDemoSeed(
-        { migrationDatabaseUrl: ownerUrl, ownerEmail: email, ownerPassword: 'short' },
+        { migrationDatabaseUrl: ownerUrl, ownerEmail: email, ownerPassword: 'short', nodeEnv: 'test' },
         hasher,
         other,
       ),
@@ -92,10 +102,28 @@ describe('runDemoSeed, then login', () => {
   it('never puts the password into an error message', async () => {
     const secret = `Secret-${randomUUID()}`;
     const error = await runDemoSeed(
-      { migrationDatabaseUrl: ownerUrl, ownerEmail: 'not-an-email', ownerPassword: secret },
+      { migrationDatabaseUrl: ownerUrl, ownerEmail: 'not-an-email', ownerPassword: secret, nodeEnv: 'test' },
       hasher,
       ids,
     ).catch((caught: unknown) => caught);
     expect(String((error as Error).message)).not.toContain(secret);
+  });
+});
+
+describe('runDemoSeed refuses where a known demo login must never go', () => {
+  const input = { ownerEmail: email, ownerPassword: password };
+
+  it('refuses with NODE_ENV=production, before writing anything', async () => {
+    await expect(
+      runDemoSeed({ ...input, migrationDatabaseUrl: ownerUrl, nodeEnv: 'production' }, hasher, ids),
+    ).rejects.toThrow(/NODE_ENV=production/);
+  });
+
+  it('refuses a database that is not on localhost', async () => {
+    const remote = new URL(ownerUrl);
+    remote.hostname = 'db.example.com';
+    await expect(
+      runDemoSeed({ ...input, migrationDatabaseUrl: remote.toString(), nodeEnv: 'development' }, hasher, ids),
+    ).rejects.toThrow(/only against a database on localhost/);
   });
 });

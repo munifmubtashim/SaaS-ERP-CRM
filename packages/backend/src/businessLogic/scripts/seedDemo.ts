@@ -20,6 +20,7 @@ try {
       migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL ?? '',
       ownerEmail: process.env.DEMO_OWNER_EMAIL ?? '',
       ownerPassword: process.env.DEMO_OWNER_PASSWORD ?? '',
+      nodeEnv: process.env.NODE_ENV,
     },
     new Argon2PasswordHasher(),
   );
