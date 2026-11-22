@@ -1,12 +1,12 @@
 # 0050: Forced RLS on the access tables, and the login lookup
 
-| Field               | Value                                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------------------------ |
-| Status              | Proposed                                                                                               |
-| Date                | 2026-11-22                                                                                             |
-| Deciders            | Munif (Auth owner); Farhan to review, because it changes ADR 0008 which he approved on #27             |
-| Supersedes          | **ADR 0008 section 2, in part** (the "No tenant RLS" rule below); adds to ADR 0009 part 3 and ADR 0018 |
-| Spec / roadmap refs | spec U-04; CLAUDE.md tenancy rules; ADR 0005, 0008, 0009, 0018; migration `auth_access`                |
+| Field               | Value                                                                                                                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status              | Proposed                                                                                                                                                                                  |
+| Date                | 2026-11-22                                                                                                                                                                                |
+| Deciders            | Munif (Auth owner); Farhan to review, because it changes ADR 0008 which he approved on #27                                                                                                |
+| Supersedes          | **ADR 0008 section 2, in part** (the "No tenant RLS" rule below) and **ADR 0018 section 1's "No tenant RLS" bullet** for `auth_session` (section 6); adds to ADR 0009 part 3 and ADR 0018 |
+| Spec / roadmap refs | spec U-04; CLAUDE.md tenancy rules; ADR 0005, 0008, 0009, 0018; migrations `auth_access` and `auth_session`                                                                               |
 
 ## Context
 
@@ -49,7 +49,10 @@ Login is the only read before any organization is known.
   `set_config(..., true)` (transaction-local), to the lower-cased email or the E.164 phone.
 - A new function `app_login_key()` returns that value, or `NULL` when it is unset. Unlike `app_organization_id()`
   it doesn't raise, because only `app_user`'s `SELECT` policy reads it, to choose a branch:
-  - key set: the row whose `lower(email)` or `phone` equals the key. Both are unique, so **at most one row**;
+  - key set: the row whose `lower(email)` or `phone` equals the key. Both are unique, and an email must contain
+    `@` while a phone is E.164 and never does, so one key can't match one user's email and another user's phone:
+    **at most one row**, once both `auth_access` and `auth_session` are in (the email `CHECK` is in
+    `auth_session`, section 6);
   - key unset: `organization_id = app_organization_id()`, which raises when no scope is set, as on every tenant
     table.
 - With the key set, nothing else is reachable: `role`, `role_permission` and `user_scope` still need the
@@ -87,16 +90,50 @@ Login is the only read before any organization is known.
   `permission_code` or `created_at`. Its `UPDATE` policy, like its `INSERT` policy, requires a role in the caller's
   organization with `NOT is_system`, so a system role's permissions change only through the seed.
 
+### 6. Sessions: `auth_session` (migration `auth_session`; Farhan agreed the four points on #102)
+
+ADR 0018 section 1 kept sessions in PostgreSQL with no tenant RLS. Like the four access tables, `auth_session`
+now has the organization boundary in the database, with its own narrow path for the one read that happens before
+an organization is known: finding the session behind a cookie.
+
+1. **Forced RLS.** `erp_app` policies `TO erp_app` for `SELECT`, `INSERT` and `UPDATE`; owner policies
+   `TO CURRENT_USER`, organization only, with no session path. Without a session key, every policy needs
+   `app.organization_id`, which raises when it is unset.
+2. **The lookup is by token hash, through a transaction-local key.** `AuthQuery`'s session lookup sets **only**
+   `app.session_key`, the hex SHA-256 of the cookie token, with `set_config(..., true)`. A new function
+   `app_session_key()` returns it as `bytea`, or `NULL` when unset (a value that isn't hex raises). With the key
+   set, the `SELECT` and `UPDATE` policies show only the row whose `token_hash` equals it, so `authMiddleware` can
+   read the session and touch or revoke it before the organization is known. The key doesn't reach the next
+   transaction on a pooled connection. A new session is inserted after the password check, inside the found
+   user's organization.
+3. **A session can't name a user of another organization.** A new `UNIQUE (id, organization_id)` on `app_user`,
+   added by the `auth_session` migration (not by editing `auth_access`), and a composite foreign key
+   `(user_id, organization_id) → app_user (id, organization_id)`.
+4. **No `DELETE` on sessions, for any role.** A session ends by expiring or by `revoked_at`; rows stay. A retention
+   job, run by the owner outside requests, removes old rows later. `TRUNCATE` is refused for every role.
+   `erp_app` has `SELECT`, `INSERT`, and `UPDATE (last_seen_at, idle_expires_at, revoked_at)` only.
+
+**Email format (Farhan, #102).** `app_user` gets `CHECK (position('@' in email) > 1)`: an email contains `@`, not
+first. A phone is E.164 (`+` and digits), so no key can equal one user's email and another user's phone, and the
+login path (section 2) matches at most one row. The `CHECK` is added by the `auth_session` migration, **not** by
+`auth_access`, so `auth_access` isn't edited again.
+
+**`auth_access` and `auth_session` merge in the same batch.** The "at most one row" guarantee needs both, and the
+session path needs `app_user` with its new unique index. Neither reaches `main` without the other.
+
 ## Known trade-offs (accepted)
 
-**(a) Any code running as `erp_app` can set `app.login_key` and then see that one user's full row, including
-`password_hash` and `mfa_secret_enc`.** The key is a plain transaction setting: the database can't tell
-`AuthQuery` from any other code on the same connection. It shows one row per key, so it can't list users, but
-anyone who knows an email or phone could read that user's hash through a rogue query. **The only guard is that
-`AuthQuery` alone may name the auth tables**: ADR 0008 test 15 (`AuthTablesOnlyInAuthQuery.int.test.ts`) fails
-when any other dal file names `app_user`, `role`, `role_permission`, `user_scope`, their models or their
-back-relation fields, and review checks every change to `AuthQuery.ts`. Revisit with a `SECURITY DEFINER` lookup
-that returns only what login needs, if that guard ever proves too weak.
+**(a) Any code running as `erp_app` can set `app.login_key` or `app.session_key` and then see one row it
+shouldn't.** With `app.login_key` it sees that one user's full row, including `password_hash` and
+`mfa_secret_enc`; with `app.session_key` it sees, and can touch or revoke, that one session. The keys are plain
+transaction settings: the database can't tell `AuthQuery` from any other code on the same connection. Each shows
+one row per key, so neither can list users or sessions. Anyone who knows an email or phone could read that user's
+hash through a rogue query; a session needs its token's hash, which is never logged or sent (only the cookie holds
+the token). **The only guard is that `AuthQuery` alone may name the auth tables**: ADR 0008 test 15
+(`AuthTablesOnlyInAuthQuery.int.test.ts`) fails when any other dal file names `app_user`, `role`,
+`role_permission`, `user_scope`, `auth_session`, their models or their back-relation fields, and review checks
+every change to `AuthQuery.ts`. Revisit with `SECURITY DEFINER` lookups that return only what login and the
+session check need, if that guard ever proves too weak.
 
 **(b) Login must give the same answer for an unknown user and a wrong password** (ADR 0018 section 4, steps 3 to
 5). The lookup returns "no row" for an unknown login, which the login code must not reveal: the same `401`, the
@@ -119,6 +156,11 @@ identical conflict answer; fixed system roles; a custom role coded `owner` refus
 `role_permission.is_active` (deactivate and reactivate on a custom role, nothing on a system role or another
 organization's role, no other column writable); ADR 0008 tests 6 and 9; the source files matching the migration.
 
+The `auth_session` migration's PR adds its own tests: RLS forced, the session path (right key one row, wrong key
+none, the key gone after the transaction), organization isolation, the composite foreign key, the grants and no
+`DELETE` or `TRUNCATE`, the owner path for an owner that is neither superuser nor `BYPASSRLS`, an email without `@`
+refused, and a login key equal to one user's phone never matching another user's email.
+
 ## Consequences
 
 - **Easier:** the organization boundary on users, roles and scopes is enforced by the database, not only by
@@ -126,8 +168,10 @@ organization's role, no other column writable); ADR 0008 tests 6 and 9; the sour
 - **Harder:** every read of these tables needs `app.organization_id`, or the login key for the one login read.
   `tenantMiddleware` (A6) reads `user_scope` with the session's organization set (the session row carries it,
   ADR 0018), not with the user id alone.
-- **Keep true:** only `AuthQuery` names the auth tables; only `findUserForLogin` sets `app.login_key`; login
-  answers never distinguish unknown users from wrong passwords; only the system Owner role holds group scope;
-  permission checks read active `role_permission` rows only.
-- **Undo:** a new migration dropping the policies and disabling RLS on the four tables returns to ADR 0008
-  section 2 as written.
+- **Keep true:** only `AuthQuery` names the auth tables, `auth_session` included; only `findUserForLogin` sets
+  `app.login_key`, and only `AuthQuery`'s session lookup sets `app.session_key`, each in its own transaction and
+  each with `set_config(..., true)`; login answers never distinguish unknown users from wrong passwords; only the
+  system Owner role holds group scope; permission checks read active `role_permission` rows only; `auth_access` and
+  `auth_session` merge together.
+- **Undo:** a new migration dropping the policies and disabling RLS on the four tables (and on `auth_session`)
+  returns to ADR 0008 section 2 and ADR 0018 section 1 as written.
