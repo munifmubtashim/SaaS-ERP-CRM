@@ -66,6 +66,7 @@ model Business {
   userScopes      UserScope[]
   idempotencyKeys IdempotencyKey[]
   numberSeries    NumberSeries[]
+  products        Product[]
 
   @@map("business")
 }
