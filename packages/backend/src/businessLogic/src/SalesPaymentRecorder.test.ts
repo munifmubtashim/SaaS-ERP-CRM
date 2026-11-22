@@ -19,15 +19,28 @@ const INVOICE = '01937000-0000-7000-8000-0000000000d2';
 /** 19:30 UTC on 21 Nov is 01:30 on 22 Nov in Dhaka (UTC+6). */
 const clock: IClock = { now: () => new Date('2026-11-21T19:30:00Z') };
 
+/**
+ * Follows the ISalesPaymentQuery contract: a due only for a posted, non-voided invoice of this party in scope; a
+ * party is in scope only when it exists in the caller's business.
+ */
 class FakePaymentQuery implements ISalesPaymentQuery {
   inserted: NewSalesPayment[] = [];
   asked: { invoiceId: string; partyId: string }[] = [];
-  constructor(private readonly dues: Record<string, string> = { [INVOICE]: '20000.00' }) {}
+  partyChecks: string[] = [];
+  constructor(
+    private readonly dues: Record<string, string> = { [INVOICE]: '20000.00' },
+    private readonly options: { notPosted?: string[]; parties?: string[] } = {},
+  ) {}
   async newPaymentId(): Promise<string> {
     return PAYMENT;
   }
+  async partyInScope(partyId: string): Promise<boolean> {
+    this.partyChecks.push(partyId);
+    return (this.options.parties ?? [PARTY]).includes(partyId);
+  }
   async invoiceDueForUpdate(invoiceId: string, partyId: string): Promise<string | null> {
     this.asked.push({ invoiceId, partyId });
+    if (this.options.notPosted?.includes(invoiceId)) return null;
     return this.dues[invoiceId] ?? null;
   }
   async insertPayment(payment: NewSalesPayment): Promise<void> {
@@ -114,6 +127,7 @@ describe('SalesPaymentRecorder.record (ADR 0016)', () => {
       partyId: PARTY,
     });
     expect(query.asked).toEqual([]);
+    expect(query.partyChecks).toEqual([PARTY]);
   });
 
   it.each(['bank', 'bkash', 'card'] as const)(
@@ -207,5 +221,53 @@ describe('review fixes on #99', () => {
           [new CashPayment(), new CashPayment()],
         ),
     ).toThrow(/cash.*registered twice/);
+  });
+});
+
+describe("Farhan's review of #99 (22 Nov)", () => {
+  it('an advance for a party not in this business is 404 payment.party_not_found, before any number or journal', async () => {
+    const { posting, numbers, query, recorder } = setup(new FakePaymentQuery({}, { parties: [] }));
+    expect(await fieldCode(recorder.record(input({ invoiceId: null })))).toEqual({
+      code: 'NOT_FOUND',
+      field: 'payment.party_not_found',
+    });
+    expect(query.partyChecks).toEqual([PARTY]);
+    expect(numbers.taken).toEqual([]);
+    expect(posting.journals).toEqual([]);
+    expect(query.inserted).toEqual([]);
+  });
+
+  it("an invoice payment relies on the invoice's party check, not a separate party read", async () => {
+    const { query, recorder } = setup();
+    await recorder.record(input());
+    expect(query.asked).toEqual([{ invoiceId: INVOICE, partyId: PARTY }]);
+    expect(query.partyChecks).toEqual([]);
+  });
+
+  it.each(['voided', 'draft'])(
+    'a %s invoice has no due, so the payment is 404 payment.invoice_not_found, before any number or journal',
+    async () => {
+      const query = new FakePaymentQuery({ [INVOICE]: '20000.00' }, { notPosted: [INVOICE] });
+      const { posting, numbers, recorder } = setup(query);
+      expect(await fieldCode(recorder.record(input()))).toEqual({
+        code: 'NOT_FOUND',
+        field: 'payment.invoice_not_found',
+      });
+      expect(numbers.taken).toEqual([]);
+      expect(posting.journals).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['a leading zero', '012500.00'],
+    ['several leading zeros', '0000012500.00'],
+  ])('an amount with %s is stored and posted in one form, 12500.00', async (_case, amount) => {
+    const { posting, query, recorder } = setup();
+    await recorder.record(input({ amount }));
+    expect(posting.journals[0]?.draft?.lines.map((line) => [line.debit, line.credit])).toEqual([
+      ['12500.00', '0.00'],
+      ['0.00', '12500.00'],
+    ]);
+    expect(query.inserted[0]?.amount).toBe('12500.00');
   });
 });

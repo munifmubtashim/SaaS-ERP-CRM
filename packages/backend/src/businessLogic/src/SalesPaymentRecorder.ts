@@ -1,4 +1,12 @@
-import { AppError, businessDateInDhaka, compareMoney, parseMoney, ZERO, type Paisa } from '@erp/shared';
+import {
+  AppError,
+  businessDateInDhaka,
+  compareMoney,
+  formatMoney,
+  parseMoney,
+  ZERO,
+  type Paisa,
+} from '@erp/shared';
 import type { IClock } from './contracts/IClock.js';
 import type { IPaymentMethodRule } from './contracts/IPaymentMethodRule.js';
 import type { ISalesPaymentQuery } from './contracts/ISalesPaymentQuery.js';
@@ -49,6 +57,9 @@ export class SalesPaymentRecorder {
   async record(input: RecordPaymentInput): Promise<RecordedPayment> {
     const { rule, amount } = this.validate(input);
     if (input.invoiceId !== null) await this.refuseAboveDue(input.invoiceId, input.partyId, amount);
+    else await this.refuseUnknownParty(input.partyId);
+    // One stored form: "012500.00" is stored and posted as "12500.00" (Farhan, #99).
+    const amountText = formatMoney(amount);
     const externalRef = input.externalRef?.trim() || null;
     const receiptNumber = await this.numbers.next('receipt', input.branchId);
     const paymentId = await this.query.newPaymentId();
@@ -59,11 +70,11 @@ export class SalesPaymentRecorder {
       source: { type: 'sales_payment', id: paymentId },
       memo: `Payment ${receiptNumber}`,
       lines: [
-        { role: rule.debitRole, debit: input.amount, credit: '0.00' },
+        { role: rule.debitRole, debit: amountText, credit: '0.00' },
         {
           role: input.invoiceId === null ? 'customer_advance' : 'receivable',
           debit: '0.00',
-          credit: input.amount,
+          credit: amountText,
           partyId: input.partyId,
         },
       ],
@@ -74,7 +85,7 @@ export class SalesPaymentRecorder {
       partyId: input.partyId,
       invoiceId: input.invoiceId,
       method: rule.method,
-      amount: input.amount,
+      amount: amountText,
       externalRef,
       receiptNumber,
       journalId,
@@ -83,8 +94,8 @@ export class SalesPaymentRecorder {
   }
 
   /**
-   * Overpayment is refused for now (ADR 0016 amendment pending on #43): a payment above the invoice's open due
-   * would push receivable below zero instead of becoming an advance. Farhan decides how an excess becomes one.
+   * Release 1 refuses overpayment (Farhan's decision on #99; ADR 0016 amendment wording on #43): a payment above the
+   * invoice's open due would push receivable below zero. The cashier records any excess as a separate advance.
    */
   private async refuseAboveDue(invoiceId: string, partyId: string, amount: Paisa): Promise<void> {
     const due = await this.query.invoiceDueForUpdate(invoiceId, partyId);
@@ -98,6 +109,13 @@ export class SalesPaymentRecorder {
       const message = 'The payment is more than the amount due on this invoice.';
       throw new AppError('CONFLICT', message, [{ path: 'amount', code: 'payment.exceeds_due', message }]);
     }
+  }
+
+  /** An advance names a party that no invoice vouches for: it must exist in this business (Farhan, #99). */
+  private async refuseUnknownParty(partyId: string): Promise<void> {
+    if (await this.query.partyInScope(partyId)) return;
+    const message = 'Customer not found.';
+    throw new AppError('NOT_FOUND', message, [{ path: 'partyId', code: 'payment.party_not_found', message }]);
   }
 
   private validate(input: RecordPaymentInput): { rule: IPaymentMethodRule; amount: Paisa } {
