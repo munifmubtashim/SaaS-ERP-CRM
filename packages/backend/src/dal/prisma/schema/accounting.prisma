@@ -1,3 +1,29 @@
 // Accounting module: accounts, journals, periods, banking (roadmap 4.3, 5.8)
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// Gapless document numbers (ADR 0015). One row per (business, branch, kind); a null branch is a business-wide
+/// series (section 1a). The database never formats: NumberSeries pads with padStart and never cuts (section 1).
+model NumberSeries {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  /// Null: a business-wide series (customer codes). Set: a branch series, same business (composite key).
+  branchId   String?  @map("branch_id") @db.Uuid
+  /// receipt, invoice, journal, party_code; others are added by their modules.
+  kind       String
+  /// Set when the series is created, e.g. "RC-UTT-"; never changed by erp_app.
+  prefix     String
+  /// Moves only by exactly +1 per statement (trigger); a rollback gives the number back.
+  nextValue  BigInt   @default(1) @map("next_value")
+  /// The minimum number of digits; a longer value prints in full.
+  width      Int      @default(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  business Business @relation(fields: [businessId], references: [id])
+  branch   Branch?  @relation(fields: [businessId, branchId], references: [businessId, id])
+
+  /// The migration makes this index NULLS NOT DISTINCT, so there is one business-wide series per kind.
+  @@unique([businessId, branchId, kind])
+  @@map("number_series")
+}
