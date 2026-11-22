@@ -15,6 +15,7 @@ import {
   ServiceQuery,
   CrmQuery,
   createProvisioningQuery,
+  TenantScopeRunner,
 } from '@erp/dal';
 import { HealthManager } from './HealthManager.js';
 import { AuthManager } from './AuthManager.js';
@@ -30,12 +31,17 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import { Argon2PasswordHasher } from './Argon2PasswordHasher.js';
 import { DenyAllRoleSource } from './DenyAllRoleSource.js';
 import type { IRoleSource } from './contracts/IRoleSource.js';
+import type { ITenantScope } from './contracts/ITenantScope.js';
 
 export type { IClock } from './contracts/IClock.js';
+export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
-export type { IAuthQuery } from './contracts/IAuthQuery.js';
+export type { IAuthQuery, LoginUser, UserRef } from './contracts/IAuthQuery.js';
+export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
+export type { VerifiedLogin } from './AuthManager.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
 export type { IProductQuery } from './contracts/IProductQuery.js';
 export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
@@ -107,8 +113,13 @@ export interface ManagerConfig {
  * Composition root: the ONLY place Queries and Managers are constructed (lint-enforced).
  * Each dal Query is passed where a businessLogic I<Module>Query is expected, so TypeScript checks
  * here that dal satisfies the contracts businessLogic owns, without dal importing businessLogic.
+ * `tenantScope` opens the one transaction per tenant request (ADR 0005); the api route wrapper uses it.
  */
-export function createManagers(config: ManagerConfig): { managers: Managers; close: () => Promise<void> } {
+export function createManagers(config: ManagerConfig): {
+  managers: Managers;
+  tenantScope: ITenantScope;
+  close: () => Promise<void>;
+} {
   if (!config.roleSource) {
     throw new Error('createManagers needs a role source (ADR 0010); pass DenyAllRoleSource until A5.');
   }
@@ -116,6 +127,7 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
     poolMax: config.dbPoolMax,
     txTimeoutMs: config.dbTxTimeoutMs,
   });
+  const tenantScope: ITenantScope = new TenantScopeRunner(db);
   // Built in dal together with its own client (ADR 0010), so this file never holds the provisioner connection.
   const provisioning = createProvisioningQuery(config.provisioningDatabaseUrl, {
     poolMax: config.dbPoolMax,
@@ -123,7 +135,7 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
   });
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
-    auth: new AuthManager(new AuthQuery(db)),
+    auth: new AuthManager(new AuthQuery(db), new Argon2PasswordHasher(), new SystemClock()),
     organization: new OrganizationManager(new OrganizationQuery(), provisioning, config.roleSource),
     product: new ProductManager(new ProductQuery()),
     inventory: new InventoryManager(new InventoryQuery()),
@@ -136,5 +148,9 @@ export function createManagers(config: ManagerConfig): { managers: Managers; clo
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
-  return { managers, close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])) };
+  return {
+    managers,
+    tenantScope,
+    close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),
+  };
 }

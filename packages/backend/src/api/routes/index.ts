@@ -12,14 +12,15 @@ import { salesRoutes } from './SalesRoutes.js';
 import { purchaseRoutes } from './PurchaseRoutes.js';
 import { serviceRoutes } from './ServiceRoutes.js';
 import { crmRoutes } from './CrmRoutes.js';
+import type { RouteWrappers } from './tenantRoute.js';
 import type { ModuleRoutes } from './types.js';
 
 export { PUBLIC_ROUTES, type ModuleRoutes, type RouteScope } from './types.js';
 
 /** Every module router. app.ts mounts exactly these; the isolation test reads this list too. */
-export function buildRoutes(c: Controllers): ModuleRoutes[] {
+export function buildRoutes(c: Controllers, wrap: RouteWrappers): ModuleRoutes[] {
   return [
-    healthRoutes(c.health),
+    healthRoutes(c.health, wrap),
     authRoutes(c.auth),
     organizationRoutes(c.organization),
     productRoutes(c.product),
