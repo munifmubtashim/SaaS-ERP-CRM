@@ -14,6 +14,9 @@ model Organization {
 
   legalEntities LegalEntity[]
   businesses    Business[]
+  /// Back-relations required by Prisma for auth.prisma's foreign keys; only AuthQuery may use them (ADR 0008 test 15).
+  appUsers      AppUser[]
+  authRoles     Role[]
 
   @@map("organization")
 }
@@ -59,6 +62,8 @@ model Business {
   organization Organization @relation(fields: [organizationId], references: [id])
   legalEntity  LegalEntity  @relation(fields: [organizationId, legalEntityId], references: [organizationId, id])
   branches     Branch[]
+  /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
+  userScopes   UserScope[]
 
   @@map("business")
 }
@@ -77,7 +82,9 @@ model Branch {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   createdBy    String?  @map("created_by") @db.Uuid
 
-  business Business @relation(fields: [businessId], references: [id])
+  business   Business    @relation(fields: [businessId], references: [id])
+  /// Back-relation for user_scope; only AuthQuery may use it (ADR 0008 test 15).
+  userScopes UserScope[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])

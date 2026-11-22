@@ -61,3 +61,15 @@ BEGIN
   RETURN string_to_array(v, ',')::uuid[];
 END
 $$;
+
+-- The login lookup's key (ADR 0018 section 4; Munif, 22 Nov). Shipped in migration auth_access. Unlike the three
+-- functions above it returns NULL when unset instead of raising: only the user table's SELECT policy reads it, to
+-- choose between the login path (key set: the one row whose lower(email) or phone equals it) and the normal
+-- organization check (key unset: app_organization_id() raises as usual). AuthQuery sets it, with set_config(...,
+-- true), only in its own login transaction.
+CREATE FUNCTION public.app_login_key() RETURNS text
+  LANGUAGE sql STABLE PARALLEL SAFE
+  SET search_path = pg_catalog
+AS $$
+  SELECT nullif(current_setting('app.login_key', true), '')
+$$;
