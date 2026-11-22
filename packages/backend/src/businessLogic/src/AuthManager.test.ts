@@ -1,7 +1,7 @@
 import { AppError } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import { AuthManager } from './AuthManager.js';
-import type { IAuthQuery, LoginUser } from './contracts/IAuthQuery.js';
+import type { ActiveSession, IAuthQuery, LoginUser, NewSession } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
 
@@ -39,7 +39,53 @@ class FakeHasher implements IPasswordHasher {
 class FakeAuthQuery implements IAuthQuery {
   failed: string[] = [];
   succeeded: { userId: string; newHash: string | null }[] = [];
+  /** Sessions by token hash (hex), as the real table keys them. */
+  sessions = new Map<string, NewSession & { id: string; lastSeenAt: Date; revokedAt: Date | null }>();
   constructor(private readonly user: LoginUser | null) {}
+  async createSession(session: NewSession): Promise<string> {
+    const id = `session-${this.sessions.size + 1}`;
+    this.sessions.set(Buffer.from(session.tokenHash).toString('hex'), {
+      ...session,
+      id,
+      lastSeenAt: NOW,
+      revokedAt: null,
+    });
+    return id;
+  }
+  async findActiveSession(tokenHash: Uint8Array, now: Date): Promise<ActiveSession | null> {
+    const s = this.sessions.get(Buffer.from(tokenHash).toString('hex'));
+    if (!s || s.revokedAt || s.idleExpiresAt <= now || s.absoluteExpiresAt <= now || !this.user?.isActive) {
+      return null;
+    }
+    return {
+      sessionId: s.id,
+      userId: s.userId,
+      organizationId: s.organizationId,
+      lastSeenAt: s.lastSeenAt,
+      idleExpiresAt: s.idleExpiresAt,
+      absoluteExpiresAt: s.absoluteExpiresAt,
+    };
+  }
+  async touchSession(tokenHash: Uint8Array, lastSeenAt: Date, idleExpiresAt: Date): Promise<void> {
+    const s = this.sessions.get(Buffer.from(tokenHash).toString('hex'));
+    if (s && !s.revokedAt) Object.assign(s, { lastSeenAt, idleExpiresAt });
+  }
+  async revokeSession(tokenHash: Uint8Array, now: Date): Promise<boolean> {
+    const s = this.sessions.get(Buffer.from(tokenHash).toString('hex'));
+    if (!s || s.revokedAt) return false;
+    s.revokedAt = now;
+    return true;
+  }
+  async revokeAllSessions(user: { id: string }, now: Date): Promise<number> {
+    let count = 0;
+    for (const s of this.sessions.values()) {
+      if (s.userId === user.id && !s.revokedAt) {
+        s.revokedAt = now;
+        count += 1;
+      }
+    }
+    return count;
+  }
   async findUserForLogin(): Promise<LoginUser | null> {
     return this.user;
   }

@@ -46,3 +46,35 @@ export class LoginUserDTO {
     );
   }
 }
+
+/** An active session row (ADR 0018 section 6). The token hash stays in dal. */
+export interface SessionRow {
+  id: string;
+  userId: string;
+  organizationId: string;
+  lastSeenAt: Date;
+  idleExpiresAt: Date;
+  absoluteExpiresAt: Date;
+}
+
+export class SessionDTO {
+  private constructor(
+    readonly sessionId: string,
+    readonly userId: string,
+    readonly organizationId: string,
+    readonly lastSeenAt: Date,
+    readonly idleExpiresAt: Date,
+    readonly absoluteExpiresAt: Date,
+  ) {}
+
+  static fromRow(row: SessionRow): SessionDTO {
+    return new SessionDTO(
+      row.id,
+      row.userId,
+      row.organizationId,
+      row.lastSeenAt,
+      row.idleExpiresAt,
+      row.absoluteExpiresAt,
+    );
+  }
+}

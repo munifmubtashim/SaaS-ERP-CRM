@@ -1,5 +1,5 @@
 import { AppError } from '@erp/shared';
-import { LoginUserDTO } from '../dto/AuthDTO.js';
+import { LoginUserDTO, SessionDTO, type SessionRow } from '../dto/AuthDTO.js';
 import type { TxClient } from '../config/tenantScope.js';
 import { UnscopedQuery } from './UnscopedQuery.js';
 
@@ -15,6 +15,17 @@ export interface CreateUserInput {
   displayName: string;
   /** The caller's user id; NULL only when seeded (ADR 0008 section 5). */
   createdBy: string | null;
+}
+
+/** A session to store. dal's own shape: businessLogic's NewSession satisfies it structurally (ADR 0004). */
+export interface NewSessionInput {
+  userId: string;
+  organizationId: string;
+  /** SHA-256 of the cookie token, 32 bytes; the token itself never reaches dal. */
+  tokenHash: Uint8Array;
+  idleExpiresAt: Date;
+  absoluteExpiresAt: Date;
+  userAgent: string | null;
 }
 
 /**
@@ -51,9 +62,12 @@ export function loginKey(login: string): string {
 /**
  * Auth module: database access (dal). Satisfies businessLogic contracts/IAuthQuery. Owner: Munif.
  *
- * The only Query that names app_user, role, role_permission and user_scope (ADR 0008 test 15). Those tables have
- * forced RLS scoped by organization (Munif, 22 Nov). Each method opens its own short transaction and sets only
- * what it needs, transaction-locally:
+ * The only Query that names app_user, role, role_permission, user_scope and auth_session (ADR 0008 test 15, ADR 0018
+ * test 12). Those tables have forced RLS scoped by organization (ADR 0050). Each method opens its own short
+ * transaction and sets only what it needs, transaction-locally:
+ * - findActiveSession, touchSession and revokeSession set app.session_key (the token hash in hex), which shows only
+ *   that session (ADR 0050 section 6); findActiveSession then sets the session's organization to read its user.
+ * - createSession and revokeAllSessions set app.organization_id to the user's organization.
  * - findUserForLogin sets app.login_key and nothing else, so app_user's policy shows at most the one matching row
  *   and every other auth table raises 'tenant scope not set' (ADR 0018 section 4).
  * - createUser sets app.organization_id to the caller's organization.
@@ -134,6 +148,81 @@ export class AuthQuery extends UnscopedQuery {
     } catch (error) {
       asLoginConflict(error);
     }
+  }
+
+  /** Stores a new session inside the user's organization (ADR 0018 section 4, step 6). Returns its id. */
+  async createSession(session: NewSessionInput): Promise<string> {
+    return this.inOrganization(session.organizationId, async (tx) => {
+      const [row] = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO auth_session (token_hash, user_id, organization_id, idle_expires_at, absolute_expires_at, user_agent)
+        VALUES (${Buffer.from(session.tokenHash)}, ${session.userId}::uuid, ${session.organizationId}::uuid,
+                ${session.idleExpiresAt}, ${session.absoluteExpiresAt}, ${session.userAgent})
+        RETURNING id::text`;
+      if (!row) throw new AppError('INTERNAL_ERROR', 'The session insert returned no row.');
+      return row.id;
+    });
+  }
+
+  /**
+   * The session behind a token hash, usable at `now` (ADR 0018 section 6): not revoked, before both expiries, and
+   * its user active in the session's own organization. Read through the session path, then the organization path.
+   */
+  async findActiveSession(tokenHash: Uint8Array, now: Date): Promise<SessionDTO | null> {
+    return this.withSessionKey(tokenHash, async (tx) => {
+      const [session] = await tx.$queryRaw<SessionRow[]>`
+        SELECT id::text, user_id::text AS "userId", organization_id::text AS "organizationId",
+               last_seen_at AS "lastSeenAt", idle_expires_at AS "idleExpiresAt",
+               absolute_expires_at AS "absoluteExpiresAt"
+        FROM auth_session
+        WHERE token_hash = ${Buffer.from(tokenHash)} AND revoked_at IS NULL
+          AND idle_expires_at > ${now} AND absolute_expires_at > ${now}`;
+      if (!session) return null;
+      await tx.$queryRaw`SELECT set_config('app.organization_id', ${session.organizationId}, true)`;
+      const users = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id::text FROM app_user
+        WHERE id = ${session.userId}::uuid AND organization_id = ${session.organizationId}::uuid AND is_active`;
+      return users.length === 1 ? SessionDTO.fromRow(session) : null;
+    });
+  }
+
+  /** Activity (ADR 0018 section 6, step 4): moves last_seen_at and the idle expiry; the absolute one never moves. */
+  async touchSession(tokenHash: Uint8Array, lastSeenAt: Date, idleExpiresAt: Date): Promise<void> {
+    await this.withSessionKey(
+      tokenHash,
+      (tx) => tx.$executeRaw`
+        UPDATE auth_session SET last_seen_at = ${lastSeenAt}, idle_expires_at = ${idleExpiresAt}
+        WHERE token_hash = ${Buffer.from(tokenHash)} AND revoked_at IS NULL`,
+    );
+  }
+
+  /** Logout (ADR 0018 section 3): revokes the one session. False when it was unknown or already revoked. */
+  async revokeSession(tokenHash: Uint8Array, now: Date): Promise<boolean> {
+    const changed = await this.withSessionKey(
+      tokenHash,
+      (tx) => tx.$executeRaw`
+        UPDATE auth_session SET revoked_at = ${now}
+        WHERE token_hash = ${Buffer.from(tokenHash)} AND revoked_at IS NULL`,
+    );
+    return changed === 1;
+  }
+
+  /** Password change or deactivation (ADR 0018 section 3): revokes every session of the user, in its organization. */
+  async revokeAllSessions(user: { id: string; organizationId: string }, now: Date): Promise<number> {
+    return this.inOrganization(
+      user.organizationId,
+      (tx) => tx.$executeRaw`
+        UPDATE auth_session SET revoked_at = ${now}
+        WHERE user_id = ${user.id}::uuid AND organization_id = ${user.organizationId}::uuid AND revoked_at IS NULL`,
+    );
+  }
+
+  /** One short transaction with only app.session_key set (transaction-local): the session path (ADR 0050 §6). */
+  private withSessionKey<T>(tokenHash: Uint8Array, fn: (tx: TxClient) => Promise<T>): Promise<T> {
+    const key = Buffer.from(tokenHash).toString('hex');
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT set_config('app.session_key', ${key}, true)`;
+      return fn(tx);
+    });
   }
 
   /** One short transaction with only app.organization_id set (transaction-local), for writes to one user. */
