@@ -16,7 +16,13 @@ import { DAL_DIR } from './sqlFunctions.js';
  *    keys named in NAMED_RELATIONS.
  */
 const AUTH_QUERY = 'query/AuthQuery.ts';
-const DEFINITIONS = ['sql/rls/auth_access.sql', 'sql/triggers/user_scope.sql', 'sql/rls/auth_session.sql'];
+const DEFINITIONS = [
+  'sql/rls/auth_access.sql',
+  'sql/triggers/user_scope.sql',
+  'sql/rls/auth_session.sql',
+  // The seed (ADR 0009 part 4) writes roles and their permissions as the migration owner, outside any request.
+  'prisma/seeds/systemRoles.ts',
+];
 const BACK_RELATIONS = ['appUsers', 'authRoles', 'userScopes', 'authSessions'];
 /**
  * Named exceptions to rule 2: a foreign key from another table to an auth model. Each one is a column that names a
