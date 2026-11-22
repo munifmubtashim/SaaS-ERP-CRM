@@ -15,9 +15,12 @@ type Argon2Settings = { algorithm: 2; memoryCost: number; timeCost: number; para
 
 /** Password hashing with @node-rs/argon2 (prebuilt binaries, no install script). */
 export class Argon2PasswordHasher implements IPasswordHasher {
-  private dummy: Promise<string> | undefined;
+  /** Made when the hasher is built (at startup), so the first unknown login pays no extra hash (Farhan, #95). */
+  private dummy: Promise<string>;
 
-  constructor(private readonly settings: Argon2Settings = ARGON2_SETTINGS) {}
+  constructor(private readonly settings: Argon2Settings = ARGON2_SETTINGS) {
+    this.dummy = this.makeDummy();
+  }
 
   hash(password: string): Promise<string> {
     return hash(password, this.settings);
@@ -45,8 +48,15 @@ export class Argon2PasswordHasher implements IPasswordHasher {
     }
   }
 
+  /** If making it at startup failed, the next call makes it again (once per call, never in a loop). */
   dummyHash(): Promise<string> {
-    this.dummy ??= this.hash(randomBytes(32).toString('base64url'));
-    return this.dummy;
+    return this.dummy.catch(() => (this.dummy = this.makeDummy()));
+  }
+
+  /** The rejection is observed here, so a startup failure is never an unhandled rejection. */
+  private makeDummy(): Promise<string> {
+    const made = this.hash(randomBytes(32).toString('base64url'));
+    made.catch(() => undefined);
+    return made;
   }
 }

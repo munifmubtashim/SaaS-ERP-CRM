@@ -62,7 +62,7 @@ CREATE TRIGGER permission_no_truncate BEFORE TRUNCATE ON permission
 
 -- 4. Grants for erp_app ---------------------------------------------------------------------------------------
 -- 01-app-role.sh grants SELECT, INSERT, UPDATE, DELETE on every new table; take back what erp_app must not
--- have. Nothing is deleted: users, roles and scopes are deactivated.
+-- have. Nothing is deleted: users, roles, a role's permissions and scopes are deactivated.
 
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON app_user, role, permission, role_permission, user_scope FROM erp_app;
 
@@ -73,6 +73,8 @@ GRANT UPDATE (email, phone, password_hash, display_name, is_active, locked_until
               mfa_secret_enc, updated_at) ON app_user TO erp_app;
 -- A role's code and is_system never change; a system role's name and is_active don't either (trigger above).
 GRANT UPDATE (name, is_active, updated_at) ON role TO erp_app;
+-- A permission leaves (or rejoins) a custom role by is_active only; the role and the permission never change.
+GRANT UPDATE (is_active) ON role_permission TO erp_app;
 -- A scope is never moved to another user, role, business or branch: a new row is added and the old one
 -- deactivated.
 GRANT UPDATE (is_active, updated_at) ON user_scope TO erp_app;
@@ -116,10 +118,16 @@ CREATE POLICY role_app_update ON role FOR UPDATE TO erp_app
   USING (organization_id = (SELECT app_organization_id()))
   WITH CHECK (organization_id = (SELECT app_organization_id()));
 
--- erp_app can't add a permission to a system role: their mapping comes from the seed only.
+-- erp_app can't add, deactivate or reactivate a permission on a system role: their mapping comes from the seed
+-- only.
 CREATE POLICY role_permission_app_select ON role_permission FOR SELECT TO erp_app
   USING (EXISTS (SELECT 1 FROM role r WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id())));
 CREATE POLICY role_permission_app_insert ON role_permission FOR INSERT TO erp_app
+  WITH CHECK (EXISTS (SELECT 1 FROM role r
+                      WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system));
+CREATE POLICY role_permission_app_update ON role_permission FOR UPDATE TO erp_app
+  USING (EXISTS (SELECT 1 FROM role r
+                 WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system))
   WITH CHECK (EXISTS (SELECT 1 FROM role r
                       WHERE r.id = role_id AND r.organization_id = (SELECT app_organization_id()) AND NOT r.is_system));
 

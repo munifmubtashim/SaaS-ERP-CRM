@@ -63,6 +63,60 @@ describe('logger redaction (ADR 0018 test 10)', () => {
     }
   });
 
+  it('redacts the secret keys at the top level of a log object (Farhan, #95)', () => {
+    const { lines, stream } = capture();
+    createLogger({ level: 'info', pretty: false }, stream).info(
+      {
+        login: 'top-login@example.com',
+        phone: '+8801712345601',
+        password: 'top-secret-password',
+        nid: '1990123456789',
+        token: 'top-secret-token',
+      },
+      'top level',
+    );
+    const line = lines.join('');
+    expect(line).toContain('top level');
+    for (const secret of [
+      'top-login@example.com',
+      '8801712345601',
+      'top-secret-password',
+      '1990123456789',
+      'top-secret-token',
+    ]) {
+      expect(line, secret).not.toContain(secret);
+    }
+  });
+
+  it('redacts the secret keys two levels down (Farhan, #95)', () => {
+    const { lines, stream } = capture();
+    createLogger({ level: 'info', pretty: false }, stream).info(
+      {
+        ctx: {
+          user: {
+            login: 'deep-login@example.com',
+            phone: '+8801712345602',
+            password: 'deep-secret-password',
+            nid: '1991123456789',
+            token: 'deep-secret-token',
+          },
+        },
+      },
+      'two levels',
+    );
+    const line = lines.join('');
+    expect(line).toContain('two levels');
+    for (const secret of [
+      'deep-login@example.com',
+      '8801712345602',
+      'deep-secret-password',
+      '1991123456789',
+      'deep-secret-token',
+    ]) {
+      expect(line, secret).not.toContain(secret);
+    }
+  });
+
   it('redacts the password_hash and two-factor secret if a user row is ever logged', () => {
     const { lines, stream } = capture();
     createLogger({ level: 'info', pretty: false }, stream).info({
