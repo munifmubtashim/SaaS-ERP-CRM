@@ -10,13 +10,38 @@ export interface Preferences {
   sidebarCollapsed: boolean;
 }
 
-let state: Preferences = { locale: 'en', theme: 'light', sidebarCollapsed: false };
+const DEFAULTS: Preferences = { locale: 'en', theme: 'light', sidebarCollapsed: false };
+/** localStorage key: preferences are per viewer and per device, a convenience only. */
+export const PREFERENCES_KEY = 'erp.preferences';
+
+/** The saved preferences, or the defaults when nothing valid is saved (or storage is blocked). */
+export function loadPreferences(): Preferences {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREFERENCES_KEY) ?? '{}') as Partial<
+      Record<keyof Preferences, unknown>
+    >;
+    return {
+      locale: saved.locale === 'bn' ? 'bn' : DEFAULTS.locale,
+      theme: saved.theme === 'dark' ? 'dark' : DEFAULTS.theme,
+      sidebarCollapsed: saved.sidebarCollapsed === true,
+    };
+  } catch {
+    return DEFAULTS;
+  }
+}
+
+let state: Preferences = loadPreferences();
 const listeners = new Set<() => void>();
 
 export const preferencesStore = {
   get: (): Preferences => state,
   set(patch: Partial<Preferences>): void {
     state = { ...state, ...patch };
+    try {
+      localStorage.setItem(PREFERENCES_KEY, JSON.stringify(state));
+    } catch {
+      // Storage blocked (private window): the choice lasts for this page only.
+    }
     listeners.forEach((listener) => listener());
   },
   subscribe(listener: () => void): () => void {

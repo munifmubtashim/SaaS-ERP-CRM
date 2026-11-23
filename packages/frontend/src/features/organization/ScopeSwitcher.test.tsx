@@ -1,10 +1,10 @@
 import type { MyBusinessesResponse } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import type { IOrganizationService } from '../../services';
+import type { DemoService, IOrganizationService } from '../../services';
 import { activeScopeStore } from '../../store/activeScopeStore';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { ScopeSwitcher } from './ScopeSwitcher';
@@ -41,8 +41,12 @@ class FakeOrganizationService implements IOrganizationService {
   }
 }
 
-function renderSwitcher(organization: IOrganizationService, locale: 'en' | 'bn' = 'en') {
-  const services = fakeServices(new FakeHealthService(new Error('unused')), { organization });
+function renderSwitcher(
+  organization: IOrganizationService,
+  locale: 'en' | 'bn' = 'en',
+  demo: ReadonlySet<DemoService> = new Set(),
+) {
+  const services = fakeServices(new FakeHealthService(new Error('unused')), { organization, demo });
   render(
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -114,5 +118,14 @@ describe('ScopeSwitcher', () => {
     renderSwitcher(new FakeOrganizationService(businesses), 'bn');
     expect(await screen.findByLabelText('ব্যবসা')).toBeInTheDocument();
     expect(screen.getByLabelText('শাখা')).toBeInTheDocument();
+  });
+
+  it('marks the businesses as Demo data when they come from the sample service, and not otherwise', async () => {
+    renderSwitcher(new FakeOrganizationService(businesses), 'en', new Set(['organization']));
+    expect(await screen.findByText('Demo data')).toBeInTheDocument();
+    cleanup();
+    renderSwitcher(new FakeOrganizationService(businesses));
+    await screen.findByLabelText('Business');
+    expect(screen.queryByText('Demo data')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { Button } from '../../components/ui';
+import { Button, DemoBadge } from '../../components/ui';
 import { useI18n } from '../../i18n';
 import { selectBranch, selectBusiness, useMyBusinesses } from './useMyBusinesses';
 
@@ -60,6 +60,7 @@ export function ScopeSwitcher() {
           ))}
         </select>
       </label>
+      <DemoBadge service="organization" />
     </div>
   );
 }

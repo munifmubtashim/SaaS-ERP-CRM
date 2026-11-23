@@ -37,6 +37,7 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     purchase: {},
     service: {},
     crm: {},
+    demo: new Set(),
     ...overrides,
   };
 }

@@ -13,11 +13,13 @@ import { SalesService, type ISalesService } from './salesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
 import { ServiceService, type IServiceService } from './serviceService';
 import { CrmService, type ICrmService } from './crmService';
+import { parseDemoData, type DemoService } from './demoData';
 
 export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
 export type { IHealthService } from './healthService';
 export type { IAuthService } from './authService';
 export type { IOrganizationService } from './organizationService';
+export type { DemoService } from './demoData';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -34,27 +36,28 @@ export interface Services {
   purchase: IPurchaseService;
   service: IServiceService;
   crm: ICrmService;
+  /** The services answering with sample data, so their screens show the Demo data badge. */
+  demo: ReadonlySet<DemoService>;
 }
 
 export interface CreateServicesOptions {
-  /**
-   * Use mocks for routes that don't exist yet. On only in a development build (`vite dev`), so a deployed app
-   * never shows invented data.
-   */
-  useMocks?: boolean;
+  /** Services that use their sample implementation; default: VITE_DEMO_DATA (never any in a production build). */
+  demo?: ReadonlySet<DemoService>;
 }
 
 /** Frontend composition root: the ONLY place services are constructed (lint-enforced). */
 export function createServices(
   http: IHttpClient = new HttpClient(),
-  { useMocks = import.meta.env.DEV }: CreateServicesOptions = {},
+  {
+    demo = parseDemoData(import.meta.env.VITE_DEMO_DATA, { production: import.meta.env.PROD }),
+  }: CreateServicesOptions = {},
 ): Services {
   return {
     health: new HealthService(http),
     // The login routes exist (ADR 0018): the real service in every build.
     auth: new AuthService(http),
-    // Mock in development until GET /v1/me/businesses exists (M2); a production build calls the API.
-    organization: useMocks ? new MockOrganizationService() : new OrganizationService(http),
+    // Sample until GET /v1/me/businesses exists (M2); a production build always calls the API.
+    organization: demo.has('organization') ? new MockOrganizationService() : new OrganizationService(http),
     product: new ProductService(http),
     inventory: new InventoryService(http),
     accounting: new AccountingService(http),
@@ -65,5 +68,6 @@ export function createServices(
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
     crm: new CrmService(http),
+    demo,
   };
 }
