@@ -1,10 +1,9 @@
 import { useRef, type ReactNode } from 'react';
-import { DemoBadge } from '../../components/ui';
+import { DemoBadge, Icon } from '../../components/ui';
 import { useMyBusinesses } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
-import { Icon } from './icons';
 import { NavEntry } from './NavEntry';
 import { startNavMove } from './navMotion';
 import { SIDEBAR } from './nav';

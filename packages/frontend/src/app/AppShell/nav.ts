@@ -1,5 +1,5 @@
 import type { MessageKey } from '../../i18n';
-import type { IconName } from './icons';
+import type { IconName } from '../../components/ui';
 
 /** One sidebar entry. `to: null`: in the approved design, but its screen isn't built yet (shown, not a link). */
 export interface NavItem {

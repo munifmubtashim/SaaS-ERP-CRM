@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router';
 import { useI18n } from '../../i18n';
-import { Icon } from './icons';
+import { Icon } from '../../components/ui';
 import type { NavItem } from './nav';
 
 const base = 'flex min-h-11 items-center gap-3 rounded-xl px-3 whitespace-nowrap';

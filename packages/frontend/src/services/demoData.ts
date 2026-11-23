@@ -25,6 +25,7 @@ const REPORT_KEYS = [
   'report.needsAction',
   'report.dayCloseStatus',
   'report.unitStock',
+  'report.kpiTrends',
 ] as const;
 
 export type DemoService = 'organization' | 'sales' | (typeof REPORT_KEYS)[number];

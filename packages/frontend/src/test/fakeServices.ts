@@ -47,6 +47,7 @@ export const unusedReport: IReportService = {
   needsAction: noReport,
   dayCloseStatus: noReport,
   unitStock: noReport,
+  kpiTrends: noReport,
 };
 
 /** ISalesService for tests that never sell: using it is a test bug, so it fails loudly. */
