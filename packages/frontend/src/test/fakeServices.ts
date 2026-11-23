@@ -41,6 +41,11 @@ export const unusedReport: IReportService = {
   cashPosition: noReport,
   monthlyResults: noReport,
   bankFeed: noReport,
+  branchResults: noReport,
+  customerInsights: noReport,
+  needsAction: noReport,
+  dayCloseStatus: noReport,
+  unitStock: noReport,
 };
 
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */

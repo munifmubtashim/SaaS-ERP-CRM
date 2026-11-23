@@ -126,3 +126,58 @@ export function margin(month: { revenue: string; expenses: string }): {
   const profit = subtractMoney(revenue, parseMoney(month.expenses));
   return { profit: formatMoney(profit), share: revenue > 0n ? { part: profit, whole: revenue } : null };
 }
+
+/** A profit's share of its revenue (the margin); null without revenue. */
+const marginOf = (revenue: bigint, profit: bigint): Share | null =>
+  revenue > 0n ? { part: profit, whole: revenue } : null;
+
+interface BranchRow {
+  branchId: string;
+  branchName: string;
+  businessName: string;
+  revenue: string;
+  profit: string;
+}
+
+/** Each branch with its margin, and totals per business (in first-seen order) with theirs. */
+export function branchResults(branches: readonly BranchRow[]): {
+  branches: (BranchRow & { margin: Share | null })[];
+  businesses: { businessName: string; revenue: string; profit: string; margin: Share | null }[];
+} {
+  const names = [...new Set(branches.map((b) => b.businessName))];
+  return {
+    branches: branches.map((b) => ({ ...b, margin: marginOf(parseMoney(b.revenue), parseMoney(b.profit)) })),
+    businesses: names.map((businessName) => {
+      const own = branches.filter((b) => b.businessName === businessName);
+      const revenue = sumMoney(own.map((b) => parseMoney(b.revenue)));
+      const profit = sumMoney(own.map((b) => parseMoney(b.profit)));
+      return {
+        businessName,
+        revenue: formatMoney(revenue),
+        profit: formatMoney(profit),
+        margin: marginOf(revenue, profit),
+      };
+    }),
+  };
+}
+
+/** The repeat rate, how many were new, and the top customers' share of revenue; no shares when nobody bought. */
+export function customerShares(insights: {
+  customersBought: number;
+  repeatCustomers: number;
+  totalRevenue: string;
+  topCustomers: readonly { name: string; revenue: string }[];
+}): { repeat: Share | null; newBuyers: number; top: Share | null } {
+  const total = parseMoney(insights.totalRevenue);
+  return {
+    repeat:
+      insights.customersBought > 0
+        ? { part: BigInt(insights.repeatCustomers), whole: BigInt(insights.customersBought) }
+        : null,
+    newBuyers: insights.customersBought - insights.repeatCustomers,
+    top:
+      total > 0n
+        ? { part: sumMoney(insights.topCustomers.map((c) => parseMoney(c.revenue))), whole: total }
+        : null,
+  };
+}

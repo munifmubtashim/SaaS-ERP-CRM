@@ -20,6 +20,11 @@ const REPORT_KEYS = [
   'report.cashPosition',
   'report.monthlyResults',
   'report.bankFeed',
+  'report.branchResults',
+  'report.customerInsights',
+  'report.needsAction',
+  'report.dayCloseStatus',
+  'report.unitStock',
 ] as const;
 
 export type DemoService = 'organization' | (typeof REPORT_KEYS)[number];

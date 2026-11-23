@@ -2,14 +2,19 @@ import type { z } from 'zod';
 import type {
   agedDuesSchema,
   bankFeedSchema,
+  branchResultsSchema,
   businessDashboardRowSchema,
   cashPositionSchema,
+  customerInsightsSchema,
   dashboardFiguresSchema,
+  dayCloseStatusSchema,
   monthlyResultsSchema,
+  needsActionSchema,
   ownerDashboardSchema,
   salesTargetSchema,
   salesTodaySchema,
   stockValueSchema,
+  unitStockSchema,
   vatReturnSchema,
 } from '../schemas/report.schema.js';
 
@@ -25,3 +30,8 @@ export type VatReturn = z.infer<typeof vatReturnSchema>;
 export type CashPosition = z.infer<typeof cashPositionSchema>;
 export type MonthlyResults = z.infer<typeof monthlyResultsSchema>;
 export type BankFeed = z.infer<typeof bankFeedSchema>;
+export type BranchResults = z.infer<typeof branchResultsSchema>;
+export type CustomerInsights = z.infer<typeof customerInsightsSchema>;
+export type NeedsAction = z.infer<typeof needsActionSchema>;
+export type DayCloseStatus = z.infer<typeof dayCloseStatusSchema>;
+export type UnitStock = z.infer<typeof unitStockSchema>;
