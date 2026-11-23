@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { formatLongDateBD, formatTimeBD, hourInDhaka } from '@erp/shared';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
+import { MonthlyChart, RevenueByBusiness } from './Charts';
 import { KpiRow } from './KpiRow';
 import { CashCard, TargetCard } from './TargetAndCash';
 import { useReport } from './useReport';
@@ -58,6 +59,10 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
       <div className="grid gap-3 lg:grid-cols-[2fr_3fr]">
         <TargetCard />
         <CashCard />
+      </div>
+      <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+        <MonthlyChart />
+        <RevenueByBusiness />
       </div>
     </div>
   );

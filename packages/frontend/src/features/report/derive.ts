@@ -181,3 +181,29 @@ export function customerShares(insights: {
         : null,
   };
 }
+
+/**
+ * A chart's value frame: from zero (or the largest loss) to the largest value plus 10% headroom, ticks at quarters,
+ * and each value's position (0 to 1) within it. Positions are a display ratio worked out by the shared ratio helper,
+ * so no money becomes a JavaScript number before that.
+ */
+export function chartFrame(values: readonly string[]): {
+  min: string;
+  max: string;
+  ticks: string[];
+  position: (value: string) => number;
+} {
+  const amounts = values.map(parseMoney);
+  const lowest = amounts.reduce((a, b) => (compareMoney(a, b) <= 0 ? a : b), ZERO);
+  const highest = amounts.reduce((a, b) => (compareMoney(a, b) >= 0 ? a : b), ZERO);
+  const min = compareMoney(lowest, ZERO) < 0 ? lowest : ZERO;
+  const max = prorate(highest, 11n, 10n);
+  const range = subtractMoney(max, min);
+  return {
+    min: formatMoney(min),
+    max: formatMoney(max),
+    ticks: [0n, 1n, 2n, 3n, 4n].map((k) => formatMoney(addMoney(min, prorate(range, k, 4n)))),
+    position: (value) =>
+      range > 0n ? Number(ratioBasisPoints(subtractMoney(parseMoney(value), min), range)) / 10_000 : 0,
+  };
+}

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { agingBuckets, branchResults, cashForecast, customerShares, margin, targetProgress } from './derive';
+import {
+  agingBuckets,
+  branchResults,
+  cashForecast,
+  chartFrame,
+  customerShares,
+  margin,
+  targetProgress,
+} from './derive';
 
 /**
  * Dashboard figures derived on screen (design/owner-dashboard/Main.dc.html), all through the shared money helpers.
@@ -196,5 +204,28 @@ describe('customerShares', () => {
       newBuyers: 0,
       top: null,
     });
+  });
+});
+
+describe('chartFrame', () => {
+  it('from zero to the largest value plus 10% headroom, ticks at quarters, positions as fractions', () => {
+    const frame = chartFrame(['31200000.00', '38300000.00']);
+    expect(frame.min).toBe('0.00');
+    expect(frame.max).toBe('42130000.00');
+    expect(frame.ticks).toEqual(['0.00', '10532500.00', '21065000.00', '31597500.00', '42130000.00']);
+    expect(frame.position('38300000.00')).toBeCloseTo(0.9091, 4);
+    expect(frame.position('0.00')).toBe(0);
+  });
+
+  it('a loss month moves the baseline below zero', () => {
+    const frame = chartFrame(['-1000000.00', '3000000.00']);
+    expect(frame.min).toBe('-1000000.00');
+    expect(frame.position('-1000000.00')).toBe(0);
+    expect(frame.position('0.00')).toBeCloseTo(0.2326, 4);
+  });
+
+  it('nothing to plot: a flat frame where every position is 0', () => {
+    const frame = chartFrame(['0.00', '0.00']);
+    expect(frame.position('0.00')).toBe(0);
   });
 });
