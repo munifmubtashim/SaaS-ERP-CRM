@@ -3,6 +3,8 @@ import type {
   IAuthService,
   IHealthService,
   IInventoryService,
+  IProductService,
+  IVehicleService,
   IOrganizationService,
   IReportService,
   ISalesService,
@@ -67,16 +69,25 @@ export const unusedInventory: IInventoryService = {
   movements: () => Promise.reject(new Error('This test listed movements without injecting a service.')),
 };
 
+/** IProductService and IVehicleService for tests that never read them: using one is a test bug. */
+export const unusedProduct: IProductService = {
+  models: () => Promise.reject(new Error('This test listed models without injecting a service.')),
+};
+export const unusedVehicle: IVehicleService = {
+  units: () => Promise.reject(new Error('This test listed units without injecting a service.')),
+  unit: () => Promise.reject(new Error('This test opened a unit without injecting a service.')),
+};
+
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
 export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
     health,
     auth: unusedAuth,
     organization: unusedOrganization,
-    product: {},
+    product: unusedProduct,
     inventory: unusedInventory,
     accounting: {},
-    vehicle: {},
+    vehicle: unusedVehicle,
     report: unusedReport,
     party: {},
     sales: unusedSales,
