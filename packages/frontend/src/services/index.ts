@@ -23,7 +23,7 @@ export type { IAuthService } from './authService';
 export type { IOrganizationService } from './organizationService';
 export type { DemoService } from './demoData';
 export type { IReportService, ReportCall } from './reportService';
-export type { ISalesService } from './salesService';
+export type { ISalesService, PaymentDraft } from './salesService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
