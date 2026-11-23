@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
 import { MonthlyChart, RevenueByBusiness } from './Charts';
 import { KpiRow } from './KpiRow';
+import { BranchCards, CustomerCard, DayCloseCard, NeedsActionCard, UnitStockCard } from './MoreCards';
 import { CashCard, TargetCard } from './TargetAndCash';
 import { useReport } from './useReport';
 import { VatAlert } from './VatAlert';
@@ -63,6 +64,15 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
         <MonthlyChart />
         <RevenueByBusiness />
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <BranchCards />
+        <CustomerCard />
+      </div>
+      <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr]">
+        <NeedsActionCard />
+        <DayCloseCard />
+        <UnitStockCard />
       </div>
     </div>
   );
