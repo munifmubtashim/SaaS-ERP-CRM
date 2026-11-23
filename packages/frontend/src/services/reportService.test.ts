@@ -5,6 +5,7 @@ import {
   cashPositionSchema,
   customerInsightsSchema,
   dayCloseStatusSchema,
+  kpiTrendsSchema,
   monthlyResultsSchema,
   needsActionSchema,
   ownerDashboardSchema,
@@ -69,6 +70,7 @@ describe('SampleReportService: invented figures in the shared shapes', () => {
     expect(needsActionSchema.parse(await sample.needsAction())).toBeTruthy();
     expect(dayCloseStatusSchema.parse(await sample.dayCloseStatus())).toBeTruthy();
     expect(unitStockSchema.parse(await sample.unitStock())).toBeTruthy();
+    expect(kpiTrendsSchema.parse(await sample.kpiTrends())).toBeTruthy();
   });
 });
 

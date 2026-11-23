@@ -170,3 +170,16 @@ export const unitStockSchema = z.object({
   soldNotDelivered: z.number().int().nonnegative(),
   over90Days: z.number().int().nonnegative(),
 });
+
+/**
+ * Provisional, a view shape only: recent points behind each key figure, oldest first (the design's small trend
+ * lines). Sample data until a report decides the period and source of each series.
+ */
+const trendSchema = z.array(moneySchema).min(2).max(31);
+export const kpiTrendsSchema = z.object({
+  revenue: trendSchema,
+  profit: trendSchema,
+  cash: trendSchema,
+  customerDues: trendSchema,
+  supplierPayable: trendSchema,
+});

@@ -6,6 +6,7 @@ import {
   cashPositionSchema,
   customerInsightsSchema,
   dayCloseStatusSchema,
+  kpiTrendsSchema,
   monthlyResultsSchema,
   needsActionSchema,
   ownerDashboardSchema,
@@ -204,5 +205,19 @@ describe('dashboard view shapes, second half (provisional)', () => {
     };
     expect(unitStockSchema.parse(units)).toEqual(units);
     expect(unitStockSchema.safeParse({ ...units, available: -1 }).success).toBe(false);
+  });
+
+  it('key figure trends: two to 31 points of money per figure; a loss is allowed', () => {
+    const series = ['100.00', '-20.50', '300.00'];
+    const trends = {
+      revenue: series,
+      profit: series,
+      cash: series,
+      customerDues: series,
+      supplierPayable: series,
+    };
+    expect(kpiTrendsSchema.parse(trends)).toEqual(trends);
+    expect(kpiTrendsSchema.safeParse({ ...trends, cash: ['1.00'] }).success).toBe(false);
+    expect(kpiTrendsSchema.safeParse({ ...trends, cash: [1, 2] }).success).toBe(false);
   });
 });

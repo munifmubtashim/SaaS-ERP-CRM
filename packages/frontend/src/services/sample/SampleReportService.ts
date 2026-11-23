@@ -5,6 +5,7 @@ import type {
   CashPosition,
   CustomerInsights,
   DayCloseStatus,
+  KpiTrends,
   MonthlyResults,
   NeedsAction,
   OwnerDashboard,
@@ -33,6 +34,7 @@ export const REPORT_CALLS: readonly ReportCall[] = [
   'needsAction',
   'dayCloseStatus',
   'unitStock',
+  'kpiTrends',
 ];
 
 /*
@@ -185,6 +187,13 @@ const SAMPLE: { [K in ReportCall]: Awaited<ReturnType<IReportService[K]>> } = {
     soldNotDelivered: 7,
     over90Days: 15,
   } satisfies UnitStock,
+  kpiTrends: {
+    revenue: crore('900000.00 990000.00 930000.00 1110000.00 1080000.00 1260000.00 1410000.00'),
+    profit: crore('132000.00 126000.00 156000.00 150000.00 174000.00 168000.00 198000.00'),
+    cash: crore('5060000.00 4807000.00 5313000.00 5186500.00 5819000.00 6198500.00 6578000.00'),
+    customerDues: crore('5569000.00 5791760.00 5680380.00 6125900.00 6014520.00 6460040.00 6348660.00'),
+    supplierPayable: crore('3690720.00 3485680.00 3895760.00 3588200.00 3793240.00 3690720.00 3998280.00'),
+  } satisfies KpiTrends,
 };
 
 /** The dashboard's sample figures behind IReportService. Development builds only (VITE_DEMO_DATA). */
@@ -208,4 +217,5 @@ export class SampleReportService implements IReportService {
   needsAction = () => this.answer('needsAction');
   dayCloseStatus = () => this.answer('dayCloseStatus');
   unitStock = () => this.answer('unitStock');
+  kpiTrends = () => this.answer('kpiTrends');
 }

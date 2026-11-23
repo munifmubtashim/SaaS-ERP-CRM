@@ -157,3 +157,58 @@
     background-position: 0 0;
   }
 }
+
+/*
+ * Key figure cards (Main.dc.html kpis): the card is tinted in its tone over the glass, and its icon square glows in
+ * the same tone. The tone's rgb is the light theme's, in both themes, as the design does.
+ */
+.kpi[data-tone='accent'] {
+  --kpi-rgb: 79, 93, 240;
+  --kpi-line: var(--accent);
+}
+.kpi[data-tone='pos'] {
+  --kpi-rgb: 18, 165, 122;
+  --kpi-line: var(--pos);
+}
+.kpi[data-tone='neg'] {
+  --kpi-rgb: 224, 68, 102;
+  --kpi-line: var(--neg);
+}
+.kpi[data-tone='warn'] {
+  --kpi-rgb: 232, 154, 28;
+  --kpi-line: var(--warn);
+}
+.kpi {
+  background:
+    linear-gradient(145deg, rgba(var(--kpi-rgb), 0.2), rgba(var(--kpi-rgb), var(--kpi-tint-end))), var(--card);
+}
+.kpi-icon {
+  display: flex;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--ico-ink);
+  background: var(--kpi-line);
+  box-shadow:
+    0 8px 16px -6px rgba(var(--kpi-rgb), 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* The VAT alert (Main.dc.html): an amber wash over the glass and an amber icon square. */
+.vat-alert {
+  background: linear-gradient(0deg, var(--warn-bg), var(--warn-bg)), var(--card);
+}
+.vat-icon {
+  display: flex;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--on-warn);
+  background: var(--warn);
+}

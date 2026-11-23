@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { useI18n } from '../../i18n';
-import { Icon } from './icons';
+import { Icon } from '../../components/ui';
 import { NavEntry } from './NavEntry';
 import { PHONE_TABS, SIDEBAR } from './nav';
 

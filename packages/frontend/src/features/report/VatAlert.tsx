@@ -1,5 +1,5 @@
 import { daysUntilBD, formatLongDateBD, formatTaka } from '@erp/shared';
-import { DemoBadge } from '../../components/ui';
+import { DemoBadge, Icon } from '../../components/ui';
 import { useServices } from '../../app/servicesContext';
 import { useI18n } from '../../i18n';
 import { useReport } from './useReport';
@@ -22,10 +22,13 @@ export function VatAlert({ now }: { now: string }) {
   return (
     <section
       aria-label={t('dash.vat.aria')}
-      className="glass flex flex-col items-start gap-3 rounded-3xl border-l-4 border-l-warn p-4 sm:flex-row sm:items-center"
+      className="glass vat-alert flex flex-wrap items-center gap-3.5 rounded-3xl p-4"
     >
-      <div className="flex w-full min-w-0 flex-1 flex-col gap-1">
-        <span className="font-semibold">{when}</span>
+      <span className="vat-icon">
+        <Icon name="alert" size={20} stroke={2} />
+      </span>
+      <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-0.5 leading-snug">
+        <span className="text-[15px] font-semibold text-warn-text">{when}</span>
         <span className="text-[13px] text-text2">
           {t('dash.vat.detail', { amount: formatTaka(vat.data.estimatedPayable, loc) })}
         </span>
@@ -35,7 +38,7 @@ export function VatAlert({ now }: { now: string }) {
         type="button"
         disabled
         title={t('shell.notAvailable')}
-        className="min-h-11 rounded-full bg-accent px-4 font-semibold text-on-accent disabled:opacity-60"
+        className="min-h-11 rounded-lg bg-accent px-4.5 text-[13px] font-semibold text-on-accent disabled:opacity-60"
       >
         {t('dash.vat.prepare')}
       </button>

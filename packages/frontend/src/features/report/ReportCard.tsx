@@ -1,21 +1,24 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { DemoBadge } from '../../components/ui';
+import { DemoBadge, Icon, type IconName } from '../../components/ui';
 import { useServices } from '../../app/servicesContext';
 import { useI18n } from '../../i18n';
 import type { ReportCall } from '../../services';
 
 /**
  * A dashboard card: its title, the Demo data badge when any of its figures is sample, and the design's loading and
- * error states. `children` renders only once every query it needs has answered.
+ * error states. `children` renders only once every query it needs has answered. A key figure card (`kpi`) is tinted
+ * in its tone with a glowing icon square, as the design's key figures are.
  */
 export function ReportCard({
   title,
   calls,
   queries,
   children,
+  kpi,
 }: {
   title: string;
+  kpi?: { tone: 'accent' | 'pos' | 'neg' | 'warn'; icon: IconName };
   calls: readonly ReportCall[];
   queries: readonly UseQueryResult[];
   children: () => ReactNode;
@@ -26,9 +29,22 @@ export function ReportCard({
   const failed = queries.filter((q) => q.isError);
   const loading = queries.some((q) => q.isPending);
   return (
-    <article className="glass flex min-w-0 flex-col gap-2 rounded-[28px] p-5" aria-busy={loading}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-semibold text-muted">{title}</span>
+    <article
+      className={`glass flex min-w-0 flex-col gap-2 ${kpi ? 'kpi rounded-3xl p-4' : 'rounded-[28px] p-5'}`}
+      data-tone={kpi?.tone}
+      aria-busy={loading}
+    >
+      <div className={`flex items-center justify-between gap-2 ${kpi ? 'flex-wrap' : ''}`}>
+        {kpi ? (
+          <span className="flex items-center gap-2.5">
+            <span className="kpi-icon">
+              <Icon name={kpi.icon} size={18} stroke={1.9} />
+            </span>
+            <span className="text-[13px] leading-tight text-text2">{title}</span>
+          </span>
+        ) : (
+          <span className="text-[13px] font-semibold text-muted">{title}</span>
+        )}
         {sample && <DemoBadge service={`report.${sample}`} />}
       </div>
       {failed.length > 0 ? (

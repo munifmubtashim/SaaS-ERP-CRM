@@ -5,7 +5,7 @@ import { ScopeSwitcher } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
 import { Backdrop } from './Backdrop';
-import { Icon } from './icons';
+import { Icon } from '../../components/ui';
 import { LanguageSwitch } from './LanguageSwitch';
 import { PhoneTabs } from './PhoneTabs';
 import { Sidebar } from './Sidebar';

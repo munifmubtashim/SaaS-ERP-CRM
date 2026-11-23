@@ -71,6 +71,37 @@ describe('DashboardPage summary', () => {
     expect(within(card('Supplier payable')).getByText('Demo data')).toBeInTheDocument();
   });
 
+  it('tints each key figure in its tone, as the design does', async () => {
+    renderPage();
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const tones = within(figures)
+      .getAllByRole('article')
+      .map((card) => card.dataset.tone);
+    expect(tones).toEqual(['accent', 'pos', 'accent', 'neg', 'warn']);
+  });
+
+  it('never puts a sample trend line on a real figure', async () => {
+    renderPage({
+      demo: new Set<DemoService>(['report.monthlyResults', 'report.supplierDues', 'report.kpiTrends']),
+    });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const trend = (label: string) =>
+      within(figures).getByText(label).closest('article')?.querySelector('[data-trend]') ?? null;
+    expect(trend('Revenue')).toBeNull(); // real figure, sample trend: no line
+    expect(trend('Net profit')).not.toBeNull(); // sample figure, already marked Demo data
+    expect(trend('Supplier payable')).not.toBeNull();
+  });
+
+  it('draws every trend line once the trends are real', async () => {
+    renderPage({ demo: new Set<DemoService>() });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    await within(figures).findByText('৳39,98,175');
+    expect(figures.querySelectorAll('[data-trend]')).toHaveLength(5);
+  });
+
   it('a card whose figures fail shows its own error with a retry; the others still show', async () => {
     const report = new SampleReportService(0);
     let fail = true;

@@ -4,3 +4,4 @@ export { Card } from './Card';
 export { StatusPill } from './StatusPill';
 export { DemoBadge } from './DemoBadge';
 export { useDemoData } from './useDemoData';
+export { Icon, type IconName } from './Icon';
