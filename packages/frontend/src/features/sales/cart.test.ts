@@ -9,6 +9,7 @@ import {
   pickSerial,
   removeLine,
   saleProblem,
+  takaInput,
   toSaleDraft,
   type Cart,
 } from './cart';
@@ -165,5 +166,15 @@ describe('filterItems', () => {
 
   it('the categories to offer: All first, then each category once, in the order items list them', () => {
     expect(categoriesOf(items)).toEqual(['all', 'Bikes', 'Parts', 'Oil']);
+  });
+});
+
+describe('takaInput', () => {
+  it('typed taka to a money string, without floats; anything else is null', () => {
+    expect(takaInput('500')).toBe('500.00');
+    expect(takaInput(' 1,250.5 ')).toBe('1250.50');
+    expect(takaInput('0.05')).toBe('0.05');
+    expect(takaInput('')).toBe('0.00');
+    for (const bad of ['abc', '1.234', '-5', '1e3']) expect(takaInput(bad), bad).toBeNull();
   });
 });
