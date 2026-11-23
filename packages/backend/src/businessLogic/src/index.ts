@@ -65,7 +65,12 @@ export type {
 } from './AuthManager.js';
 export type { ISessionTokens } from './contracts/ISessionTokens.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
-export type { IProductQuery } from './contracts/IProductQuery.js';
+export type {
+  IProductQuery,
+  NewProductRecord,
+  ProductRecord,
+  ProductRecordChanges,
+} from './contracts/IProductQuery.js';
 export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
 export type { IAccountingQuery } from './contracts/IAccountingQuery.js';
 export type { IVehicleQuery } from './contracts/IVehicleQuery.js';
