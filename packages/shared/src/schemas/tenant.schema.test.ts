@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tenantScopeSchema } from './tenant.schema.js';
+import { tenantHeadersSchema, tenantScopeSchema } from './tenant.schema.js';
 
 // Synthetic ids only.
 const ORG = '0196f000-0000-7000-8000-00000000000a';
@@ -55,5 +55,28 @@ describe('tenantScopeSchema: the branch a write goes to (ADR 0007 step 6)', () =
   it('rejects a branchId that is not a UUID', () => {
     const scope = { organizationId: ORG, businessIds: [BIZ], branchIds: [BRANCH], branchId: 'branch-1' };
     expect(tenantScopeSchema.safeParse(scope).success).toBe(false);
+  });
+});
+
+describe('tenantHeadersSchema: X-Business-Id and X-Branch-Id on a tenant route (ADR 0051)', () => {
+  const business = '0196f000-0000-7000-8000-0000000000a1';
+  const branch = '0196f000-0000-7000-8000-0000000001a1';
+
+  it('accepts one business id and one branch id', () => {
+    expect(tenantHeadersSchema.parse({ businessId: business, branchId: branch })).toEqual({
+      businessId: business,
+      branchId: branch,
+    });
+  });
+
+  it('refuses a missing, malformed or listed id', () => {
+    for (const bad of [
+      { businessId: business },
+      { branchId: branch },
+      { businessId: 'not-a-uuid', branchId: branch },
+      { businessId: `${business},${business}`, branchId: branch },
+    ]) {
+      expect(tenantHeadersSchema.safeParse(bad).success).toBe(false);
+    }
   });
 });

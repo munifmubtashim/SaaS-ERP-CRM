@@ -61,13 +61,14 @@ function setup(handler: (req: Request) => Promise<HttpResult>) {
       userId: req.get('x-test-user') ?? USER,
       organizationId: scope.organizationId,
       sessionId: USER,
-      roles: [],
+      roles: ['owner'],
+      permissions: [],
     };
     next();
   });
-  app.post('/v1/payments', wrap.tenant(handler, { idempotent: true }));
-  app.post('/v1/notes', wrap.tenant(handler));
-  app.post('/v1/invoices/:id/post', wrap.tenant(handler, { idempotent: true }));
+  app.post('/v1/payments', wrap.tenant(handler, { idempotent: true, roles: ['owner'] }));
+  app.post('/v1/notes', wrap.tenant(handler, { roles: ['owner'] }));
+  app.post('/v1/invoices/:id/post', wrap.tenant(handler, { idempotent: true, roles: ['owner'] }));
   app.use(errorMiddleware);
   return { app, keys };
 }
@@ -167,11 +168,15 @@ describe('wrap.tenant(handler, { idempotent: true }) (ADR 0014 section 2)', () =
         {
           idempotent: true,
           readOnly: true,
+          roles: ['owner'],
         },
       ),
     ).toThrow(/cannot be read-only/);
     expect(() =>
-      createRouteWrappers(new MemoryRunner(new MemoryKeys())).tenant(handler, { idempotent: true }),
+      createRouteWrappers(new MemoryRunner(new MemoryKeys())).tenant(handler, {
+        idempotent: true,
+        roles: ['owner'],
+      }),
     ).toThrow(/needs the idempotency guard/);
   });
 

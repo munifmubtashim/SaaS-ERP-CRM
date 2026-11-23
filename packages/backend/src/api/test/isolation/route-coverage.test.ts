@@ -13,7 +13,7 @@ import { ISOLATION_CASES } from './cases.js';
 
 interface Layer {
   name: string;
-  route?: { path: string; methods: Record<string, boolean> };
+  route?: { path: string; methods: Record<string, boolean>; stack: { handle: { access?: unknown } }[] };
 }
 const stackOf = (r: Router | Express): Layer[] =>
   ((r as unknown as { stack?: Layer[]; router?: { stack: Layer[] } }).stack ??
@@ -27,6 +27,7 @@ const routes = modules.flatMap(({ basePath, scope, router }) =>
       ? Object.keys(route.methods).map((m) => ({
           key: `${m.toUpperCase()} ${basePath}${route.path === '/' ? '' : route.path}`,
           scope,
+          access: route.stack.map((layer) => layer.handle.access).find(Boolean),
         }))
       : [],
   ),
@@ -49,6 +50,14 @@ describe('route coverage for tenant isolation', () => {
     expect(
       missing.map((r) => r.key),
       'Add a cross-tenant case to test/isolation/cases.ts',
+    ).toEqual([]);
+  });
+
+  it('ADR 0051 test 8: every tenant route declares who may use it (a permission or roles)', () => {
+    const open = routes.filter((r) => r.scope === 'tenant' && !r.access);
+    expect(
+      open.map((r) => r.key),
+      'Build tenant routes with wrap.tenant(handler, { permission } or { roles })',
     ).toEqual([]);
   });
 

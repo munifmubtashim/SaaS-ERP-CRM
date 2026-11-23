@@ -47,3 +47,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly Permis
   accountant: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
   cashier: [],
 };
+
+/** True when the granted codes include `code` (ADR 0051 section 2). The api refuses with it; the UI hides with it. */
+export function hasPermission(granted: readonly PermissionCode[], code: PermissionCode): boolean {
+  return granted.includes(code);
+}
+
+/** True when the caller holds one of the allowed system role codes. A custom role's code matches none of them. */
+export function hasAnyRole(held: readonly string[], allowed: readonly RoleCode[]): boolean {
+  return held.some((role) => (allowed as readonly string[]).includes(role));
+}
