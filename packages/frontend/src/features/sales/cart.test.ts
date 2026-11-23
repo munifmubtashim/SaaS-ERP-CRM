@@ -74,7 +74,9 @@ describe('cartTotals', () => {
   const cart = addItem(addItem(addItem([], pads), pads), bike); // 2 x 1,000 + 245,000
 
   it('subtotal, discount, total; paid in full by default with no change', () => {
-    expect(cartTotals(cart, { discount: '5000.00', method: 'cash', received: null })).toEqual({
+    expect(
+      cartTotals(cart, { discount: '5000.00', method: 'cash', received: null, externalRef: '' }),
+    ).toEqual({
       subtotal: '247000.00',
       discount: '5000.00',
       total: '242000.00',
@@ -86,22 +88,32 @@ describe('cartTotals', () => {
   });
 
   it('the discount is clamped to the subtotal and never negative', () => {
-    expect(cartTotals(cart, { discount: '999999.00', method: 'cash', received: null }).total).toBe('0.00');
-    expect(cartTotals(cart, { discount: '-50.00', method: 'cash', received: null }).discount).toBe('0.00');
+    expect(
+      cartTotals(cart, { discount: '999999.00', method: 'cash', received: null, externalRef: '' }).total,
+    ).toBe('0.00');
+    expect(
+      cartTotals(cart, { discount: '-50.00', method: 'cash', received: null, externalRef: '' }).discount,
+    ).toBe('0.00');
   });
 
-  it('more received than the total gives change; less leaves a due; Due receives nothing', () => {
-    expect(cartTotals(cart, { discount: '0.00', method: 'cash', received: '250000.00' })).toMatchObject({
+  it('more received than the total gives change; less, or nothing, leaves a due (Due is not a method)', () => {
+    expect(
+      cartTotals(cart, { discount: '0.00', method: 'cash', received: '250000.00', externalRef: '' }),
+    ).toMatchObject({
       paid: '247000.00',
       change: '3000.00',
       due: null,
     });
-    expect(cartTotals(cart, { discount: '0.00', method: 'card', received: '100000.00' })).toMatchObject({
+    expect(
+      cartTotals(cart, { discount: '0.00', method: 'bkash', received: '100000.00', externalRef: 'BK1' }),
+    ).toMatchObject({
       paid: '100000.00',
       change: null,
       due: '147000.00',
     });
-    expect(cartTotals(cart, { discount: '0.00', method: 'due', received: '5000.00' })).toMatchObject({
+    expect(
+      cartTotals(cart, { discount: '0.00', method: 'cash', received: '0.00', externalRef: '' }),
+    ).toMatchObject({
       received: '0.00',
       paid: '0.00',
       due: '247000.00',
@@ -109,7 +121,9 @@ describe('cartTotals', () => {
   });
 
   it('an empty cart totals zero', () => {
-    expect(cartTotals([], { discount: '0.00', method: 'cash', received: null }).total).toBe('0.00');
+    expect(cartTotals([], { discount: '0.00', method: 'cash', received: null, externalRef: '' }).total).toBe(
+      '0.00',
+    );
   });
 });
 
@@ -120,12 +134,28 @@ describe('completing a sale', () => {
     expect(saleProblem(pickSerial(addItem([], bike), 0, 'VL3-000101'))).toBeNull();
   });
 
+  it('a bKash payment needs its transaction id; cash and nothing paid do not (ADR 0016 line 20)', () => {
+    const cart = pickSerial(addItem([], bike), 0, 'VL3-000101');
+    const pay = (method: 'cash' | 'bkash', received: string | null, externalRef: string) => ({
+      discount: '0.00',
+      method,
+      received,
+      externalRef,
+    });
+    expect(saleProblem(cart, pay('bkash', '5000.00', ''))).toBe('reference_missing');
+    expect(saleProblem(cart, pay('bkash', '5000.00', '  '))).toBe('reference_missing');
+    expect(saleProblem(cart, pay('bkash', '5000.00', 'BK7X2Q9'))).toBeNull();
+    expect(saleProblem(cart, pay('cash', '5000.00', ''))).toBeNull();
+    expect(saleProblem(cart, pay('bkash', '0.00', ''))).toBeNull(); // nothing paid now: all due
+  });
+
   it('the draft matches the shared sale shape: quantities and money as strings, payment null when nothing is paid', () => {
     const cart = pickSerial(addItem(addItem([], bike), pads), 0, 'VL3-000101');
     const paid = toSaleDraft(cart, 'Sample Customer', {
       discount: '1000.00',
       method: 'bkash',
       received: '100000.00',
+      externalRef: ' BK7X2Q9 ',
     });
     expect(saleDraftSchema.parse(paid)).toEqual({
       customerName: 'Sample Customer',
@@ -146,9 +176,21 @@ describe('completing a sale', () => {
         },
       ],
       discount: '1000.00',
-      payment: { method: 'bkash', amount: '100000.00' },
+      payment: { method: 'bkash', amount: '100000.00', externalRef: 'BK7X2Q9' },
     });
-    const due = toSaleDraft(cart, null, { discount: '0.00', method: 'due', received: null });
+    const cash = toSaleDraft(cart, null, {
+      discount: '0.00',
+      method: 'cash',
+      received: null,
+      externalRef: 'x',
+    });
+    expect(cash.payment).toEqual({ method: 'cash', amount: '246000.00', externalRef: null });
+    const due = toSaleDraft(cart, null, {
+      discount: '0.00',
+      method: 'cash',
+      received: '0.00',
+      externalRef: '',
+    });
     expect(due.payment).toBeNull();
     expect(due.customerName).toBeNull();
   });

@@ -30,7 +30,20 @@ export interface CartLine {
 }
 
 export type Cart = readonly CartLine[];
-export type PaymentChoice = 'cash' | 'card' | 'bkash' | 'due';
+/**
+ * The demo POS's payment methods: cash and bKash, both entered by hand (Munif, 24 Nov; ADR 0016 line 18 keeps bank
+ * and card in the plan). "Due" is not a method: receiving less than the total, or nothing, leaves a due balance.
+ */
+export type PaymentChoice = 'cash' | 'bkash';
+export const PAYMENT_CHOICES: readonly PaymentChoice[] = ['cash', 'bkash'];
+
+/** What the counter enters for the payment; externalRef is the bKash transaction id (ADR 0016 line 20). */
+export interface PaymentEntry {
+  discount: string;
+  method: PaymentChoice;
+  received: string | null;
+  externalRef: string;
+}
 
 const stockOf = (item: PosItem) => Math.floor(Number(item.available));
 
@@ -105,17 +118,14 @@ export interface CartTotals {
 
 /**
  * Subtotal, the discount clamped between 0 and the subtotal, the total, and what the payment covers. The amount
- * received defaults to the total; Due receives nothing (prices include VAT, as the design says).
+ * received defaults to the total; receiving less leaves a due (prices include VAT, as the design says).
  */
-export function cartTotals(
-  cart: Cart,
-  { discount, method, received }: { discount: string; method: PaymentChoice; received: string | null },
-): CartTotals {
+export function cartTotals(cart: Cart, { discount, received }: PaymentEntry): CartTotals {
   const subtotal = sumMoney(cart.map(lineAmount));
   const asked = parseMoney(discount);
   const clamped = isNegative(asked) ? ZERO : compareMoney(asked, subtotal) > 0 ? subtotal : asked;
   const total = subtractMoney(subtotal, clamped);
-  const got = method === 'due' ? ZERO : received === null ? total : parseMoney(received);
+  const got = received === null ? total : parseMoney(received);
   const receivedAmount = isNegative(got) ? ZERO : got;
   const paid = compareMoney(receivedAmount, total) > 0 ? total : receivedAmount;
   const change = subtractMoney(receivedAmount, total);
@@ -131,19 +141,27 @@ export function cartTotals(
   };
 }
 
-/** Why Complete sale can't run yet: nothing in the cart, or a bike without its chassis number. */
-export function saleProblem(cart: Cart): 'empty' | 'serial_missing' | null {
+/**
+ * Why Complete sale can't run yet: nothing in the cart, a bike without its chassis number, or a bKash payment
+ * without its transaction id (ADR 0016 line 20; nothing paid now needs no id).
+ */
+export function saleProblem(
+  cart: Cart,
+  payment?: PaymentEntry,
+): 'empty' | 'serial_missing' | 'reference_missing' | null {
   if (cart.length === 0) return 'empty';
   if (cart.some((line) => line.kind === 'serial' && line.serialNumber === null)) return 'serial_missing';
+  if (payment && payment.method !== 'cash' && payment.externalRef.trim() === '') {
+    if (cartTotals(cart, payment).paid !== '0.00') return 'reference_missing';
+  }
   return null;
 }
 
-/** The draft Complete sale sends (the shared, provisional sale shape). Payment is null when nothing is paid now. */
-export function toSaleDraft(
-  cart: Cart,
-  customerName: string | null,
-  payment: { discount: string; method: PaymentChoice; received: string | null },
-): SaleDraft {
+/**
+ * The draft Complete sale sends (the shared, provisional sale shape). Payment is null when nothing is paid now; a
+ * bKash payment carries its transaction id, cash none.
+ */
+export function toSaleDraft(cart: Cart, customerName: string | null, payment: PaymentEntry): SaleDraft {
   const totals = cartTotals(cart, payment);
   return {
     customerName,
@@ -156,9 +174,13 @@ export function toSaleDraft(
     })),
     discount: totals.discount,
     payment:
-      payment.method === 'due' || totals.paid === '0.00'
+      totals.paid === '0.00'
         ? null
-        : { method: payment.method, amount: totals.paid },
+        : {
+            method: payment.method,
+            amount: totals.paid,
+            externalRef: payment.method === 'cash' ? null : payment.externalRef.trim() || null,
+          },
   };
 }
 

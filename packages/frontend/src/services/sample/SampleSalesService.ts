@@ -135,10 +135,17 @@ function seedInvoices(today: string): InvoiceDetail[] {
     unitPrice,
     amount: formatMoney(multiplyByQuantity(parseMoney(unitPrice), quantity)),
   });
-  const pay = (receivedAt: string, method: Payment['method'], amount: string): Payment => ({
+  // Cash or bKash only, as the demo POS offers; a bKash payment carries its (invented) transaction id.
+  const pay = (
+    receivedAt: string,
+    method: 'cash' | 'bkash',
+    amount: string,
+    externalRef: string | null = null,
+  ) => ({
     receivedAt,
     method,
     amount,
+    externalRef,
   });
   const make = (
     number: string,
@@ -167,7 +174,7 @@ function seedInvoices(today: string): InvoiceDetail[] {
       'Sample Traders',
       [line('Velo 150 V3, VL3-000099', '1', '245000.00'), line('Full-face helmet', '2', '4500.00')],
       '0.00',
-      [pay(at(0, '06:42'), 'card', '254000.00')],
+      [pay(at(0, '06:42'), 'bkash', '254000.00', 'BK8A2K4M1P')],
     ),
     make(
       'C-000122',
@@ -183,7 +190,7 @@ function seedInvoices(today: string): InvoiceDetail[] {
       'Walk-in customer',
       [line('Brake pad set, front', '2', '1000.00'), line('Engine oil, 1 litre', '3', '650.00')],
       '0.00',
-      [pay(at(0, '04:06'), 'bkash', '3950.00')],
+      [pay(at(0, '04:06'), 'bkash', '3950.00', 'BK3J9Q2W7Z')],
     ),
     make(
       'C-000120',
@@ -199,7 +206,7 @@ function seedInvoices(today: string): InvoiceDetail[] {
       'Sample Enterprise',
       [line('Crest 160 R, CR6-000299', '1', '289000.00')],
       '5000.00',
-      [pay(at(1, '07:25'), 'card', '200000.00'), pay(at(0, '03:30'), 'cash', '84000.00')],
+      [pay(at(1, '07:25'), 'bkash', '200000.00', 'BK5T1R8N3D'), pay(at(0, '03:30'), 'cash', '84000.00')],
     ),
     make(
       'C-000118',
@@ -258,6 +265,8 @@ export class SampleSalesService implements ISalesService {
     if (!found) return Promise.reject(new Error('invoice.not_found'));
     const amount = parseMoney(payment.amount);
     if (compareMoney(amount, ZERO) <= 0) return Promise.reject(new Error('payment.not_positive'));
+    if (payment.method !== 'cash' && !payment.externalRef)
+      return Promise.reject(new Error('payment.reference_missing'));
     if (compareMoney(amount, parseMoney(found.balance)) > 0)
       return Promise.reject(new Error('payment.over_balance'));
     const updated = settle({

@@ -4,6 +4,7 @@ import {
   posItemSchema,
   type InvoiceDetail,
   type InvoiceSummary,
+  type PaymentDraft,
   type PosItem,
   type SaleDraft,
 } from '@erp/shared';
@@ -33,8 +34,8 @@ export interface ISalesService {
   recordPayment(number: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
 }
 
-/** A payment as the counter enters it: the sale draft's own payment shape (provisional, #134). */
-export type PaymentDraft = NonNullable<SaleDraft['payment']>;
+/** A payment as the counter enters it (shared, provisional; ADR 0016 lines 20 and 36). */
+export type { PaymentDraft } from '@erp/shared';
 
 /** Sales module: the API. The paths are provisional; none of these routes exists yet (ADR 0022). */
 export class SalesService implements ISalesService {

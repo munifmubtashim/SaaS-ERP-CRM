@@ -9,7 +9,8 @@ import { takaInput } from './cart';
 import { filterInvoices, paymentProblem, type InvoiceFilter } from './invoices';
 
 const FILTERS: InvoiceFilter[] = ['all', 'paid', 'partly_paid', 'due'];
-const METHODS: PaymentDraft['method'][] = ['cash', 'card', 'bkash'];
+// The demo POS's methods (Munif, 24 Nov): cash and bKash; ADR 0016 keeps bank and card in the plan.
+const METHODS: PaymentDraft['method'][] = ['cash', 'bkash'];
 const STATUS_TONE = {
   paid: 'bg-pos-bg text-pos-text',
   partly_paid: 'bg-warn-bg text-warn-text',
@@ -176,7 +177,8 @@ function Details({
   const { sales } = useServices();
   const [amountText, setAmountText] = useState('');
   const [method, setMethod] = useState<PaymentDraft['method']>('cash');
-  const [problem, setProblem] = useState<ReturnType<typeof paymentProblem> | 'failed'>(null);
+  const [reference, setReference] = useState('');
+  const [problem, setProblem] = useState<ReturnType<typeof paymentProblem> | 'reference' | 'failed'>(null);
   // One key per payment attempt: the same payment retried keeps its key; a changed one gets a new key.
   const attempt = useRef<{ payment: string; key: string } | null>(null);
   const save = useMutation({
@@ -185,6 +187,7 @@ function Details({
     onSuccess: (updated, { payment }) => {
       attempt.current = null;
       setAmountText('');
+      setReference('');
       setProblem(null);
       onSaved(updated, payment.amount);
     },
@@ -193,7 +196,13 @@ function Details({
   const onSave = () => {
     const blocked = paymentProblem(amountText, invoice.balance);
     if (blocked) return setProblem(blocked);
-    const payment: PaymentDraft = { method, amount: takaInput(amountText) ?? '0.00' };
+    // Bank, bKash and card need the external transaction id (ADR 0016 line 20).
+    if (method !== 'cash' && reference.trim() === '') return setProblem('reference');
+    const payment: PaymentDraft = {
+      method,
+      amount: takaInput(amountText) ?? '0.00',
+      externalRef: method === 'cash' ? null : reference.trim(),
+    };
     const text = JSON.stringify([invoice.number, payment]);
     if (attempt.current?.payment !== text) attempt.current = { payment: text, key: crypto.randomUUID() };
     setProblem(null);
@@ -258,6 +267,7 @@ function Details({
           <div key={`${p.receivedAt}${p.amount}`} className={kv}>
             <span>
               {formatDateTimeBD(p.receivedAt, loc)}, {t(`pos.method.${p.method}` as MessageKey)}
+              {p.externalRef && ` · ${p.externalRef}`}
             </span>
             <span className="num">{taka(p.amount)}</span>
           </div>
@@ -288,9 +298,22 @@ function Details({
               </button>
             ))}
           </div>
+          {method === 'bkash' && (
+            <label className="flex flex-col gap-1 text-[13px]">
+              {t('pay.reference')}
+              <input
+                autoComplete="off"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                className="min-h-11 rounded-xl border border-row-border bg-chip px-3 text-text"
+              />
+            </label>
+          )}
           {problem && (
             <p role="alert" className="text-[13px] text-neg-text">
-              {t(`inv.error.${problem}` as MessageKey, { balance: taka(invoice.balance) })}
+              {t(problem === 'reference' ? 'pay.error.reference' : (`inv.error.${problem}` as MessageKey), {
+                balance: taka(invoice.balance),
+              })}
             </p>
           )}
           <button
