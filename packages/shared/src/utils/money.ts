@@ -205,3 +205,33 @@ export function formatMoneyBDT(amount: string, locale: 'en-BD' | 'bn-BD' = 'en-B
     locale === 'bn-BD' ? new Intl.NumberFormat('bn-BD').format(BigInt(paisa)).padStart(2, '০') : paisa;
   return `${negative ? '-' : ''}${grouped}.${decimals}`;
 }
+
+/**
+ * `part` as a share of `whole`, in basis points (35.15% -> 3515), rounded half away from zero. For dashboard
+ * percents: of a target, a margin, a share. It can pass 10,000 (over target) and be negative (a loss margin).
+ */
+export function ratioBasisPoints(part: Paisa, whole: Paisa): bigint {
+  if (whole <= 0n) throw moneyError('money.zero_whole', 'A percent needs a whole above zero');
+  return divideRounded(part * 10_000n, whole);
+}
+
+/** amount x numerator / denominator, rounded once to paisa: a pace or a projection over days. */
+export function prorate(amount: Paisa, numerator: bigint, denominator: bigint): Paisa {
+  if (denominator <= 0n)
+    throw moneyError('money.zero_denominator', 'Pro-rating needs a denominator above zero');
+  return inRange(divideRounded(amount * numerator, denominator));
+}
+
+/** Basis points as a display percent ("35.2%"), with `decimals` places, in English or Bangla digits. */
+export function formatPercent(
+  basisPoints: bigint,
+  locale: 'en-BD' | 'bn-BD' = 'en-BD',
+  decimals: 0 | 1 = 1,
+): string {
+  const scaled = divideRounded(basisPoints, decimals === 1 ? 10n : 100n);
+  const negative = scaled < 0n;
+  const magnitude = negative ? -scaled : scaled;
+  const text = decimals === 1 ? `${magnitude / 10n}.${magnitude % 10n}` : `${magnitude}`;
+  const digits = locale === 'bn-BD' ? text.replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)] ?? d) : text;
+  return `${negative ? '-' : ''}${digits}%`;
+}
