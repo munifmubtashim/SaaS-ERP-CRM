@@ -105,6 +105,17 @@ export const baseConfig = tseslint.config(
   prettier,
 );
 
+// ADR 0012: another module is reached only through its published interface (contracts/provided/*), never through
+// its Manager, service or any other class, not even as a type. An allowlist (Farhan, #97): a relative import in
+// businessLogic/src may reach only ./contracts/** and the JournalDraftRules helper (pure functions the fakes share).
+// Every other relative import is refused, whatever the class is called. The ../ forms cover businessLogic/src/test/.
+// Classes are wired together only in index.ts (createManagers), which is not covered.
+const PROVIDED_INTERFACES_ONLY = {
+  regex: String.raw`^\.\.?/(?!contracts/|JournalDraftRules(\.js)?$)`,
+  message:
+    "Depend on an interface in ./contracts/ (another module's in ./contracts/provided/), not on a class. Classes are wired in index.ts.",
+};
+
 export default tseslint.config(
   ...baseConfig,
 
@@ -191,6 +202,21 @@ export default tseslint.config(
     },
   },
   {
+    // ADR 0012, widened after the #97 review: no businessLogic class reaches another module's Manager or service
+    // class, only its published interface. The composition root and tests are exempt. Managers get the same patterns
+    // in the next block, together with their @erp/dal rule (a later block replaces this one's options for them).
+    files: ['packages/backend/src/businessLogic/src/**/*.ts'],
+    // contracts/ holds interfaces only, which may name each other.
+    ignores: [
+      'packages/backend/src/businessLogic/src/index.ts',
+      'packages/backend/src/businessLogic/src/contracts/**',
+      '**/*.test.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [PROVIDED_INTERFACES_ONLY] }],
+    },
+  },
+  {
     // Managers depend on businessLogic contracts (I<Module>Query); only DTO types may come from dal.
     files: ['packages/backend/src/businessLogic/src/*Manager.ts'],
     rules: {
@@ -204,6 +230,9 @@ export default tseslint.config(
               message: 'Depend on ./contracts/I<Module>Query; import only types (DTOs) from @erp/dal.',
             },
           ],
+          // ADR 0012: another module is reached only through its published interface (contracts/provided/*),
+          // never through its Manager or its service class, not even as a type.
+          patterns: [PROVIDED_INTERFACES_ONLY],
         },
       ],
     },
