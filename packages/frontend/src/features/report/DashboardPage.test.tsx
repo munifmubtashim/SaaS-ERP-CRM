@@ -8,11 +8,14 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { DashboardPage } from './DashboardPage';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The dashboard summary (design/owner-dashboard/Main.dc.html): greeting, VAT alert and the five key figures. */
 const NOW = new Date('2026-11-12T03:00:00.000Z'); // 9:00 AM in Dhaka
 
 function renderPage({
-  report = new SampleReportService(0),
+  report = new SampleReportService(0, STORY_DAY),
   demo = new Set<DemoService>([
     'report.vatReturn',
     'report.cashPosition',
@@ -103,7 +106,7 @@ describe('DashboardPage summary', () => {
   });
 
   it('a card whose figures fail shows its own error with a retry; the others still show', async () => {
-    const report = new SampleReportService(0);
+    const report = new SampleReportService(0, STORY_DAY);
     let fail = true;
     const real = report.cashPosition;
     report.cashPosition = () => (fail ? Promise.reject(new Error('timeout')) : real());

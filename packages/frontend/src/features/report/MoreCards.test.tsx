@@ -7,10 +7,13 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { BranchCards, CustomerCard, DayCloseCard, NeedsActionCard, UnitStockCard } from './MoreCards';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The rest of the design's dashboard cards, on the sample's November figures. */
 function renderCards(locale: 'en' | 'bn' = 'en') {
   const services = fakeServices(new FakeHealthService(new Error('unused')), {
-    report: new SampleReportService(0),
+    report: new SampleReportService(0, STORY_DAY),
     demo: new Set(),
   });
   return render(
