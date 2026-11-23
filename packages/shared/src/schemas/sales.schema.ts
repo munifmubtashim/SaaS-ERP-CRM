@@ -10,7 +10,26 @@ import { quantityTextSchema } from './inventory.schema.js';
  * ADR 0022's sale API is agreed.
  */
 
-export const paymentMethodSchema = z.enum(['cash', 'card', 'bkash']);
+/** The plan's payment methods, all entered by hand (ADR 0016 lines 18 and 64). The demo POS offers cash and bKash. */
+export const paymentMethodSchema = z.enum(['cash', 'bank', 'bkash', 'card']);
+
+/**
+ * A payment as the counter enters it: amount above zero, the method, and the external transaction id, which Bank,
+ * bKash and Card need and Cash doesn't (ADR 0016 lines 20, 36 and 104).
+ */
+export const paymentDraftSchema = z
+  .object({
+    method: paymentMethodSchema,
+    amount: moneySchema.refine(
+      (value) => !value.startsWith('-') && !/^0+\.00$/.test(value),
+      'More than zero',
+    ),
+    externalRef: z.string().trim().min(1).max(64).nullable(),
+  })
+  .refine((payment) => payment.method === 'cash' || payment.externalRef !== null, {
+    message: 'Bank, bKash and card payments need the transaction id.',
+    path: ['externalRef'],
+  });
 export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
 
 /** An item the counter can sell. Serial-tracked items list their available serial numbers. */
@@ -38,7 +57,7 @@ export const saleDraftSchema = z.object({
   customerName: z.string().trim().min(1).max(200).nullable(),
   lines: z.array(cartLineSchema).min(1),
   discount: moneySchema,
-  payment: z.object({ method: paymentMethodSchema, amount: moneySchema }).nullable(),
+  payment: paymentDraftSchema.nullable(),
 });
 
 export const invoiceSummarySchema = z.object({
@@ -62,7 +81,12 @@ export const invoiceDetailSchema = invoiceSummarySchema.extend({
   ),
   discount: moneySchema,
   payments: z.array(
-    z.object({ receivedAt: z.iso.datetime(), method: paymentMethodSchema, amount: moneySchema }),
+    z.object({
+      receivedAt: z.iso.datetime(),
+      method: paymentMethodSchema,
+      amount: moneySchema,
+      externalRef: z.string().min(1).nullable(),
+    }),
   ),
   balance: moneySchema,
 });

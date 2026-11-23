@@ -83,7 +83,18 @@ describe('Invoices view', () => {
       'That is more than the ৳65,000 still due.',
     );
     fireEvent.change(amount, { target: { value: '65,000' } });
-    fireEvent.click(within(details()).getByRole('button', { name: 'bKash' }));
+    const methods = within(details()).getByRole('group', { name: 'Payment method' });
+    expect(
+      within(methods)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Cash', 'bKash']);
+    fireEvent.click(within(methods).getByRole('button', { name: 'bKash' }));
+    fireEvent.click(save);
+    expect(within(details()).getByRole('alert')).toHaveTextContent('Enter the bKash transaction ID.');
+    fireEvent.change(within(details()).getByLabelText('bKash transaction ID'), {
+      target: { value: 'BK7X2Q9' },
+    });
     fireEvent.click(save);
     expect(await screen.findByText('৳65,000 saved on C-000122.')).toBeInTheDocument();
     expect(await within(list()).findByRole('button', { name: /C-000122.*Paid/ })).toBeInTheDocument();

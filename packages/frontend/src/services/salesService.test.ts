@@ -22,7 +22,7 @@ const draft = (serial: string | null, paid: string | null): SaleDraft => ({
     { itemId: 'pads', name: 'Brake pad set, front', unitPrice: '1000.00', quantity: '2', serialNumber: null },
   ],
   discount: '5000.00',
-  payment: paid ? { method: 'cash', amount: paid } : null,
+  payment: paid ? { method: 'cash', amount: paid, externalRef: null } : null,
 });
 
 describe('SalesService (the API)', () => {
@@ -37,10 +37,14 @@ describe('SalesService (the API)', () => {
   it('recordPayment posts to the invoice’s payments with its Idempotency-Key', async () => {
     const http = new RecordingHttp();
     await new SalesService(http)
-      .recordPayment('C-000101', { method: 'bkash', amount: '500.00' }, 'key-9')
+      .recordPayment('C-000101', { method: 'bkash', amount: '500.00', externalRef: 'BK9' }, 'key-9')
       .catch(() => undefined);
     expect(http.posts).toEqual([
-      { path: '/v1/invoices/C-000101/payments', body: { method: 'bkash', amount: '500.00' }, key: 'key-9' },
+      {
+        path: '/v1/invoices/C-000101/payments',
+        body: { method: 'bkash', amount: '500.00', externalRef: 'BK9' },
+        key: 'key-9',
+      },
     ]);
   });
 });
@@ -106,26 +110,62 @@ describe('SampleSalesService invoices', () => {
       'Brake pad set, front',
     ]);
     expect(detail).toMatchObject({ discount: '5000.00', paid: '100000.00', balance: '142000.00' });
-    expect(detail.payments).toEqual([expect.objectContaining({ method: 'cash', amount: '100000.00' })]);
+    expect(detail.payments).toEqual([
+      expect.objectContaining({ method: 'cash', amount: '100000.00', externalRef: null }),
+    ]);
   });
 
   it('a payment raises paid, lowers the balance and moves the status; the same key twice pays once', async () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', '100000.00'), 'key-1');
-    const part = await service.recordPayment(sold.number, { method: 'card', amount: '42000.00' }, 'pay-1');
+    const part = await service.recordPayment(
+      sold.number,
+      { method: 'bkash', amount: '42000.00', externalRef: 'BK42' },
+      'pay-1',
+    );
     expect(part).toMatchObject({ paid: '142000.00', balance: '100000.00', status: 'partly_paid' });
-    const again = await service.recordPayment(sold.number, { method: 'card', amount: '42000.00' }, 'pay-1');
+    const again = await service.recordPayment(
+      sold.number,
+      { method: 'bkash', amount: '42000.00', externalRef: 'BK42' },
+      'pay-1',
+    );
     expect(again.paid).toBe('142000.00');
-    const full = await service.recordPayment(sold.number, { method: 'bkash', amount: '100000.00' }, 'pay-2');
+    const full = await service.recordPayment(
+      sold.number,
+      { method: 'cash', amount: '100000.00', externalRef: null },
+      'pay-2',
+    );
     expect(full).toMatchObject({ paid: '242000.00', balance: '0.00', status: 'paid' });
     expect((await service.invoices()).find((i) => i.number === sold.number)?.status).toBe('paid');
+  });
+
+  it('a bKash payment keeps its transaction id; without one it is refused (ADR 0016 lines 20 and 104)', async () => {
+    const service = sample();
+    const sold = await service.completeSale(draft('VL3-000101', null), 'key-1');
+    await expect(
+      service.recordPayment(sold.number, { method: 'bkash', amount: '1000.00', externalRef: null }, 'p1'),
+    ).rejects.toThrow('payment.reference_missing');
+    const paid = await service.recordPayment(
+      sold.number,
+      { method: 'bkash', amount: '1000.00', externalRef: 'BK7X2Q9' },
+      'p2',
+    );
+    expect(paid.payments.at(-1)).toMatchObject({ method: 'bkash', externalRef: 'BK7X2Q9' });
+  });
+
+  it('the invented invoices are paid in cash or bKash only, as the demo POS offers', async () => {
+    const service = sample();
+    const methods = new Set<string>();
+    for (const invoice of await service.invoices())
+      for (const p of (await service.invoice(invoice.number)).payments) methods.add(p.method);
+    expect([...methods].sort()).toEqual(['bkash', 'cash']);
   });
 
   it('refuses a payment above the balance, or on an unknown invoice', async () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', null), 'key-1');
     await expect(
-      service.recordPayment(sold.number, { method: 'cash', amount: '242000.01' }, 'p'),
+      service.recordPayment(sold.number, { method: 'cash', amount: '242000.01', externalRef: null }, 'p'),
     ).rejects.toThrow('payment.over_balance');
     await expect(service.invoice('C-999999')).rejects.toThrow('invoice.not_found');
   });

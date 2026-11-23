@@ -61,19 +61,40 @@ describe('PosPage', () => {
     expect(within(sale()).getByTestId('total')).toHaveTextContent('৳2,500');
   });
 
-  it('a bike without its chassis number can not complete; picked and sold as Due, the toast says what is still due', async () => {
+  it('a bike without its chassis number can not complete; picked and sold with nothing received, the toast says what is still due', async () => {
     renderPos();
     await within(await screen.findByRole('region', { name: 'Products' })).findByText('Velo 150 V3');
     add('Velo 150 V3');
     fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
     expect(within(sale()).getByRole('alert')).toHaveTextContent('Pick a chassis number for this bike.');
     fireEvent.change(within(sale()).getByLabelText('Chassis number'), { target: { value: 'VL3-000101' } });
-    fireEvent.click(within(sale()).getByRole('button', { name: 'Due' }));
+    fireEvent.change(within(sale()).getByLabelText('Amount received in taka'), { target: { value: '0' } });
     fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Invoice C-000124 saved. ৳0 received, ৳2,45,000 still due.',
     );
     expect(within(sale()).getByText('No items yet')).toBeInTheDocument();
+  });
+
+  it('offers cash and bKash only; a bKash payment needs its transaction id, which the sale keeps', async () => {
+    const sample = new SampleSalesService(0);
+    renderPos({ sales: sample });
+    await within(await screen.findByRole('region', { name: 'Products' })).findByText('Full-face helmet');
+    const methods = within(sale()).getByRole('group', { name: 'Payment method' });
+    expect(
+      within(methods)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Cash', 'bKash']);
+    add('Full-face helmet');
+    fireEvent.click(within(methods).getByRole('button', { name: 'bKash' }));
+    fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
+    expect(within(sale()).getByRole('alert')).toHaveTextContent('Enter the bKash transaction ID.');
+    fireEvent.change(within(sale()).getByLabelText('bKash transaction ID'), { target: { value: 'BK7X2Q9' } });
+    fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Invoice C-000124 saved.');
+    const detail = await sample.invoice('C-000124');
+    expect(detail.payments).toEqual([expect.objectContaining({ method: 'bkash', externalRef: 'BK7X2Q9' })]);
   });
 
   it('a retry after a failed Complete sale uses the same Idempotency-Key, so it can never sell twice', async () => {

@@ -16,11 +16,11 @@ import {
   takaInput,
   toSaleDraft,
   type Cart,
+  PAYMENT_CHOICES,
   type PaymentChoice,
 } from './cart';
 import { InvoicesView } from './InvoicesView';
 
-const METHODS: PaymentChoice[] = ['cash', 'card', 'bkash', 'due'];
 const pill =
   'min-h-10 rounded-full px-4 text-[13px] text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
 const field = 'min-h-11 w-full rounded-xl border border-row-border bg-chip px-3 text-text';
@@ -70,8 +70,11 @@ function PointOfSale() {
   const [customer, setCustomer] = useState('');
   const [discountText, setDiscountText] = useState('');
   const [receivedText, setReceivedText] = useState('');
+  const [referenceText, setReferenceText] = useState('');
   const [method, setMethod] = useState<PaymentChoice>('cash');
-  const [problem, setProblem] = useState<'empty' | 'serial_missing' | 'failed' | null>(null);
+  const [problem, setProblem] = useState<'empty' | 'serial_missing' | 'reference_missing' | 'failed' | null>(
+    null,
+  );
   const [toast, setToast] = useState<string | null>(null);
   // One key per draft: the same draft retried keeps its key; a changed draft gets a new one.
   const attempt = useRef<{ draft: string; key: string } | null>(null);
@@ -80,6 +83,7 @@ function PointOfSale() {
     discount: takaInput(discountText) ?? '0.00',
     method,
     received: receivedText.trim() === '' ? null : (takaInput(receivedText) ?? '0.00'),
+    externalRef: referenceText,
   };
   const totals = cartTotals(cart, payment);
 
@@ -98,6 +102,7 @@ function PointOfSale() {
       setDiscountText('');
       setReceivedText('');
       setMethod('cash');
+      setReferenceText('');
       setProblem(null);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'posItems'] });
     },
@@ -105,7 +110,7 @@ function PointOfSale() {
   });
 
   const onComplete = () => {
-    const blocked = saleProblem(cart);
+    const blocked = saleProblem(cart, payment);
     if (blocked) return setProblem(blocked);
     const draft = toSaleDraft(cart, customer.trim() || null, payment);
     const text = JSON.stringify(draft);
@@ -321,8 +326,8 @@ function PointOfSale() {
               </dd>
             </div>
           </dl>
-          <div role="group" aria-label={t('pos.payment')} className="flex flex-wrap gap-1">
-            {METHODS.map((m) => (
+          <div role="group" aria-label={t('inv.method')} className="flex flex-wrap gap-1">
+            {PAYMENT_CHOICES.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -339,13 +344,23 @@ function PointOfSale() {
             <input
               aria-label={t('pos.receivedAria')}
               inputMode="decimal"
-              disabled={method === 'due'}
-              className={`${field} text-right disabled:opacity-60`}
+              className={`${field} text-right`}
               placeholder={formatTaka(totals.total, loc)}
-              value={method === 'due' ? '' : receivedText}
+              value={receivedText}
               onChange={(e) => setReceivedText(e.target.value)}
             />
           </label>
+          {method === 'bkash' && (
+            <label className="flex flex-col gap-1 text-[13px] text-muted">
+              {t('pay.reference')}
+              <input
+                autoComplete="off"
+                className={field}
+                value={referenceText}
+                onChange={(e) => setReferenceText(e.target.value)}
+              />
+            </label>
+          )}
           {(totals.change || totals.due) && (
             <p className="flex justify-between text-[13px] font-semibold">
               <span>{totals.change ? t('pos.change') : t('pos.stillDue')}</span>
@@ -359,7 +374,9 @@ function PointOfSale() {
                   ? 'pos.error.empty'
                   : problem === 'serial_missing'
                     ? 'pos.error.chassis'
-                    : 'pos.error.failed',
+                    : problem === 'reference_missing'
+                      ? 'pay.error.reference'
+                      : 'pos.error.failed',
               )}
             </p>
           )}

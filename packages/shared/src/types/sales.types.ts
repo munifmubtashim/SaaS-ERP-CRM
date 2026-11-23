@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type {
+  paymentDraftSchema,
   paymentMethodSchema,
   invoiceStatusSchema,
   posItemSchema,
@@ -17,3 +18,4 @@ export type CartLine = z.infer<typeof cartLineSchema>;
 export type SaleDraft = z.infer<typeof saleDraftSchema>;
 export type InvoiceSummary = z.infer<typeof invoiceSummarySchema>;
 export type InvoiceDetail = z.infer<typeof invoiceDetailSchema>;
+export type PaymentDraft = z.infer<typeof paymentDraftSchema>;
