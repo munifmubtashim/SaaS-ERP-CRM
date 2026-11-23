@@ -4,6 +4,7 @@ import { AppShell, NAV } from './AppShell';
 import { DashboardPage } from '../features/report';
 import { InventoryPage } from '../features/inventory';
 import { PosPage } from '../features/sales';
+import { VehicleProductsPage } from '../features/vehicle';
 import { NotBuiltPage } from './NotBuiltPage';
 import { RouteError } from './RouteError';
 
@@ -23,7 +24,15 @@ export const router = createBrowserRouter([
       ...NAV.filter((n) => n.to !== '/').map((n) => ({
         path: n.to.slice(1),
         element:
-          n.to === '/sales' ? <PosPage /> : n.to === '/inventory' ? <InventoryPage /> : <NotBuiltPage />,
+          n.to === '/sales' ? (
+            <PosPage />
+          ) : n.to === '/inventory' ? (
+            <InventoryPage />
+          ) : n.to === '/products' ? (
+            <VehicleProductsPage />
+          ) : (
+            <NotBuiltPage />
+          ),
       })),
     ],
   },

@@ -24,12 +24,13 @@ describe('navigation', () => {
     ]);
   });
 
-  it('routes stay the eight that exist; the other design items have no link yet', () => {
+  it('routes are the nine that exist; the other design items have no link yet', () => {
     expect(NAV.map((item) => item.to)).toEqual([
       '/',
       '/businesses',
       '/sales',
       '/inventory',
+      '/products',
       '/customers',
       '/accounting',
       '/reports',
@@ -40,7 +41,6 @@ describe('navigation', () => {
       'shell.nav.branches',
       'shell.nav.booking',
       'shell.nav.purchase',
-      'shell.nav.products',
       'shell.nav.service',
     ]);
   });
@@ -50,7 +50,7 @@ describe('navigation', () => {
       ['shell.nav.home', '/'],
       ['shell.nav.sales', '/sales'],
       ['shell.tab.stock', '/inventory'],
-      ['shell.nav.products', null],
+      ['shell.nav.products', '/products'],
     ]);
   });
 });
