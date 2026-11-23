@@ -7,7 +7,7 @@ export function DemoBadge({ service }: { service: DemoService }) {
   const { t } = useI18n();
   if (!useDemoData(service)) return null;
   return (
-    <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-warn-bg px-3 text-xs font-semibold text-warn-text">
+    <span className="inline-flex min-h-8 shrink-0 items-center gap-2 rounded-full whitespace-nowrap bg-warn-bg px-3 text-xs font-semibold text-warn-text">
       <svg
         width="14"
         height="14"
