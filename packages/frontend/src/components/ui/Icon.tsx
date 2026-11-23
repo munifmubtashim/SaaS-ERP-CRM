@@ -21,11 +21,20 @@ const PATHS = {
   moon: 'M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   menu: 'M4 6h16M4 12h16M4 18h16',
+  trend: 'M3 17l6-6 4 4 8-8M15 7h6v6',
+  dollar: 'M12 3v18M17 7H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+  wallet:
+    'M3 7a2 2 0 012-2h13v4M3 7v11a2 2 0 002 2h15a1 1 0 001-1v-9a1 1 0 00-1-1H5a2 2 0 01-2-2zM17 14.5h.01',
+  truck:
+    'M2 6h11v10H2zM13 9h4l4 4v3h-8M6.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+  up: 'M12 19V5M5 12l7-7 7 7',
+  alert: 'M12 3l10 18H2zM12 10v5M12 18h.01',
 } as const;
 
 export type IconName = keyof typeof PATHS;
 
-export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+/** One stroke icon set for the whole app (the design's paths); decorative, so always hidden from screen readers. */
+export function Icon({ name, size = 20, stroke = 1.75 }: { name: IconName; size?: number; stroke?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -34,7 +43,7 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       aria-hidden="true"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth={stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
     >

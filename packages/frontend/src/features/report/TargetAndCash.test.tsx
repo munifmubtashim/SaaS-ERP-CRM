@@ -8,8 +8,14 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { CashCard, TargetCard } from './TargetAndCash';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The design's "Sales target" and "Cash forecast and dues" cards, on the sample's November figures. */
-function renderCards(report: IReportService = new SampleReportService(0), locale: 'en' | 'bn' = 'en') {
+function renderCards(
+  report: IReportService = new SampleReportService(0, STORY_DAY),
+  locale: 'en' | 'bn' = 'en',
+) {
   const services = fakeServices(new FakeHealthService(new Error('unused')), { report, demo: new Set() });
   return render(
     <ServicesContext.Provider value={services}>
@@ -37,7 +43,7 @@ describe('TargetCard', () => {
   });
 
   it('a month without a target says so', async () => {
-    const report = new SampleReportService(0);
+    const report = new SampleReportService(0, STORY_DAY);
     const real = report.salesTarget;
     report.salesTarget = async () => ({ ...(await real()), target: '0.00', byBusiness: [] });
     renderCards(report);

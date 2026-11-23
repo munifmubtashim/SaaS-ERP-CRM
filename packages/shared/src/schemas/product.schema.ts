@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MONEY_PATTERN } from '../utils/money.js';
+import { MONEY_PATTERN, moneySchema } from '../utils/money.js';
 import { cursorPageSchema, pageQuerySchema, searchTermSchema } from '../utils/pagination.js';
 
 /**
@@ -79,3 +79,17 @@ export const productEditSchema = z
     message: 'Change at least one field.',
     path: ['version'],
   });
+
+/**
+ * PROVISIONAL VIEW SHAPE for the Models tab of the Products screen (design/owner-dashboard/Bikes.dc.html): a model
+ * with its price and how many of its units are in each state. Counts, not stock rows: it decides nothing about stock.
+ */
+export const productModelSummarySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  businessName: z.string().min(1),
+  price: moneySchema,
+  inStock: z.number().int().nonnegative(),
+  reserved: z.number().int().nonnegative(),
+  soldThisMonth: z.number().int().nonnegative(),
+});

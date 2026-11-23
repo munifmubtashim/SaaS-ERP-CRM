@@ -7,10 +7,13 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { MonthlyChart, RevenueByBusiness } from './Charts';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The design's revenue and expenses chart and the revenue-by-business ring, on the sample's figures. */
 function renderCharts(locale: 'en' | 'bn' = 'en') {
   const services = fakeServices(new FakeHealthService(new Error('unused')), {
-    report: new SampleReportService(0),
+    report: new SampleReportService(0, STORY_DAY),
     demo: new Set(),
   });
   return render(
@@ -64,10 +67,22 @@ describe('RevenueByBusiness', () => {
   it('each business with its revenue and share, labelled, not colour-only', async () => {
     renderCharts();
     const card = (await screen.findByText('Revenue by business')).closest('article') as HTMLElement;
-    // In the legend, and as the ring slice's hover title.
-    expect(await within(card).findAllByText('Sample Motors')).toHaveLength(2);
+    // In the legend, and as the name of its ring slice.
+    expect(await within(card).findByText('Sample Motors')).toBeInTheDocument();
+    expect(within(card).getByRole('img', { name: 'Sample Motors' })).toBeInTheDocument();
     expect(card).toHaveTextContent('৳1.02 Cr · 72.9%');
     expect(card).toHaveTextContent('৳38.1 lakh · 27.1%');
+  });
+
+  it('shows the total in the middle, and a hovered slice its own business', async () => {
+    renderCharts();
+    const card = (await screen.findByText('Revenue by business')).closest('article') as HTMLElement;
+    const middle = await within(card).findByTestId('ring-middle');
+    expect(middle).toHaveTextContent('৳1.41 Cr'); // ৳1,40,59,500, as the design shows
+    expect(middle).toHaveTextContent('Total');
+    fireEvent.mouseEnter(within(card).getByRole('img', { name: 'Sample Spare Parts' }));
+    expect(middle).toHaveTextContent('৳38.1 lakh');
+    expect(middle).toHaveTextContent('Sample Spare Parts');
   });
 
   it('renders in Bangla', async () => {

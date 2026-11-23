@@ -2,7 +2,9 @@ import { createBrowserRouter } from 'react-router';
 import { LoginPage, RequireSession } from '../features/auth';
 import { AppShell, NAV } from './AppShell';
 import { DashboardPage } from '../features/report';
+import { InventoryPage } from '../features/inventory';
 import { PosPage } from '../features/sales';
+import { VehicleProductsPage } from '../features/vehicle';
 import { NotBuiltPage } from './NotBuiltPage';
 import { RouteError } from './RouteError';
 
@@ -21,7 +23,16 @@ export const router = createBrowserRouter([
       // TODO(owner of each module): replace with the module's routes from features/<module>/.
       ...NAV.filter((n) => n.to !== '/').map((n) => ({
         path: n.to.slice(1),
-        element: n.to === '/sales' ? <PosPage /> : <NotBuiltPage />,
+        element:
+          n.to === '/sales' ? (
+            <PosPage />
+          ) : n.to === '/inventory' ? (
+            <InventoryPage />
+          ) : n.to === '/products' ? (
+            <VehicleProductsPage />
+          ) : (
+            <NotBuiltPage />
+          ),
       })),
     ],
   },

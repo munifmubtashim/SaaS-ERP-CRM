@@ -15,6 +15,7 @@ import type {
   salesTodaySchema,
   stockValueSchema,
   unitStockSchema,
+  kpiTrendsSchema,
   vatReturnSchema,
 } from '../schemas/report.schema.js';
 
@@ -35,3 +36,4 @@ export type CustomerInsights = z.infer<typeof customerInsightsSchema>;
 export type NeedsAction = z.infer<typeof needsActionSchema>;
 export type DayCloseStatus = z.infer<typeof dayCloseStatusSchema>;
 export type UnitStock = z.infer<typeof unitStockSchema>;
+export type KpiTrends = z.infer<typeof kpiTrendsSchema>;

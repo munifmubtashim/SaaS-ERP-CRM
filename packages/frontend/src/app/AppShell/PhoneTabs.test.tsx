@@ -16,14 +16,12 @@ function renderTabs(locale: 'en' | 'bn' = 'en') {
 }
 
 describe('PhoneTabs', () => {
-  it('links Home, Sales and Stock, marks the current one, and shows Products as not available yet', () => {
+  it('links Home, Sales, Stock and Products, and marks the current one', () => {
     renderTabs();
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Sales / POS' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Stock' })).toHaveAttribute('href', '/inventory');
-    const products = screen.getByText('Products').closest('[aria-disabled]');
-    expect(products).toHaveAttribute('aria-disabled', 'true');
-    expect(products).toHaveAttribute('title', 'Not available yet');
+    expect(screen.getByRole('link', { name: 'Products' })).toHaveAttribute('href', '/products');
   });
 
   it('More opens the full menu with every design group, and closes it again', () => {

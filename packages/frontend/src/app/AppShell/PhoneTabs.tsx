@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { useI18n } from '../../i18n';
-import { Icon } from './icons';
+import { Icon } from '../../components/ui';
 import { NavEntry } from './NavEntry';
 import { PHONE_TABS, SIDEBAR } from './nav';
 
@@ -26,7 +26,7 @@ export function PhoneTabs({ menuFooter }: { menuFooter?: ReactNode }) {
             className="absolute inset-0"
             onClick={() => setOpen(false)}
           />
-          <nav className="glass relative z-10 m-3 max-h-[75vh] w-full overflow-y-auto rounded-3xl p-3">
+          <nav className="glass pop relative z-10 m-3 max-h-[75vh] w-full overflow-y-auto rounded-3xl p-3">
             {SIDEBAR.map((group) => (
               <div key={group.key} className="mb-2">
                 <p className="px-3 py-1 text-xs font-semibold text-muted">{t(group.key)}</p>

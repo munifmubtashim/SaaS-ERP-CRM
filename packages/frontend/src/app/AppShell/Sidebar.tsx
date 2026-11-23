@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
-import { DemoBadge } from '../../components/ui';
+import { useRef, type ReactNode } from 'react';
+import { BrandLogo, DemoBadge, Icon } from '../../components/ui';
 import { useMyBusinesses } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
-import { Icon } from './icons';
 import { NavEntry } from './NavEntry';
+import { startNavMove } from './navMotion';
 import { SIDEBAR } from './nav';
 
 /** The design's desktop sidebar: groups, the user's businesses (Demo data when sample), who is signed in. */
@@ -14,19 +14,31 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
   const { sidebarCollapsed: compact } = usePreferences();
   const session = useSession();
   const businesses = useMyBusinesses().query.data?.items ?? [];
+  const endMove = useRef<(() => void) | null>(null);
   return (
     <aside
       aria-label="Main"
-      className={`glass sticky top-3 m-3 hidden h-[calc(100vh-1.5rem)] flex-col gap-3 overflow-y-auto rounded-3xl p-3 md:flex ${compact ? 'w-18' : 'w-58'}`}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget && event.propertyName === 'width') endMove.current?.();
+      }}
+      className={`glass side sticky top-3 m-3 hidden h-[calc(100vh-1.5rem)] flex-col gap-3 overflow-y-auto rounded-3xl p-3 md:flex ${compact ? 'w-18' : 'w-58'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        {!compact && <span className="num text-lg font-bold">{t('app.name')}</span>}
+        {!compact && (
+          <BrandLogo
+            className="h-[72px]"
+            fallback={<span className="num text-lg font-bold">{t('app.name')}</span>}
+          />
+        )}
         <button
           type="button"
           className="inline-flex size-11 items-center justify-center rounded-xl border border-card-border bg-chip hover:border-accent"
           aria-expanded={!compact}
           aria-label={compact ? t('shell.sidebar.expand') : t('shell.sidebar.collapse')}
-          onClick={() => preferencesStore.set({ sidebarCollapsed: !compact })}
+          onClick={() => {
+            endMove.current = startNavMove();
+            preferencesStore.set({ sidebarCollapsed: !compact });
+          }}
         >
           <Icon name="menu" />
         </button>

@@ -81,6 +81,7 @@ describe('PosPage', () => {
     const keys: string[] = [];
     let fail = true;
     const sales: ISalesService = {
+      ...sample,
       posItems: () => sample.posItems(),
       completeSale: (draft, key) => {
         keys.push(key);

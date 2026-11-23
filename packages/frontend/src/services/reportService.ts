@@ -5,6 +5,7 @@ import {
   cashPositionSchema,
   customerInsightsSchema,
   dayCloseStatusSchema,
+  kpiTrendsSchema,
   monthlyResultsSchema,
   needsActionSchema,
   ownerDashboardSchema,
@@ -19,6 +20,7 @@ import {
   type CashPosition,
   type CustomerInsights,
   type DayCloseStatus,
+  type KpiTrends,
   type MonthlyResults,
   type NeedsAction,
   type OwnerDashboard,
@@ -34,7 +36,8 @@ import type { IHttpClient } from './HttpClient';
  * The owner dashboard's figures, one call per group, so each can be real or sample on its own (VITE_DEMO_DATA key
  * `report.<call>`). Will be real: ownerDashboard (#10: collections and dues), salesToday, stockValue, customerDues.
  * Stay sample: supplierDues, salesTarget, vatReturn, cashPosition, monthlyResults, bankFeed, branchResults,
- * customerInsights, needsAction, dayCloseStatus, unitStock (the last will be real with the stock ledger).
+ * customerInsights, needsAction, dayCloseStatus, unitStock (the last will be real with the stock ledger), and
+ * kpiTrends (the key figures' small trend lines; provisional).
  */
 export interface IReportService {
   ownerDashboard(): Promise<OwnerDashboard>;
@@ -52,6 +55,7 @@ export interface IReportService {
   needsAction(): Promise<NeedsAction>;
   dayCloseStatus(): Promise<DayCloseStatus>;
   unitStock(): Promise<UnitStock>;
+  kpiTrends(): Promise<KpiTrends>;
 }
 
 export type ReportCall = keyof IReportService;
@@ -77,6 +81,7 @@ export class ReportService implements IReportService {
   needsAction = () => this.http.getJson('/v1/reports/needs-action', needsActionSchema);
   dayCloseStatus = () => this.http.getJson('/v1/reports/day-close-status', dayCloseStatusSchema);
   unitStock = () => this.http.getJson('/v1/reports/unit-stock', unitStockSchema);
+  kpiTrends = () => this.http.getJson('/v1/reports/kpi-trends', kpiTrendsSchema);
 }
 
 /** Sends each call to the sample or the real service, by its own key. Built only in createServices. */
@@ -104,4 +109,5 @@ export class ReportServiceSwitch implements IReportService {
   needsAction = () => this.pick('needsAction').needsAction();
   dayCloseStatus = () => this.pick('dayCloseStatus').dayCloseStatus();
   unitStock = () => this.pick('unitStock').unitStock();
+  kpiTrends = () => this.pick('kpiTrends').kpiTrends();
 }

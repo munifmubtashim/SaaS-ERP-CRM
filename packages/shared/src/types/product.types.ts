@@ -6,6 +6,7 @@ import type {
   productListItemSchema,
   productListQuerySchema,
   productListResponseSchema,
+  productModelSummarySchema,
   productStatusSchema,
   productTrackingSchema,
 } from '../schemas/product.schema.js';
@@ -21,3 +22,5 @@ export type ProductListResponse = z.infer<typeof productListResponseSchema>;
 export type ProductDetail = z.infer<typeof productDetailSchema>;
 export type ProductCreate = z.infer<typeof productCreateSchema>;
 export type ProductEdit = z.infer<typeof productEditSchema>;
+/** Provisional view shape for the Models tab (see the schema file). */
+export type ProductModelSummary = z.infer<typeof productModelSummarySchema>;

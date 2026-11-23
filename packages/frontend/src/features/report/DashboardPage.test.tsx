@@ -8,11 +8,14 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { DashboardPage } from './DashboardPage';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The dashboard summary (design/owner-dashboard/Main.dc.html): greeting, VAT alert and the five key figures. */
 const NOW = new Date('2026-11-12T03:00:00.000Z'); // 9:00 AM in Dhaka
 
 function renderPage({
-  report = new SampleReportService(0),
+  report = new SampleReportService(0, STORY_DAY),
   demo = new Set<DemoService>([
     'report.vatReturn',
     'report.cashPosition',
@@ -71,8 +74,39 @@ describe('DashboardPage summary', () => {
     expect(within(card('Supplier payable')).getByText('Demo data')).toBeInTheDocument();
   });
 
+  it('tints each key figure in its tone, as the design does', async () => {
+    renderPage();
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const tones = within(figures)
+      .getAllByRole('article')
+      .map((card) => card.dataset.tone);
+    expect(tones).toEqual(['accent', 'pos', 'accent', 'neg', 'warn']);
+  });
+
+  it('never puts a sample trend line on a real figure', async () => {
+    renderPage({
+      demo: new Set<DemoService>(['report.monthlyResults', 'report.supplierDues', 'report.kpiTrends']),
+    });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const trend = (label: string) =>
+      within(figures).getByText(label).closest('article')?.querySelector('[data-trend]') ?? null;
+    expect(trend('Revenue')).toBeNull(); // real figure, sample trend: no line
+    expect(trend('Net profit')).not.toBeNull(); // sample figure, already marked Demo data
+    expect(trend('Supplier payable')).not.toBeNull();
+  });
+
+  it('draws every trend line once the trends are real', async () => {
+    renderPage({ demo: new Set<DemoService>() });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    await within(figures).findByText('৳39,98,175');
+    expect(figures.querySelectorAll('[data-trend]')).toHaveLength(5);
+  });
+
   it('a card whose figures fail shows its own error with a retry; the others still show', async () => {
-    const report = new SampleReportService(0);
+    const report = new SampleReportService(0, STORY_DAY);
     let fail = true;
     const real = report.cashPosition;
     report.cashPosition = () => (fail ? Promise.reject(new Error('timeout')) : real());

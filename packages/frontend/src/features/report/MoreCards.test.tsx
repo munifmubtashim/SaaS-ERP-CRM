@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
@@ -7,10 +7,13 @@ import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { BranchCards, CustomerCard, DayCloseCard, NeedsActionCard, UnitStockCard } from './MoreCards';
 
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
+
 /** The rest of the design's dashboard cards, on the sample's November figures. */
 function renderCards(locale: 'en' | 'bn' = 'en') {
   const services = fakeServices(new FakeHealthService(new Error('unused')), {
-    report: new SampleReportService(0),
+    report: new SampleReportService(0, STORY_DAY),
     demo: new Set(),
   });
   return render(
@@ -31,11 +34,26 @@ function renderCards(locale: 'en' | 'bn' = 'en') {
 const card = async (title: string) => (await screen.findByText(title)).closest('article') as HTMLElement;
 
 describe('branch cards', () => {
-  it('revenue by branch, each labelled with its business and amount', async () => {
+  it('revenue by branch: one bar per branch, each named with its business and amount, not colour-only', async () => {
     renderCards();
     const revenue = await card('Revenue by branch');
-    expect(await within(revenue).findByText('Mirpur-10, Sample Motors')).toBeInTheDocument();
-    expect(revenue).toHaveTextContent('৳52.4 lakh');
+    const bars = await within(revenue).findAllByRole('img', { name: /, Sample (Motors|Spare Parts): / });
+    expect(bars).toHaveLength(5);
+    expect(bars[0]).toHaveAccessibleName('Mirpur-10, Sample Motors: ৳52.4 lakh');
+    expect(within(revenue).getByText('Sample Motors')).toBeInTheDocument(); // the legend
+  });
+
+  it('hovering a branch bar shows its figures and dims the others', async () => {
+    renderCards();
+    const revenue = await card('Revenue by branch');
+    const bars = await within(revenue).findAllByRole('img', { name: /, Sample (Motors|Spare Parts): / });
+    fireEvent.mouseEnter(bars[1] as Element);
+    const tip = within(revenue).getByRole('tooltip');
+    expect(tip).toHaveTextContent('Uttara');
+    expect(tip).toHaveTextContent('৳31,25,000');
+    expect(tip).toHaveTextContent('22.2% of revenue');
+    expect(bars[0]).toHaveStyle({ opacity: '0.3' });
+    expect(bars[1]).toHaveStyle({ opacity: '1' });
   });
 
   it('profit by branch: business totals with margins, and a table where a loss shows a negative margin', async () => {

@@ -18,6 +18,7 @@ import {
   type Cart,
   type PaymentChoice,
 } from './cart';
+import { InvoicesView } from './InvoicesView';
 
 const METHODS: PaymentChoice[] = ['cash', 'card', 'bkash', 'due'];
 const pill =
@@ -27,9 +28,35 @@ const field = 'min-h-11 w-full rounded-xl border border-row-border bg-chip px-3 
 /**
  * Sales / POS, the selling half (design/owner-dashboard/Sales.dc.html): the product list and the current sale.
  * Complete sale sends one draft with one Idempotency-Key per draft, so a retry can never sell twice (invariant 5).
- * Owner: Farhan (Sales). Invoices are the next PR.
+ * Owner: Farhan (Sales). The design's switch opens the invoices half (InvoicesView).
  */
 export function PosPage() {
+  const { t } = useI18n();
+  const [view, setView] = useState<'pos' | 'invoices'>('pos');
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="num text-[28px] font-bold">{t('shell.nav.sales')}</h1>
+        <div role="group" aria-label={t('pos.view.aria')} className="flex gap-1 rounded-full bg-track p-1">
+          {(['pos', 'invoices'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              className={pill}
+              onClick={() => setView(v)}
+            >
+              {t(v === 'pos' ? 'pos.view.pos' : 'pos.view.invoices')}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === 'pos' ? <PointOfSale /> : <InvoicesView />}
+    </div>
+  );
+}
+
+function PointOfSale() {
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
   const taka = (amount: string) => `৳${formatTaka(amount, loc)}`;
@@ -93,9 +120,8 @@ export function PosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="num text-[28px] font-bold">{t('shell.nav.sales')}</h1>
       {toast && (
-        <p role="status" className="glass rounded-2xl px-4 py-3 text-[13px] font-semibold text-pos-text">
+        <p role="status" className="glass pop rounded-2xl px-4 py-3 text-[13px] font-semibold text-pos-text">
           {toast}
         </p>
       )}

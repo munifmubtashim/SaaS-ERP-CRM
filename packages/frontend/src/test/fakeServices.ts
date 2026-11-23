@@ -2,6 +2,9 @@ import type { HealthResponse } from '@erp/shared';
 import type {
   IAuthService,
   IHealthService,
+  IInventoryService,
+  IProductService,
+  IVehicleService,
   IOrganizationService,
   IReportService,
   ISalesService,
@@ -47,12 +50,32 @@ export const unusedReport: IReportService = {
   needsAction: noReport,
   dayCloseStatus: noReport,
   unitStock: noReport,
+  kpiTrends: noReport,
 };
 
 /** ISalesService for tests that never sell: using it is a test bug, so it fails loudly. */
 export const unusedSales: ISalesService = {
   posItems: () => Promise.reject(new Error('This test loaded POS items without injecting a service.')),
   completeSale: () => Promise.reject(new Error('This test completed a sale without injecting a service.')),
+  invoices: () => Promise.reject(new Error('This test listed invoices without injecting a service.')),
+  invoice: () => Promise.reject(new Error('This test opened an invoice without injecting a service.')),
+  recordPayment: () => Promise.reject(new Error('This test recorded a payment without injecting a service.')),
+};
+
+/** IInventoryService for tests that never read stock: using it is a test bug, so it fails loudly. */
+export const unusedInventory: IInventoryService = {
+  stockItems: () => Promise.reject(new Error('This test listed stock without injecting a service.')),
+  stockItem: () => Promise.reject(new Error('This test opened a stock item without injecting a service.')),
+  movements: () => Promise.reject(new Error('This test listed movements without injecting a service.')),
+};
+
+/** IProductService and IVehicleService for tests that never read them: using one is a test bug. */
+export const unusedProduct: IProductService = {
+  models: () => Promise.reject(new Error('This test listed models without injecting a service.')),
+};
+export const unusedVehicle: IVehicleService = {
+  units: () => Promise.reject(new Error('This test listed units without injecting a service.')),
+  unit: () => Promise.reject(new Error('This test opened a unit without injecting a service.')),
 };
 
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
@@ -61,10 +84,10 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     health,
     auth: unusedAuth,
     organization: unusedOrganization,
-    product: {},
-    inventory: {},
+    product: unusedProduct,
+    inventory: unusedInventory,
     accounting: {},
-    vehicle: {},
+    vehicle: unusedVehicle,
     report: unusedReport,
     party: {},
     sales: unusedSales,

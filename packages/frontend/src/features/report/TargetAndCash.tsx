@@ -13,7 +13,7 @@ const width = (share: Share | null) =>
 function Bar({ share, tone = 'bg-accent', marker }: { share: Share | null; tone?: string; marker?: Share }) {
   return (
     <div className="relative h-2.5 w-full rounded-full bg-track" aria-hidden="true">
-      <div className={`h-full rounded-full ${tone}`} style={{ width: `${width(share)}%` }} />
+      <div className={`gloss h-full rounded-full ${tone}`} style={{ width: `${width(share)}%` }} />
       {marker && (
         <div className="absolute -top-1 h-4.5 w-0.5 bg-text" style={{ left: `${width(marker)}%` }} />
       )}

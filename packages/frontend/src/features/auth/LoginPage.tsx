@@ -2,7 +2,7 @@ import { loginRequestSchema } from '@erp/shared';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { LanguageSwitch } from '../../app/AppShell';
-import { Button, Card } from '../../components/ui';
+import { BrandLogo, Button, Card } from '../../components/ui';
 import { useI18n } from '../../i18n';
 import { ApiRequestError } from '../../services';
 import { useSession } from '../../store/sessionStore';
@@ -54,6 +54,7 @@ export function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
       <LanguageSwitch />
       <Card className="w-full max-w-sm space-y-6">
+        <BrandLogo className="mx-auto h-24" fallback={null} />
         <div>
           <h1 className="text-2xl font-semibold">{t('login.title')}</h1>
           <p className="text-muted">{t('login.subtitle')}</p>
