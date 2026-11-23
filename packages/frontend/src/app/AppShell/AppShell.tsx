@@ -1,103 +1,90 @@
-import { NavLink, Outlet } from 'react-router';
+import { useRef, useState } from 'react';
+import { Outlet } from 'react-router';
 import { useLogout } from '../../features/auth';
-import { useI18n } from '../../i18n';
-import { useSession } from '../../store/sessionStore';
 import { ScopeSwitcher } from '../../features/organization';
+import { useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
-import { LanguageSwitch, segment } from './LanguageSwitch';
-import { NAV } from './nav';
+import { Icon } from './icons';
+import { LanguageSwitch } from './LanguageSwitch';
+import { PhoneTabs } from './PhoneTabs';
+import { Sidebar } from './Sidebar';
+import { useSearchShortcut } from './useSearchShortcut';
 
-/** App shell: collapsible sidebar, header with language and theme. Shared: both developers review. */
+const iconButton =
+  'glass inline-flex size-11 items-center justify-center rounded-full text-text2 hover:text-text disabled:cursor-not-allowed disabled:opacity-60';
+
+/**
+ * App shell from the approved design: glass sidebar on desktop, tab bar on phones, and a header with the business and
+ * branch switcher, search (Ctrl K), theme, notifications, language and sign out. Shared: both developers review.
+ */
 export function AppShell() {
   const { t } = useI18n();
-  const { theme, sidebarCollapsed } = usePreferences();
-  const session = useSession();
+  const { theme } = usePreferences();
   const logout = useLogout();
-
-  return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      <aside
-        aria-label="Main"
-        className={`border-b border-row-border p-3 md:border-r md:border-b-0 md:transition-[width] ${sidebarCollapsed ? 'md:w-18' : 'md:w-58'}`}
+  const search = useRef<HTMLInputElement>(null);
+  const [searching, setSearching] = useState(false);
+  useSearchShortcut(search);
+  // Language and sign out: in the sidebar on desktop and in the More sheet on phones (the design's header has neither).
+  const account = (
+    <>
+      <LanguageSwitch />
+      <button
+        type="button"
+        className="min-h-11 rounded-full border border-row-border px-4 text-text2 hover:border-accent"
+        onClick={() => logout.mutate()}
       >
-        <div className="mb-4 flex items-center justify-between gap-2">
-          {!sidebarCollapsed && <span className="num text-lg font-bold">{t('app.name')}</span>}
-          <button
-            type="button"
-            className="inline-flex size-11 items-center justify-center rounded-md border border-card-border bg-chip hover:border-accent"
-            aria-expanded={!sidebarCollapsed}
-            aria-label={sidebarCollapsed ? t('shell.sidebar.expand') : t('shell.sidebar.collapse')}
-            onClick={() => preferencesStore.set({ sidebarCollapsed: !sidebarCollapsed })}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-            >
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-        <nav className="flex gap-1 overflow-x-auto md:flex-col">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className="flex min-h-11 items-center rounded-md px-3 whitespace-nowrap text-text2 hover:bg-nav-hover aria-[current=page]:bg-nav-active aria-[current=page]:font-semibold aria-[current=page]:text-text"
-            >
-              {sidebarCollapsed ? t(item.key).slice(0, 1) : t(item.key)}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-end gap-2 border-b border-row-border px-4 py-3 md:px-6">
+        {t('shell.signOut')}
+      </button>
+    </>
+  );
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar footer={account} />
+      <div className="flex min-w-0 flex-1 flex-col pb-24 md:pb-0">
+        <header className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
           <div className="mr-auto">
             <ScopeSwitcher />
           </div>
-          <LanguageSwitch />
-          <div
-            role="group"
-            aria-label="Theme"
-            className="inline-flex rounded-full border border-row-border p-0.5"
+          <label className="glass hidden min-h-11 items-center gap-2 rounded-full px-4 text-text2 lg:flex">
+            <Icon name="search" size={18} />
+            <input
+              ref={search}
+              readOnly
+              aria-label={t('shell.search')}
+              aria-describedby="search-later"
+              placeholder={t('shell.search')}
+              className="w-48 bg-transparent outline-none placeholder:text-muted"
+              onFocus={() => setSearching(true)}
+              onBlur={() => setSearching(false)}
+            />
+            <kbd className="rounded-md border border-row-border px-1.5 text-xs text-muted">Ctrl K</kbd>
+          </label>
+          <span id="search-later" role="status" className={searching ? 'text-[13px] text-muted' : 'sr-only'}>
+            {searching ? t('shell.search.later') : ''}
+          </span>
+          <button
+            type="button"
+            className={iconButton}
+            aria-label={theme === 'light' ? t('shell.theme.toDark') : t('shell.theme.toLight')}
+            onClick={() => preferencesStore.set({ theme: theme === 'light' ? 'dark' : 'light' })}
           >
-            {(['light', 'dark'] as const).map((th) => (
-              <button
-                key={th}
-                type="button"
-                className={segment}
-                aria-pressed={theme === th}
-                onClick={() => preferencesStore.set({ theme: th })}
-              >
-                {t(th === 'light' ? 'shell.theme.light' : 'shell.theme.dark')}
-              </button>
-            ))}
-          </div>
-          {session && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-muted">
-                {t('shell.signedInAs')} <span className="font-semibold text-text">{session.user.name}</span>
-              </span>
-              <button
-                type="button"
-                className="min-h-10 rounded-full border border-row-border px-4 text-text2 hover:border-accent"
-                onClick={() => logout.mutate()}
-              >
-                {t('shell.signOut')}
-              </button>
-            </div>
-          )}
+            <Icon name={theme === 'light' ? 'moon' : 'sun'} />
+          </button>
+          <button
+            type="button"
+            disabled
+            className={iconButton}
+            aria-label={t('shell.notifications')}
+            title={t('shell.notAvailable')}
+          >
+            <Icon name="bell" />
+          </button>
         </header>
-        <main className="w-full max-w-5xl p-4 md:p-6">
+        <main className="w-full max-w-6xl p-4 md:p-6">
           <Outlet />
         </main>
       </div>
+      <PhoneTabs menuFooter={account} />
     </div>
   );
 }
