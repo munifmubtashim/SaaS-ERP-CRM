@@ -4,6 +4,7 @@ import type {
   ApiManagers,
   IAuthManager,
   IHealthManager,
+  IProductManager,
   ITenantScopeRunner,
 } from '../controllers/contracts/index.js';
 
@@ -30,13 +31,24 @@ export const unusedAuth: IAuthManager = {
   resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
 };
 
+const unexpected = (what: string) => () =>
+  Promise.reject(new AppError('INTERNAL_ERROR', `This test did not expect a ${what} request.`));
+
+/** A product Manager for tests that never touch products: using it fails loudly. */
+export const unusedProduct: IProductManager = {
+  list: unexpected('product'),
+  get: unexpected('product'),
+  create: unexpected('product'),
+  edit: unexpected('product'),
+};
+
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
 export function fakeManagers(health: IHealthManager): ApiManagers {
   return {
     health,
     auth: unusedAuth,
     organization: {},
-    product: {},
+    product: unusedProduct,
     inventory: {},
     accounting: {},
     vehicle: {},
