@@ -1,6 +1,8 @@
 import {
+  invoiceDetailSchema,
   invoiceSummarySchema,
   posItemSchema,
+  type InvoiceDetail,
   type InvoiceSummary,
   type PosItem,
   type SaleDraft,
@@ -20,12 +22,31 @@ export interface ISalesService {
    * same key answers the first invoice and sells nothing again.
    */
   completeSale(draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary>;
+  /** The active branch's invoices (the design's Invoices view). */
+  invoices(): Promise<InvoiceSummary[]>;
+  /** One invoice with its lines, payments and balance. */
+  invoice(number: string): Promise<InvoiceDetail>;
+  /**
+   * Collect a payment on an invoice. Moves money, so it carries an Idempotency-Key (invariant 5): a retry with the
+   * same key answers the first result and collects nothing again. Never more than the balance.
+   */
+  recordPayment(number: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
 }
 
-/** Sales module: the API. The paths are provisional; neither route exists yet (ADR 0022). */
+/** A payment as the counter enters it: the sale draft's own payment shape (provisional, #134). */
+export type PaymentDraft = NonNullable<SaleDraft['payment']>;
+
+/** Sales module: the API. The paths are provisional; none of these routes exists yet (ADR 0022). */
 export class SalesService implements ISalesService {
   constructor(protected readonly http: IHttpClient) {}
   posItems = () => this.http.getJson('/v1/pos/items', z.array(posItemSchema));
   completeSale = (draft: SaleDraft, idempotencyKey: string) =>
     this.http.postJson('/v1/sales', draft, invoiceSummarySchema, { idempotencyKey });
+  invoices = () => this.http.getJson('/v1/invoices', z.array(invoiceSummarySchema));
+  invoice = (number: string) =>
+    this.http.getJson(`/v1/invoices/${encodeURIComponent(number)}`, invoiceDetailSchema);
+  recordPayment = (number: string, payment: PaymentDraft, idempotencyKey: string) =>
+    this.http.postJson(`/v1/invoices/${encodeURIComponent(number)}/payments`, payment, invoiceDetailSchema, {
+      idempotencyKey,
+    });
 }

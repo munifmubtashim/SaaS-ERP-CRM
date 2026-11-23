@@ -54,6 +54,9 @@ export const unusedReport: IReportService = {
 export const unusedSales: ISalesService = {
   posItems: () => Promise.reject(new Error('This test loaded POS items without injecting a service.')),
   completeSale: () => Promise.reject(new Error('This test completed a sale without injecting a service.')),
+  invoices: () => Promise.reject(new Error('This test listed invoices without injecting a service.')),
+  invoice: () => Promise.reject(new Error('This test opened an invoice without injecting a service.')),
+  recordPayment: () => Promise.reject(new Error('This test recorded a payment without injecting a service.')),
 };
 
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
