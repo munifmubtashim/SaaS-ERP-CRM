@@ -58,6 +58,7 @@ export const en = {
   'followUps.retry': 'Try again',
   'followUps.forbidden': 'You do not have permission to see follow-ups.',
   'followUps.record': 'Record follow-up',
+  'followUps.saved': 'Follow-up saved.',
   'followUps.channel.call': 'Call',
   'followUps.channel.visit': 'Visit',
   'followUps.channel.message': 'Message',

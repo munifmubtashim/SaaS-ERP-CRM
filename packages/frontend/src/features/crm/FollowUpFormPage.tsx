@@ -5,7 +5,7 @@ import {
   type RecordFollowUp,
 } from '@erp/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useForm, useWatch, type FieldError } from 'react-hook-form';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useServices } from '../../app/servicesContext';
@@ -13,6 +13,7 @@ import { Button, Card } from '../../components/ui';
 import { useI18n, type MessageKey } from '../../i18n';
 import {
   EMPTY_FORM,
+  FIELD_ORDER,
   followUpResolver,
   fromServerError,
   messageKeyFor,
@@ -60,6 +61,8 @@ function FollowUpForm({ partyId, partyName }: { partyId: string; partyName: stri
   const queryClient = useQueryClient();
   const [banner, setBanner] = useState<MessageKey | null>(null);
   const resolver = useMemo(() => followUpResolver(partyId), [partyId]);
+  const formRef = useRef<HTMLFormElement>(null);
+  const bannerRef = useRef<HTMLParagraphElement>(null);
   const {
     register,
     handleSubmit,
@@ -67,7 +70,29 @@ function FollowUpForm({ partyId, partyName }: { partyId: string; partyName: stri
     setValue,
     setError,
     formState: { errors },
-  } = useForm<FollowUpFormValues, unknown, RecordFollowUp>({ resolver, defaultValues: EMPTY_FORM });
+  } = useForm<FollowUpFormValues, unknown, RecordFollowUp>({
+    resolver,
+    defaultValues: EMPTY_FORM,
+    // Focus is ours: RHF would focus without scrolling the field into view on a long phone form.
+    shouldFocusError: false,
+  });
+
+  /** Focuses the first invalid field on screen (the first choice of a radio group) and scrolls it into view. */
+  const focusFirstInvalid = (names: readonly string[]) => {
+    const first = FIELD_ORDER.find((name) => names.includes(name));
+    const found = first ? formRef.current?.elements.namedItem(first) : null;
+    const target = found instanceof RadioNodeList ? found[0] : found;
+    if (!(target instanceof HTMLElement)) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'center' });
+  };
+  // A banner (walk-in, unknown customer, permission) sits above every field, so it is first on screen: it takes focus.
+  useEffect(() => {
+    if (!banner) return;
+    bannerRef.current?.focus({ preventScroll: true });
+    bannerRef.current?.scrollIntoView({ block: 'center' });
+  }, [banner]);
+
   // TEMPORARY stand-in list until A4's staff route.
   const collectors = useQuery({ queryKey: ['follow-up-collectors'], queryFn: () => crm.listCollectors() });
 
@@ -83,14 +108,17 @@ function FollowUpForm({ partyId, partyName }: { partyId: string; partyName: stri
 
   const save = useMutation({
     mutationFn: (followUp: RecordFollowUp) => crm.recordFollowUp(followUp),
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
-      await navigate('/follow-ups');
+      // A new promise is Open: the list opens there, so the saved follow-up is in view (not under Broken).
+      const state = saved.promise ? { saved: true, promiseStatus: saved.promise.status } : { saved: true };
+      await navigate('/follow-ups', { state });
     },
     onError: (error) => {
       const refusal = fromServerError(error);
       for (const field of refusal.fields) setError(field.name, { type: field.code, message: field.code });
       setBanner(refusal.banner);
+      if (!refusal.banner) focusFirstInvalid(refusal.fields.map((f) => f.name));
     },
   });
 
@@ -102,15 +130,24 @@ function FollowUpForm({ partyId, partyName }: { partyId: string; partyName: stri
       <h1 className="mb-4 text-2xl font-semibold">{t('followUps.form.title')}</h1>
       <Card className="max-w-xl">
         <form
+          ref={formRef}
           noValidate
           className="space-y-5"
           onSubmit={(e) => {
             setBanner(null);
-            void handleSubmit((followUp) => save.mutate(followUp))(e);
+            void handleSubmit(
+              (followUp) => save.mutate(followUp),
+              (invalid) => focusFirstInvalid(Object.keys(invalid)),
+            )(e);
           }}
         >
           {banner && (
-            <p role="alert" className="rounded-md bg-neg-bg px-4 py-3 text-neg-text">
+            <p
+              ref={bannerRef}
+              role="alert"
+              tabIndex={-1}
+              className="rounded-md bg-neg-bg px-4 py-3 text-neg-text focus:outline-2 focus:outline-neg-text"
+            >
               {t(banner)}
             </p>
           )}

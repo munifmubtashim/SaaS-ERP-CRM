@@ -30,6 +30,9 @@ export const EMPTY_FORM: FollowUpFormValues = {
 
 type FieldName = keyof FollowUpFormValues;
 
+/** The fields in the order they appear on screen, so focus goes to the first invalid one. */
+export const FIELD_ORDER: FieldName[] = ['collectorId', 'channel', 'outcome', 'promisedOn', 'amount', 'note'];
+
 /** Where an issue's path (from the schema or the API's fields[]) shows on this form. Null = a banner. */
 function fieldOf(path: string): FieldName | null {
   if (path === 'promise' || path === 'promise.promisedOn') return 'promisedOn';

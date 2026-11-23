@@ -63,6 +63,7 @@ export const bn: Record<MessageKey, string> = {
   'followUps.retry': 'আবার চেষ্টা করুন',
   'followUps.forbidden': 'ফলো-আপ দেখার অনুমতি আপনার নেই।',
   'followUps.record': 'ফলো-আপ লিখুন',
+  'followUps.saved': 'ফলো-আপ সংরক্ষণ হয়েছে।',
   'followUps.channel.call': 'ফোন',
   'followUps.channel.visit': 'সরাসরি সাক্ষাৎ',
   'followUps.channel.message': 'মেসেজ',

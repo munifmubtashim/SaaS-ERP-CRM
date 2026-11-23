@@ -7,8 +7,8 @@ import type {
 } from '@erp/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
 import { ApiRequestError, type ICrmService } from '../../services';
@@ -57,6 +57,18 @@ class FakeCrmService implements ICrmService {
   }
 }
 
+/** Stands in for the list: shows the navigation state the form passed (saved flag, filter to open on). */
+function ListStub() {
+  return (
+    <>
+      <p>The follow-ups list</p>
+      <pre data-testid="list-state">{JSON.stringify(useLocation().state)}</pre>
+    </>
+  );
+}
+
+const listState = () => JSON.parse(screen.getByTestId('list-state').textContent ?? 'null') as unknown;
+
 function renderForm(
   crm: ICrmService,
   {
@@ -74,7 +86,7 @@ function renderForm(
           >
             <Routes>
               <Route path="/follow-ups/new" element={<FollowUpFormPage />} />
-              <Route path="/follow-ups" element={<p>The follow-ups list</p>} />
+              <Route path="/follow-ups" element={<ListStub />} />
             </Routes>
           </MemoryRouter>
         </I18nProvider>
@@ -91,17 +103,48 @@ const refusal = (status: number, path: string, code: string) =>
     requestId: 'test',
   });
 
+/** The form's labels in each locale, so the same steps run in English and Bangla. */
+const LABELS = {
+  en: {
+    collector: 'Collector',
+    call: 'Call',
+    promised: 'Promised',
+    promisedOn: 'Promised date',
+    amount: 'Promised amount (৳)',
+    save: 'Save follow-up',
+  },
+  bn: {
+    collector: 'আদায়কারী',
+    call: 'ফোন',
+    promised: 'প্রতিশ্রুতি দিয়েছেন',
+    promisedOn: 'প্রতিশ্রুত তারিখ',
+    amount: 'প্রতিশ্রুত টাকা (৳)',
+    save: 'ফলো-আপ সংরক্ষণ করুন',
+  },
+} as const;
+
 /** Fills a promise to pay for the prefilled customer. */
-async function fillPromise(promisedOn = '2026-12-05', amount = '5000.00') {
+async function fillPromise(promisedOn = '2026-12-05', amount = '5000.00', locale: 'en' | 'bn' = 'en') {
+  const l = LABELS[locale];
   await screen.findByRole('option', { name: 'Sample Collector' }); // the select is disabled until the list loads
-  fireEvent.change(screen.getByRole('combobox', { name: 'Collector' }), { target: { value: COLLECTOR } });
-  fireEvent.click(screen.getByRole('radio', { name: 'Call' }));
-  fireEvent.click(screen.getByRole('radio', { name: 'Promised' }));
-  fireEvent.change(screen.getByLabelText('Promised date'), { target: { value: promisedOn } });
-  fireEvent.change(screen.getByLabelText('Promised amount (৳)'), { target: { value: amount } });
+  fireEvent.change(screen.getByRole('combobox', { name: l.collector }), { target: { value: COLLECTOR } });
+  fireEvent.click(screen.getByRole('radio', { name: l.call }));
+  fireEvent.click(screen.getByRole('radio', { name: l.promised }));
+  fireEvent.change(screen.getByLabelText(l.promisedOn), { target: { value: promisedOn } });
+  fireEvent.change(screen.getByLabelText(l.amount), { target: { value: amount } });
 }
 
-const save = () => fireEvent.click(screen.getByRole('button', { name: 'Save follow-up' }));
+const save = (locale: 'en' | 'bn' = 'en') =>
+  fireEvent.click(screen.getByRole('button', { name: LABELS[locale].save }));
+
+// jsdom has no scrollIntoView; the form calls it to bring the first invalid field on screen.
+const scrolledTo: Element[] = [];
+beforeEach(() => {
+  scrolledTo.length = 0;
+  Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+    scrolledTo.push(this);
+  });
+});
 
 describe('FollowUpFormPage (CR-05, mock data)', () => {
   it('shows the prefilled customer, and the promise fields only for "promised"', async () => {
@@ -135,6 +178,8 @@ describe('FollowUpFormPage (CR-05, mock data)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled());
     crm.finish();
     expect(await screen.findByText('The follow-ups list')).toBeInTheDocument();
+    // A promise is Open, so the list opens there with a "saved" message, not on Broken where it can't be seen.
+    expect(listState()).toEqual({ saved: true, promiseStatus: 'open' });
     expect(crm.recorded).toEqual([
       {
         partyId: PARTY,
@@ -147,22 +192,65 @@ describe('FollowUpFormPage (CR-05, mock data)', () => {
     ]);
   });
 
-  it("shows the server's followup.promise_date_past under the date", async () => {
+  it('returns to the list with only the saved flag when there was no promise', async () => {
+    renderForm(new FakeCrmService());
+    await screen.findByRole('option', { name: 'Sample Collector' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Collector' }), { target: { value: COLLECTOR } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Visit' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'No answer' }));
+    save();
+    expect(await screen.findByText('The follow-ups list')).toBeInTheDocument();
+    expect(listState()).toEqual({ saved: true });
+  });
+
+  it('moves focus to the first invalid field and scrolls it into view', async () => {
+    renderForm(new FakeCrmService());
+    const collector = await screen.findByRole('combobox', { name: 'Collector' });
+    await screen.findByRole('option', { name: 'Sample Collector' });
+    save();
+    await waitFor(() => expect(collector).toHaveFocus());
+    expect(scrolledTo).toEqual([collector]);
+  });
+
+  it('moves focus to the first channel choice when the collector is set but the channel is not', async () => {
+    renderForm(new FakeCrmService());
+    await screen.findByRole('option', { name: 'Sample Collector' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Collector' }), { target: { value: COLLECTOR } });
+    save();
+    const call = screen.getByRole('radio', { name: 'Call' });
+    await waitFor(() => expect(call).toHaveFocus());
+    expect(scrolledTo).toEqual([call]);
+  });
+
+  it('moves focus to the date when the server refuses it, and shows followup.promise_date_past there', async () => {
     renderForm(new FakeCrmService(refusal(400, 'promise.promisedOn', 'followup.promise_date_past')));
     await fillPromise();
     save();
     expect(await screen.findByText('The promised date cannot be before today.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Promised date')).toHaveAttribute('aria-invalid', 'true');
+    const date = screen.getByLabelText('Promised date');
+    expect(date).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(date).toHaveFocus());
+    expect(scrolledTo).toEqual([date]);
   });
 
-  it('shows the walk-in refusal as a banner', async () => {
-    renderForm(new FakeCrmService(refusal(409, 'partyId', 'followup.walk_in_not_allowed')));
-    await fillPromise();
-    save();
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The walk-in customer has no dues to follow up.',
-    );
-  });
+  it.each([
+    ['en', 409, 'followup.walk_in_not_allowed', 'The walk-in customer has no dues to follow up.'],
+    ['bn', 409, 'followup.walk_in_not_allowed', 'ওয়াক-ইন গ্রাহকের কোনো বকেয়া নেই, তাই ফলো-আপ লাগে না।'],
+    ['en', 400, 'followup.party_not_found', 'This customer was not found. It may have been removed.'],
+    ['bn', 400, 'followup.party_not_found', 'এই গ্রাহককে পাওয়া যায়নি। হয়তো মুছে ফেলা হয়েছে।'],
+  ] as const)(
+    'shows %s %s %s as a banner, moves focus to it and scrolls it into view',
+    async (locale, status, code, text) => {
+      renderForm(new FakeCrmService(refusal(status, 'partyId', code)), { locale });
+      await fillPromise(undefined, undefined, locale);
+      save(locale);
+      const banner = await screen.findByRole('alert');
+      expect(banner).toHaveTextContent(text);
+      expect(banner).toHaveAttribute('tabindex', '-1');
+      await waitFor(() => expect(banner).toHaveFocus());
+      expect(scrolledTo).toEqual([banner]);
+    },
+  );
 
   it('shows the permission message on a 403', async () => {
     renderForm(new FakeCrmService(refusal(403, '', '')));
