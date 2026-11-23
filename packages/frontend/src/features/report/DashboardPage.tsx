@@ -3,6 +3,7 @@ import { formatLongDateBD, formatTimeBD, hourInDhaka } from '@erp/shared';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
 import { KpiRow } from './KpiRow';
+import { CashCard, TargetCard } from './TargetAndCash';
 import { useReport } from './useReport';
 import { VatAlert } from './VatAlert';
 
@@ -54,6 +55,10 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
       </header>
       <VatAlert now={now} />
       <KpiRow />
+      <div className="grid gap-3 lg:grid-cols-[2fr_3fr]">
+        <TargetCard />
+        <CashCard />
+      </div>
     </div>
   );
 }
