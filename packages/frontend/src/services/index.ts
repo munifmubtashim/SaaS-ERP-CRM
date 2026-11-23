@@ -11,6 +11,7 @@ import { ReportService, ReportServiceSwitch, type IReportService } from './repor
 import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, type ISalesService } from './salesService';
+import { SampleSalesService } from './sample/SampleSalesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
 import { ServiceService, type IServiceService } from './serviceService';
 import { CrmService, type ICrmService } from './crmService';
@@ -22,6 +23,7 @@ export type { IAuthService } from './authService';
 export type { IOrganizationService } from './organizationService';
 export type { DemoService } from './demoData';
 export type { IReportService, ReportCall } from './reportService';
+export type { ISalesService } from './salesService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -69,7 +71,8 @@ export function createServices(
       demo.has(`report.${call}`),
     ),
     party: new PartyService(http),
-    sales: new SalesService(http),
+    // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
+    sales: demo.has('sales') ? new SampleSalesService() : new SalesService(http),
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
     crm: new CrmService(http),

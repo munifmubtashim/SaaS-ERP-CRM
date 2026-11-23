@@ -87,3 +87,16 @@ describe('HttpClient: the session cookie travels, and nothing else (ADR 0018 sec
     );
   });
 });
+
+describe('HttpClient: Idempotency-Key on money and stock POSTs (ADR 0011)', () => {
+  it('postJson sends the key when given, and no key otherwise', async () => {
+    stubFetch(201, healthy);
+    await new HttpClient().postJson('/v1/sales', { a: 1 }, healthResponseSchema, { idempotencyKey: 'key-1' });
+    await new HttpClient().postJson('/v1/notes', { a: 1 }, healthResponseSchema);
+    const calls = vi
+      .mocked(fetch)
+      .mock.calls.map(([, init]) => (init?.headers ?? {}) as Record<string, string>);
+    expect(calls[0]?.['Idempotency-Key']).toBe('key-1');
+    expect(calls[1]).not.toHaveProperty('Idempotency-Key');
+  });
+});
