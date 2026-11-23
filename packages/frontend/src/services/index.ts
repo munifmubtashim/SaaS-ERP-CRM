@@ -7,7 +7,8 @@ import { ProductService, type IProductService } from './productService';
 import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
-import { ReportService, type IReportService } from './reportService';
+import { ReportService, ReportServiceSwitch, type IReportService } from './reportService';
+import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, type ISalesService } from './salesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
@@ -20,6 +21,7 @@ export type { IHealthService } from './healthService';
 export type { IAuthService } from './authService';
 export type { IOrganizationService } from './organizationService';
 export type { DemoService } from './demoData';
+export type { IReportService, ReportCall } from './reportService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -62,7 +64,10 @@ export function createServices(
     inventory: new InventoryService(http),
     accounting: new AccountingService(http),
     vehicle: new VehicleService(http),
-    report: new ReportService(http),
+    // Each report call is real or sample on its own key (report.<call>).
+    report: new ReportServiceSwitch(new ReportService(http), new SampleReportService(), (call) =>
+      demo.has(`report.${call}`),
+    ),
     party: new PartyService(http),
     sales: new SalesService(http),
     purchase: new PurchaseService(http),

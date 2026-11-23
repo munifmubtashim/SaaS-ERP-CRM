@@ -8,12 +8,27 @@
  * Every figure from a sample service shows the "Demo data" badge (DemoBadge, useDemoData).
  */
 
-/** Services that have a sample implementation. A later screen PR adds its service here with its sample. */
-export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set(['organization'] as const);
-export type DemoService = 'organization';
+/** The report calls, each switched on its own (`report.<call>`); "report" alone means all of them. */
+const REPORT_KEYS = [
+  'report.ownerDashboard',
+  'report.salesToday',
+  'report.stockValue',
+  'report.customerDues',
+  'report.supplierDues',
+  'report.salesTarget',
+  'report.vatReturn',
+  'report.cashPosition',
+  'report.monthlyResults',
+  'report.bankFeed',
+] as const;
 
-/** No API yet: GET /v1/me/businesses (M2) isn't built. */
-export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>(['organization']);
+export type DemoService = 'organization' | (typeof REPORT_KEYS)[number];
+
+/** Services that have a sample implementation. A later screen PR adds its service here with its sample. */
+export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>(['organization', ...REPORT_KEYS]);
+
+/** No API yet: GET /v1/me/businesses (M2) and none of the report calls are built. */
+export const DEMO_DEFAULT: ReadonlySet<DemoService> = DEMO_CAPABLE;
 
 export function parseDemoData(
   raw: string | undefined,
@@ -27,7 +42,8 @@ export function parseDemoData(
   const names = value
     .split(',')
     .map((name) => name.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .flatMap((name) => (name === 'report' ? [...REPORT_KEYS] : [name]));
   for (const name of names) {
     if (!(DEMO_CAPABLE as ReadonlySet<string>).has(name)) {
       throw new Error(

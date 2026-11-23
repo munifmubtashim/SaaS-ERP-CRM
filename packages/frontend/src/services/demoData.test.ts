@@ -28,4 +28,14 @@ describe('parseDemoData', () => {
     expect(() => parseDemoData('organisation', { production: false })).toThrow(/organisation/);
     expect(() => parseDemoData('auth', { production: false })).toThrow(/auth/);
   });
+
+  it('"report" alone means every report call; each report call can also be named on its own', () => {
+    const all = parseDemoData('report', { production: false });
+    expect([...all].every((name) => name.startsWith('report.'))).toBe(true);
+    expect(all.has('report.vatReturn')).toBe(true);
+    expect([...parseDemoData('report.vatReturn,report.bankFeed', { production: false })]).toEqual([
+      'report.vatReturn',
+      'report.bankFeed',
+    ]);
+  });
 });
