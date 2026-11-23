@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDaysISO,
+  addMonthsISO,
+  daysInMonthISO,
   daysUntilBD,
   formatDateBD,
   formatDateTimeBD,
   formatLongDateBD,
   formatTimeBD,
   hourInDhaka,
+  todayBD,
 } from './date.js';
 
 describe('dates in Asia/Dhaka', () => {
@@ -41,5 +45,33 @@ describe('dashboard dates, in Asia/Dhaka', () => {
     expect(daysUntilBD('2026-11-15', '2026-11-12T03:00:00.000Z')).toBe(3);
     expect(daysUntilBD('2026-11-12', '2026-11-11T19:30:00.000Z')).toBe(0);
     expect(daysUntilBD('2026-11-10', '2026-11-12T03:00:00.000Z')).toBe(-2);
+  });
+});
+
+describe('calendar dates for relative sample data, in Asia/Dhaka', () => {
+  it('today is the Dhaka calendar date, which starts 6 hours before UTC midnight', () => {
+    expect(todayBD('2026-11-12T03:00:00.000Z')).toBe('2026-11-12');
+    expect(todayBD('2026-11-11T18:00:00.000Z')).toBe('2026-11-12'); // midnight in Dhaka
+    expect(todayBD('2026-11-11T17:59:59.000Z')).toBe('2026-11-11');
+  });
+
+  it('adds days across months and years, and takes them away', () => {
+    expect(addDaysISO('2026-11-12', 3)).toBe('2026-11-15');
+    expect(addDaysISO('2026-11-30', 1)).toBe('2026-12-01');
+    expect(addDaysISO('2027-01-01', -1)).toBe('2026-12-31');
+    expect(addDaysISO('2028-02-28', 1)).toBe('2028-02-29');
+  });
+
+  it('moves months across years', () => {
+    expect(addMonthsISO('2026-11', -1)).toBe('2026-10');
+    expect(addMonthsISO('2026-01', -1)).toBe('2025-12');
+    expect(addMonthsISO('2026-08', 5)).toBe('2027-01');
+  });
+
+  it('knows how many days a month has, leap years included', () => {
+    expect(daysInMonthISO('2026-11')).toBe(30);
+    expect(daysInMonthISO('2026-12')).toBe(31);
+    expect(daysInMonthISO('2027-02')).toBe(28);
+    expect(daysInMonthISO('2028-02')).toBe(29);
   });
 });

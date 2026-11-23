@@ -68,3 +68,27 @@ export function daysUntilBD(date: string, nowIso: string): number {
     Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)));
   return Math.round((day(date) - day(dhakaDate(nowIso))) / 86_400_000);
 }
+
+/** Today's calendar date ("YYYY-MM-DD") in Asia/Dhaka, at the instant `nowIso`. */
+export function todayBD(nowIso: string): string {
+  return dhakaDate(nowIso);
+}
+
+const utcDay = (date: string) =>
+  Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
+
+/** A calendar date ("YYYY-MM-DD") moved by whole days; negative goes back. No time zone is involved. */
+export function addDaysISO(date: string, days: number): string {
+  return new Date(utcDay(date) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** A month ("YYYY-MM") moved by whole months; negative goes back. */
+export function addMonthsISO(month: string, months: number): string {
+  const index = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + months;
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+/** How many days a month ("YYYY-MM") has. */
+export function daysInMonthISO(month: string): number {
+  return new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
+}

@@ -15,11 +15,14 @@ import {
   unitStockSchema,
   vatReturnSchema,
 } from '@erp/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { DemoService } from './demoData';
 import type { IHttpClient } from './HttpClient';
 import { createServices } from './index';
 import { REPORT_CALLS, SampleReportService } from './sample/SampleReportService';
+
+/** The sample's own day (12 November 2026), so these tests never move with the calendar. */
+const STORY_DAY = '2026-11-12';
 
 /** Every report call answers from the API or from sample data on its own key (VITE_DEMO_DATA), one at a time. */
 class RecordingHttp implements IHttpClient {
@@ -54,7 +57,7 @@ describe('report service: one switch per figure group', () => {
 
 describe('SampleReportService: invented figures in the shared shapes', () => {
   it('every answer parses with its shared schema', async () => {
-    const sample = new SampleReportService(0);
+    const sample = new SampleReportService(0, STORY_DAY);
     expect(ownerDashboardSchema.parse(await sample.ownerDashboard())).toBeTruthy();
     expect(salesTodaySchema.parse(await sample.salesToday())).toBeTruthy();
     expect(stockValueSchema.parse(await sample.stockValue())).toBeTruthy();
@@ -76,7 +79,7 @@ describe('SampleReportService: invented figures in the shared shapes', () => {
 
 describe('the second-half calls', () => {
   it('needs action has only kinds the system can produce, and never offers a day close', async () => {
-    const sample = new SampleReportService(0);
+    const sample = new SampleReportService(0, STORY_DAY);
     const { items } = await sample.needsAction();
     expect(items.map((item) => item.kind)).not.toContain('sold_at_zero_stock');
     expect(Object.keys(await sample.dayCloseStatus()).sort()).toEqual([
@@ -84,5 +87,40 @@ describe('the second-half calls', () => {
       'status',
       'unmatchedBankItems',
     ]);
+  });
+});
+
+describe('sample dates follow today (or a fixed day, for tests)', () => {
+  it('moves every date with the day it is given', async () => {
+    const sample = new SampleReportService(0, '2026-12-03');
+    expect((await sample.vatReturn()).dueOn).toBe('2026-12-06'); // due in 3 days, as in the design
+    expect((await sample.vatReturn()).period).toBe('2026-11'); // last month's return
+    expect((await sample.ownerDashboard()).asOf).toBe('2026-12-03T03:00:00.000Z'); // 9:00 AM in Dhaka
+    expect(await sample.salesTarget()).toMatchObject({ month: '2026-12', daysInMonth: 31, daysElapsed: 2 });
+    expect((await sample.branchResults()).period).toEqual({ from: '2026-12-01', to: '2026-12-02' });
+    expect((await sample.dayCloseStatus()).lastClosedOn).toBe('2026-12-01');
+    const months = (await sample.monthlyResults()).months;
+    expect(months.map((m) => m.month)).toEqual([
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+    ]);
+    expect(months.map((m) => m.estimate)).toEqual([false, false, false, false, false, true]);
+  });
+
+  it('on the first of a month the period is that day alone', async () => {
+    const sample = new SampleReportService(0, '2027-01-01');
+    expect((await sample.branchResults()).period).toEqual({ from: '2027-01-01', to: '2027-01-01' });
+    expect((await sample.salesTarget()).daysElapsed).toBe(1);
+  });
+
+  it('without a fixed day it reads today in Dhaka from the clock', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-03-09T20:00:00.000Z')); // 2:00 AM on 10 March in Dhaka
+    expect((await new SampleReportService(0).vatReturn()).dueOn).toBe('2027-03-13');
+    vi.useRealTimers();
   });
 });
