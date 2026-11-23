@@ -39,7 +39,20 @@ export interface ActiveSession {
 }
 
 /** What AuthManager needs from the database. Owned by businessLogic; dal's AuthQuery satisfies it. */
+/** A user's roles in one business and branch, and their active permission codes (ADR 0051). */
+export interface ScopeGrant {
+  roles: string[];
+  permissions: string[];
+}
+
 export interface IAuthQuery {
+  /** Null when the business or branch is missing, inactive, another organization's, or not in the user's scopes. */
+  scopeFor(
+    userId: string,
+    organizationId: string,
+    businessId: string,
+    branchId: string,
+  ): Promise<ScopeGrant | null>;
   /** The one read before any tenant scope (ADR 0050): by lower-cased email or E.164 phone. */
   findUserForLogin(login: string): Promise<LoginUser | null>;
   /** One atomic UPDATE: counter + 1; at 5, lock until now + 15 minutes and reset the counter. */
