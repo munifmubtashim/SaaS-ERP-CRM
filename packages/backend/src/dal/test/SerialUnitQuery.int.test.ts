@@ -3,6 +3,7 @@ import { AppError } from '@erp/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { runInTenantScope } from '../config/tenantScope.js';
+import { ProductQuery } from '../query/ProductQuery.js';
 import { SerialUnitQuery } from '../query/SerialUnitQuery.js';
 import { createTree, newIds, setScope, type Tree } from './support/orgTree.js';
 
@@ -210,5 +211,61 @@ describe('sell and deliver', () => {
       status: 'delivered',
       version: 3,
     });
+  });
+});
+
+describe('a sale and an archive of the same product at the same moment (shared lock on the product)', () => {
+  const products = new ProductQuery();
+
+  /** Runs `first` in a request and holds its transaction open; then starts `second` and reports whether it waited. */
+  async function overlap<A, B>(first: () => Promise<A>, second: () => Promise<B>) {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let started!: () => void;
+    const firstDone = new Promise<void>((resolve) => (started = resolve));
+    const one = inRequest(x, async () => {
+      const result = await first();
+      started();
+      await held;
+      return result;
+    });
+    await firstDone;
+    let settled = false;
+    const two = inRequest(x, second).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    void two.finally(() => (settled = true));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const waited = !settled;
+    release();
+    return { waited, first: await one, second: await two };
+  }
+
+  it('archive first: the sale waits for it, then is refused with product.archived; the unit stays in stock', async () => {
+    const productId = await addProduct(x);
+    const unit = await addUnit(x, productId);
+    const { waited, second } = await overlap(
+      () => products.edit(productId, 1, { status: 'archived' }),
+      () => query.sell(unit.id, x.branchId, randomUUID(), null),
+    );
+    expect(waited).toBe(true);
+    expect(second.ok).toBe(false);
+    expect(await conflictCodes(Promise.reject(second.ok ? null : second.error))).toEqual([
+      'product.archived',
+    ]);
+    expect(await statusOf(x, unit.serialNo)).toBe('in_stock');
+  });
+
+  it('sale first: the archive waits for the sale to commit; the unit ends sold and the product archived', async () => {
+    const productId = await addProduct(x);
+    const unit = await addUnit(x, productId);
+    const { waited, second } = await overlap(
+      () => query.sell(unit.id, x.branchId, randomUUID(), null),
+      () => products.edit(productId, 1, { status: 'archived' }),
+    );
+    expect(waited).toBe(true);
+    expect(second).toMatchObject({ ok: true, value: { status: 'archived' } });
+    expect(await statusOf(x, unit.serialNo)).toBe('sold');
   });
 });

@@ -62,7 +62,8 @@ export class SerialUnitQuery extends BaseQuery {
   /**
    * in_stock (or reserved by `ref`) → sold, for an invoice, if its product is active (C2). Returns the unit's own
    * cost (invariant 7) for the sale's cost of goods (ADR 0022), and nothing else. 409 product.archived, or
-   * unit.not_available. The refused sale throws, so the request's transaction rolls back whole.
+   * unit.not_available. The refused sale throws, so the request's transaction rolls back whole. The product row is
+   * share-locked until the request commits, so a sale and an archive of the same product never interleave.
    */
   async sell(
     unitId: string,
@@ -72,21 +73,23 @@ export class SerialUnitQuery extends BaseQuery {
   ): Promise<{ unitCost: string }> {
     const sellable = Prisma.sql`su.id = ${unitId}::uuid AND su.branch_id = ${branchId}::uuid
       AND (su.status = 'in_stock' OR (su.status = 'reserved' AND su.reserved_by_ref = ${ref}::uuid))`;
+    // Lock the unit's product first (FOR SHARE): an archive running at the same moment waits for this sale to
+    // commit, and this sale waits for an in-flight archive, then reads the committed status. Sales of different
+    // units of one product share the lock and don't block each other.
+    const [product] = await this.db.$queryRaw<{ productStatus: string }[]>`
+      SELECT p.status AS "productStatus" FROM serial_unit su
+        JOIN product p ON p.business_id = su.business_id AND p.id = su.product_id
+       WHERE su.id = ${unitId}::uuid AND su.branch_id = ${branchId}::uuid
+         FOR SHARE OF p`;
+    if (product?.productStatus === 'archived') {
+      throw conflict('product.archived', 'This product is archived and cannot be sold.', 'productId');
+    }
     const [sold] = await this.db.$queryRaw<{ unitCost: string }[]>`
       UPDATE serial_unit su
          SET status = 'sold', invoice_id = ${invoiceId}::uuid, version = su.version + 1, updated_at = now()
-        FROM product p
-       WHERE p.business_id = su.business_id AND p.id = su.product_id AND p.status = 'active' AND ${sellable}
+       WHERE ${sellable}
       RETURNING su.unit_cost::text AS "unitCost"`;
     if (sold) return sold;
-    // Nothing changed. Only the error's code depends on this read; it writes nothing.
-    const [blocked] = await this.db.$queryRaw<{ productStatus: string }[]>`
-      SELECT p.status AS "productStatus" FROM serial_unit su
-        JOIN product p ON p.business_id = su.business_id AND p.id = su.product_id
-       WHERE ${sellable}`;
-    if (blocked?.productStatus === 'archived') {
-      throw conflict('product.archived', 'This product is archived and cannot be sold.', 'productId');
-    }
     throw conflict('unit.not_available', 'This unit is not available to sell at this branch.');
   }
 
