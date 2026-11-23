@@ -15,4 +15,23 @@ describe('message catalogues', () => {
   it('translates into Bangla', () => {
     expect(createTranslator('bn')('shell.nav.home')).toBe('হোম');
   });
+
+  it('fills {placeholders} from params, and leaves an unknown one as written', () => {
+    const t = createTranslator('en');
+    expect(t('dash.greeting.morning', { name: 'Sample Owner' })).toBe('Good morning, Sample Owner');
+    expect(t('dash.greeting.morning')).toBe('Good morning, {name}');
+    expect(t('dash.greeting.morning', { other: 'x' })).toBe('Good morning, {name}');
+  });
+
+  it('every placeholder in en is also in bn, so a Bangla sentence never drops a figure', () => {
+    const names = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+    for (const [key, text] of Object.entries(catalogues.en)) {
+      expect(names(catalogues.bn[key as keyof typeof catalogues.en]), key).toEqual(names(text));
+    }
+  });
+
+  it('in Bangla, number params are written with Bangla digits', () => {
+    expect(createTranslator('bn')('dash.kpi.cashNote', { days: 6 })).toBe('প্রায় ৬ দিনের খরচ চলবে');
+    expect(createTranslator('en')('dash.kpi.cashNote', { days: 6 })).toBe('Covers about 6 days of spending');
+  });
 });
