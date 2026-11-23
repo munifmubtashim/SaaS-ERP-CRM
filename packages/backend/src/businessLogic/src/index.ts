@@ -1,6 +1,7 @@
 // Public surface of @erp/business-logic, and the backend composition root (createManagers).
 import {
   createDbClient,
+  NumberSeriesQuery,
   HealthQuery,
   AuthQuery,
   OrganizationQuery,
@@ -31,6 +32,8 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import { NumberSeries } from './NumberSeries.js';
+import type { INumberSeries } from './contracts/provided/INumberSeries.js';
 import { SessionTokens } from './SessionTokens.js';
 import type { SessionLifetimes } from './AuthManager.js';
 import { Argon2PasswordHasher } from './Argon2PasswordHasher.js';
@@ -147,6 +150,8 @@ export interface ManagerConfig {
  */
 export function createManagers(config: ManagerConfig): {
   managers: Managers;
+  /** Services one module publishes for others (ADR 0012): Accounting's gapless numbers (ADR 0015). */
+  provided: { numberSeries: INumberSeries };
   tenantScope: ITenantScope;
   close: () => Promise<void>;
 } {
@@ -186,6 +191,7 @@ export function createManagers(config: ManagerConfig): {
   };
   return {
     managers,
+    provided: { numberSeries: new NumberSeries(new NumberSeriesQuery()) },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),
   };
