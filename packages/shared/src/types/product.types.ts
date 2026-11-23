@@ -1,9 +1,6 @@
 import type { z } from 'zod';
-import type { productSchema } from '../schemas/product.schema.js';
+import type { productSchema, productModelSummarySchema } from '../schemas/product.schema.js';
 
-/**
- * Product module, types. Owner: Munif.
- * TODO(Munif): products and catalogue (roadmap 5.4).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
- */
+/** Product types: z.infer of the shared schemas (provisional view shapes, see the schema file). */
 export type Product = z.infer<typeof productSchema>;
+export type ProductModelSummary = z.infer<typeof productModelSummarySchema>;
