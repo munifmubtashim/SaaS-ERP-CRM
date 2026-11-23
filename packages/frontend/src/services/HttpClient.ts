@@ -21,7 +21,12 @@ export interface IHttpClient {
     options?: { allowStatuses?: number[] },
   ): Promise<z.infer<T>>;
   /** POST a JSON body and validate the answer with a shared Zod schema. Throws ApiRequestError on a non-2xx. */
-  postJson<T extends z.ZodType>(path: string, body: unknown, schema: T): Promise<z.infer<T>>;
+  postJson<T extends z.ZodType>(
+    path: string,
+    body: unknown,
+    schema: T,
+    options?: { idempotencyKey?: string },
+  ): Promise<z.infer<T>>;
   /** POST with no answer expected (for example logout's 204). Throws ApiRequestError on a non-2xx. */
   post(path: string, body?: unknown): Promise<void>;
 }
@@ -49,8 +54,14 @@ export class HttpClient implements IHttpClient {
     return schema.parse(json);
   }
 
-  async postJson<T extends z.ZodType>(path: string, body: unknown, schema: T): Promise<z.infer<T>> {
-    const res = await this.send(path, body);
+  /** A money or stock POST passes its Idempotency-Key (ADR 0011): a retry with the same key answers the first result. */
+  async postJson<T extends z.ZodType>(
+    path: string,
+    body: unknown,
+    schema: T,
+    options?: { idempotencyKey?: string },
+  ): Promise<z.infer<T>> {
+    const res = await this.send(path, body, options?.idempotencyKey);
     const json: unknown = await res.json().catch(() => null);
     if (!res.ok) throw toError(res.status, json);
     return schema.parse(json);
@@ -61,11 +72,16 @@ export class HttpClient implements IHttpClient {
     if (!res.ok) throw toError(res.status, await res.json().catch(() => null));
   }
 
-  private send(path: string, body: unknown): Promise<Response> {
+  private send(path: string, body: unknown, idempotencyKey?: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     return fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body ?? {}),
     });
   }
