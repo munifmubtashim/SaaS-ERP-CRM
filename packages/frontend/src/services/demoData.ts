@@ -28,16 +28,20 @@ const REPORT_KEYS = [
   'report.kpiTrends',
 ] as const;
 
-export type DemoService = 'organization' | 'sales' | (typeof REPORT_KEYS)[number];
+export type DemoService = 'organization' | 'sales' | 'inventory' | (typeof REPORT_KEYS)[number];
 
 /** Services that have a sample implementation. A later screen PR adds its service here with its sample. */
 export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
   'organization',
   'sales',
+  'inventory',
   ...REPORT_KEYS,
 ]);
 
-/** No API yet: GET /v1/me/businesses (M2), the POS routes (ADR 0022) and none of the report calls are built. */
+/**
+ * No API yet: GET /v1/me/businesses (M2), the POS routes (ADR 0022), the stock routes (ADR 0021, 0054) and none of
+ * the report calls are built.
+ */
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = DEMO_CAPABLE;
 
 export function parseDemoData(

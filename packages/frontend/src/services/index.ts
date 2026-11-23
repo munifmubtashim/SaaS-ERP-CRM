@@ -8,6 +8,7 @@ import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
 import { ReportService, ReportServiceSwitch, type IReportService } from './reportService';
+import { SampleInventoryService } from './sample/SampleInventoryService';
 import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, type ISalesService } from './salesService';
@@ -24,6 +25,7 @@ export type { IOrganizationService } from './organizationService';
 export type { DemoService } from './demoData';
 export type { IReportService, ReportCall } from './reportService';
 export type { ISalesService, PaymentDraft } from './salesService';
+export type { IInventoryService } from './inventoryService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -63,7 +65,8 @@ export function createServices(
     // Sample until GET /v1/me/businesses exists (M2); a production build always calls the API.
     organization: demo.has('organization') ? new MockOrganizationService() : new OrganizationService(http),
     product: new ProductService(http),
-    inventory: new InventoryService(http),
+    // Sample until the stock routes exist (ADR 0021, 0054); a production build always calls the API.
+    inventory: demo.has('inventory') ? new SampleInventoryService() : new InventoryService(http),
     accounting: new AccountingService(http),
     vehicle: new VehicleService(http),
     // Each report call is real or sample on its own key (report.<call>).

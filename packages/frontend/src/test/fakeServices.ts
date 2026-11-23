@@ -2,6 +2,7 @@ import type { HealthResponse } from '@erp/shared';
 import type {
   IAuthService,
   IHealthService,
+  IInventoryService,
   IOrganizationService,
   IReportService,
   ISalesService,
@@ -59,6 +60,13 @@ export const unusedSales: ISalesService = {
   recordPayment: () => Promise.reject(new Error('This test recorded a payment without injecting a service.')),
 };
 
+/** IInventoryService for tests that never read stock: using it is a test bug, so it fails loudly. */
+export const unusedInventory: IInventoryService = {
+  stockItems: () => Promise.reject(new Error('This test listed stock without injecting a service.')),
+  stockItem: () => Promise.reject(new Error('This test opened a stock item without injecting a service.')),
+  movements: () => Promise.reject(new Error('This test listed movements without injecting a service.')),
+};
+
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
 export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
@@ -66,7 +74,7 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     auth: unusedAuth,
     organization: unusedOrganization,
     product: {},
-    inventory: {},
+    inventory: unusedInventory,
     accounting: {},
     vehicle: {},
     report: unusedReport,
