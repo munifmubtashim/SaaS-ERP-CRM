@@ -67,7 +67,7 @@ The columns ADR 0016 section 4 asks for, and nothing that can be computed:
    financed invoice, so its payment isn't taken as an advance. That waits for #65's question 5.
 2. **Not more than the invoice's due** (#53 question 1): the invoice row is locked with `SELECT … FOR UPDATE`, its
    due is total minus its posted payments, and an amount above it is refused with `409 CONFLICT`,
-   `payment.above_due`. The rest can be paid as an advance with a second payment. Open question 3.
+   `payment.exceeds_due`. The rest can be paid as an advance with a second payment. Open question 3.
 3. Receipt number (ADR 0015), payment id, journal (ADR 0016 section 2), insert with `journal_id`.
 4. The answer is `salesPaymentSchema`. A repeat with the same key returns it (ADR 0011).
 
@@ -110,7 +110,7 @@ Real Postgres, through the routes:
    replays the first.
 2. Without `X-Branch-Id`, the payment route answers 400; with a branch outside the caller's scope, 403.
 3. Three partial payments on one invoice get three consecutive receipt numbers, and the invoice's due falls
-   each time; a fourth above the remaining due gets `payment.above_due` and writes nothing.
+   each time; a fourth above the remaining due gets `payment.exceeds_due` and writes nothing.
 4. Bank, bKash and Card without an external id are refused (`CHECK` and schema); Cash is accepted without one.
 5. The same bKash transaction id twice in one business is refused; in another business it's accepted. After
    the first payment is voided, the same id is accepted on a new payment; two posted payments with it are
@@ -122,7 +122,7 @@ Real Postgres, through the routes:
 9. Isolation: business Y gets 404 for X's payment, party dues and invoice by id, on every route; a
    branch-2-only cashier can't post to branch 1.
 10. Two parallel payments on the last ৳1,000.00 of one invoice: one is accepted, the other gets
-    `payment.above_due` (the row lock, invariant 6).
+    `payment.exceeds_due` (the row lock, invariant 6).
 11. Tests check only their own fresh ids, never table-wide counts.
 
 ## Migration steps (written here, applied in the PR, not now)
@@ -138,7 +138,7 @@ Real Postgres, through the routes:
 
 | Part | Branch                     | Contents                                                                       | Size (approx.) | Needs first                          |
 | ---- | -------------------------- | ------------------------------------------------------------------------------ | -------------- | ------------------------------------ |
-| 1    | `feat/payment-codes`       | permission codes and defaults; `payment.above_due` field code (both)           | ~120           | this ADR, #26                        |
+| 1    | `feat/payment-codes`       | permission codes and defaults; `payment.exceeds_due` field code (both)         | ~120           | this ADR, #26                        |
 | 2    | `feat/sales-payment-table` | migration, `PaymentQuery`, dues read, list and read routes, tests 5, 7, 9, 11  | ~400           | ADR 0022 part 2, A11, `IPartyLedger` |
 | 3    | `feat/payment-posting`     | `POST /v1/payments` and void, with A16's posting (one PR), tests 1–4, 6, 8, 10 | ~400           | part 2, ADR 0016, A14 part 2, A14a   |
 | 4    | (on #53)                   | the payment screen switches from the mock to `SalesService`                    | ~100           | part 3                               |
