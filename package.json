@@ -24,12 +24,14 @@
     "format:check": "prettier --check .",
     "docker:up": "docker compose up -d --wait",
     "docker:down": "docker compose down",
+    "db:provisioner-role": "docker compose exec -T postgres sh /docker-entrypoint-initdb.d/02-provisioner-role.sh",
     "db:generate": "npm run db:generate -w @erp/dal",
     "db:migrate:dev": "npm run db:migrate:dev -w @erp/dal",
     "db:migrate:new": "npm run db:migrate:new -w @erp/dal --",
     "db:migrate:deploy": "npm run db:migrate:deploy -w @erp/dal",
     "db:migrate:check": "npm run db:migrate:check -w @erp/dal",
-    "db:studio": "npm run db:studio -w @erp/dal"
+    "db:studio": "npm run db:studio -w @erp/dal",
+    "db:seed": "npm run db:seed -w @erp/business-logic"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

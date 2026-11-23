@@ -205,3 +205,82 @@ export function formatMoneyBDT(amount: string, locale: 'en-BD' | 'bn-BD' = 'en-B
     locale === 'bn-BD' ? new Intl.NumberFormat('bn-BD').format(BigInt(paisa)).padStart(2, '০') : paisa;
   return `${negative ? '-' : ''}${grouped}.${decimals}`;
 }
+
+/**
+ * `part` as a share of `whole`, in basis points (35.15% -> 3515), rounded half away from zero. For dashboard
+ * percents: of a target, a margin, a share. It can pass 10,000 (over target) and be negative (a loss margin).
+ */
+export function ratioBasisPoints(part: Paisa, whole: Paisa): bigint {
+  if (whole <= 0n) throw moneyError('money.zero_whole', 'A percent needs a whole above zero');
+  return divideRounded(part * 10_000n, whole);
+}
+
+/** amount x numerator / denominator, rounded once to paisa: a pace or a projection over days. */
+export function prorate(amount: Paisa, numerator: bigint, denominator: bigint): Paisa {
+  if (denominator <= 0n)
+    throw moneyError('money.zero_denominator', 'Pro-rating needs a denominator above zero');
+  return inRange(divideRounded(amount * numerator, denominator));
+}
+
+/** Latin digits in a display string to Bangla ones, for the bn-BD locale. */
+function localDigits(text: string, locale: 'en-BD' | 'bn-BD'): string {
+  return locale === 'bn-BD' ? text.replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)] ?? d) : text;
+}
+
+/** A count of tenths (or units) as "35.1" (or "35"), with the sign in front. */
+function decimalText(scaled: bigint, decimals: 0 | 1): string {
+  const magnitude = scaled < 0n ? -scaled : scaled;
+  const text = decimals === 1 ? `${magnitude / 10n}.${magnitude % 10n}` : `${magnitude}`;
+  return `${scaled < 0n ? '-' : ''}${text}`;
+}
+
+/** Basis points as a display percent ("35.2%"), with `decimals` places, in English or Bangla digits. */
+export function formatPercent(
+  basisPoints: bigint,
+  locale: 'en-BD' | 'bn-BD' = 'en-BD',
+  decimals: 0 | 1 = 1,
+): string {
+  return `${localDigits(decimalText(divideRounded(basisPoints, decimals === 1 ? 10n : 100n), decimals), locale)}%`;
+}
+
+/**
+ * `part` of `whole` as a display percent, rounded once ("35.1%" for 14,059,500 of 40,000,000), so it never rounds
+ * twice the way formatting ratioBasisPoints would. Works for money (Paisa) and for counts such as days.
+ */
+export function formatShare(
+  part: bigint,
+  whole: bigint,
+  locale: 'en-BD' | 'bn-BD' = 'en-BD',
+  decimals: 0 | 1 = 1,
+): string {
+  if (whole <= 0n) throw moneyError('money.zero_whole', 'A percent needs a whole above zero');
+  const scaled = divideRounded(part * (decimals === 1 ? 1000n : 100n), whole);
+  return `${localDigits(decimalText(scaled, decimals), locale)}%`;
+}
+
+/** Whole taka with lakh/crore grouping, rounded half away from zero: "607166.67" -> "6,07,167". */
+export function formatTaka(amount: string, locale: 'en-BD' | 'bn-BD' = 'en-BD'): string {
+  const taka = divideRounded(parseMoney(amount), 100n);
+  const magnitude = taka < 0n ? -taka : taka;
+  const grouped = new Intl.NumberFormat(locale === 'bn-BD' ? 'bn-BD' : 'en-IN').format(magnitude);
+  return `${taka < 0n ? '-' : ''}${grouped}`;
+}
+
+/**
+ * A dashboard amount in lakh or crore: "12.8 lakh" (one decimal), "3.83 Cr" (two decimals); below one lakh, whole
+ * taka. Bangla: "১২.৮ লাখ", "৩.৮৩ কোটি".
+ */
+export function formatLakhCrore(amount: string, locale: 'en-BD' | 'bn-BD' = 'en-BD'): string {
+  const paisa = parseMoney(amount);
+  const magnitude = paisa < 0n ? -paisa : paisa;
+  const sign = paisa < 0n ? '-' : '';
+  if (magnitude >= 1_000_000_000n) {
+    const hundredths = divideRounded(magnitude, 10_000_000n);
+    const text = `${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`;
+    return `${sign}${localDigits(text, locale)} ${locale === 'bn-BD' ? 'কোটি' : 'Cr'}`;
+  }
+  if (magnitude >= 10_000_000n) {
+    return `${sign}${localDigits(decimalText(divideRounded(magnitude, 1_000_000n), 1), locale)} ${locale === 'bn-BD' ? 'লাখ' : 'lakh'}`;
+  }
+  return formatTaka(amount, locale);
+}

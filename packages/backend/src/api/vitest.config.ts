@@ -10,7 +10,16 @@ export default defineConfig({
   test: {
     projects: [
       { test: { name: 'unit', include: ['test/unit/**/*.test.ts'] } },
-      { test: { name: 'integration', include: ['test/integration/**/*.int.test.ts'], testTimeout: 20_000 } },
+      {
+        test: {
+          name: 'integration',
+          include: ['test/integration/**/*.int.test.ts'],
+          testTimeout: 20_000,
+          // One file at a time, like dal's integration tests: they share one database, and dal's TRUNCATE ... CASCADE
+          // refusal tests lock every table that references organization. Unit tests stay parallel.
+          fileParallelism: false,
+        },
+      },
       { test: { name: 'isolation', include: ['test/isolation/**/*.test.ts'] } },
     ],
   },

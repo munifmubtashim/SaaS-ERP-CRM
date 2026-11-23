@@ -1,3 +1,37 @@
 // Product module: products and catalogue (roadmap 5.4)
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// The product catalogue (ADR 0020 section 1). Business-level: no branch.
+model Product {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  /// Unique per business; never changed by erp_app (no column grant).
+  code       String
+  name       String
+  nameBn     String?  @map("name_bn")
+  /// Text in release 1 (ADR 0020 open question 1).
+  brand      String?
+  category   String?
+  /// The unit of measure shown next to quantities: pcs, set, bottle.
+  unit       String
+  /// serial or quantity (CHECK). Never changed by erp_app: units would be orphaned.
+  tracking   String
+  /// The current price; invoices copy it (P-07).
+  sellPrice  Decimal  @map("sell_price") @db.Decimal(18, 2)
+  /// active or archived (CHECK). An archived product can't be sold (C2).
+  status     String   @default("active")
+  /// Raised by the edit's Query (UPDATE … WHERE version = $read).
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  serialUnits SerialUnit[]
+
+  /// For serial_unit (business_id, product_id): a unit can't name another business's product.
+  @@unique([businessId, id])
+  @@unique([businessId, code])
+  @@map("product")
+}

@@ -24,13 +24,51 @@
   --color-nav-active: var(--nav-active);
   --color-nav-hover: var(--nav-hover);
   --color-chip: var(--chip-bg);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --color-insight: var(--insight);
+  --color-biz-a: var(--biz-a);
+  --color-biz-b: var(--biz-b);
+  --color-grid: var(--grid);
+  --color-track: var(--track);
+  --color-dot-fill: var(--dot-fill);
+  --color-ico-ink: var(--ico-ink);
+  --color-c1: var(--c1);
+  --color-c2: var(--c2);
+  --color-c3: var(--c3);
+  --color-tint-accent: var(--tint-accent);
+  --color-tint-pos: var(--tint-pos);
+  --color-tint-neg: var(--tint-neg);
+  --color-tint-warn: var(--tint-warn);
 }
 
-/* Glass surface from the approved design (design/owner-dashboard). */
+/* Glass surface from the approved design (design/owner-dashboard): 30px blur behind a translucent card. */
 @utility glass {
   background: var(--card);
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/*
+ * No-blur fallback: the same card without the blur, as the design itself shows while the sidebar moves. Used when
+ * the browser can't blur, when the user asks for less transparency, and when the app sets data-glass="off" on
+ * <html> (slow phones).
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-blur: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-blur: none;
+  }
+}
+:root[data-glass='off'] {
+  --glass-blur: none;
 }
 
 @utility num {
@@ -51,4 +89,200 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+
+  /* The design's control motion: colours and borders ease in 120ms; a pressed control shrinks to 97%. */
+  button,
+  a,
+  summary {
+    transition:
+      background-color 120ms ease-out,
+      border-color 120ms ease-out,
+      color 120ms ease-out,
+      transform 120ms ease-out,
+      filter 120ms ease-out;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button:not(:disabled):active {
+      transform: none;
+    }
+  }
+}
+
+/* The sidebar opens and closes over 240ms; meanwhile the other glass stops blurring (navMotion.ts). */
+.side {
+  transition:
+    width 240ms var(--ease-out),
+    padding 240ms var(--ease-out);
+}
+:root[data-nav-moving] .glass:not(.side) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@utility gloss {
+  background-image: var(--gloss);
+}
+
+/* Menus, sheets and toasts drop in (the design's ixPop). */
+@utility pop {
+  animation: ix-pop 150ms ease-out;
+}
+@keyframes ix-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Loading placeholder: a light sweep across the track colour (the design's .sk). */
+@utility sk {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--track) 25%, var(--nav-hover) 37%, var(--track) 63%);
+  background-size: 400% 100%;
+  animation: ix-sk 1.4s ease infinite;
+}
+@keyframes ix-sk {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/*
+ * Key figure cards (Main.dc.html kpis): the card is tinted in its tone over the glass, and its icon square glows in
+ * the same tone. The tone's rgb is the light theme's, in both themes, as the design does.
+ */
+.kpi[data-tone='accent'] {
+  --kpi-rgb: 79, 93, 240;
+  --kpi-line: var(--accent);
+}
+.kpi[data-tone='pos'] {
+  --kpi-rgb: 18, 165, 122;
+  --kpi-line: var(--pos);
+}
+.kpi[data-tone='neg'] {
+  --kpi-rgb: 224, 68, 102;
+  --kpi-line: var(--neg);
+}
+.kpi[data-tone='warn'] {
+  --kpi-rgb: 232, 154, 28;
+  --kpi-line: var(--warn);
+}
+.kpi {
+  background:
+    linear-gradient(145deg, rgba(var(--kpi-rgb), 0.2), rgba(var(--kpi-rgb), var(--kpi-tint-end))), var(--card);
+}
+.kpi-icon {
+  display: flex;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--ico-ink);
+  background: var(--kpi-line);
+  box-shadow:
+    0 8px 16px -6px rgba(var(--kpi-rgb), 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* The VAT alert (Main.dc.html): an amber wash over the glass and an amber icon square. */
+.vat-alert {
+  background: linear-gradient(0deg, var(--warn-bg), var(--warn-bg)), var(--card);
+}
+.vat-icon {
+  display: flex;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--on-warn);
+  background: var(--warn);
+}
+
+/*
+ * Chart motion (Main.dc.html): lines and areas draw in from the left (.rv on the clip rectangle), bars grow up one
+ * after another (.bv), the pie turns in (.pv), and a hovered slice springs out (.ps). Reduced motion turns them off.
+ */
+.rv {
+  animation: ix-rv 1.1s var(--ease-reveal) both;
+}
+.bv {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ix-bar 1.1s var(--ease-reveal) both;
+  transition: opacity 150ms ease-out;
+  cursor: pointer;
+}
+.pv {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: ix-pie 1.1s var(--ease-reveal) both;
+}
+.ps {
+  transition:
+    transform 320ms var(--ease-pop),
+    opacity 150ms linear;
+}
+@keyframes ix-rv {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes ix-bar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes ix-pie {
+  from {
+    transform: scale(0) rotate(-90deg);
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv,
+  .bv,
+  .pv {
+    animation: none;
+  }
+  .bv,
+  .ps {
+    transition: none;
+  }
+}
+
+/* A chart's hover card: solid, so figures stay readable over the lines (the design's tooltip). */
+.chart-tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  min-width: 168px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--dot-fill);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }

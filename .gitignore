@@ -182,3 +182,6 @@ packages/backend/src/dal/generated/
 
 # OS noise
 .DS_Store
+
+# Local-only branding (logos a customer has not agreed to publish). Never commit anything in it.
+packages/frontend/public/brand/local/

@@ -1,8 +1,68 @@
 import { z } from 'zod';
+import { moneySchema } from '../utils/money.js';
+import { quantityTextSchema } from './inventory.schema.js';
 
 /**
  * Sales module, Zod schemas shared by backend and frontend. Owner: Farhan.
- * TODO(Farhan): invoices, payments, POS sessions, returns (roadmap 5.6).
- * Stub only: no logic until a plan is agreed (CLAUDE.md lifecycle).
+ *
+ * PROVISIONAL VIEW SHAPES for the Sales / POS screen (design/owner-dashboard/Sales.dc.html): what the screen shows and
+ * sends. They don't decide how a sale posts (ADR 0022): no journal, stock movement or cost here. Replace them when
+ * ADR 0022's sale API is agreed.
  */
-export const salesSchema = z.object({});
+
+export const paymentMethodSchema = z.enum(['cash', 'card', 'bkash']);
+export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
+
+/** An item the counter can sell. Serial-tracked items list their available serial numbers. */
+export const posItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  category: z.string().min(1),
+  kind: z.enum(['serial', 'quantity']),
+  price: moneySchema,
+  available: quantityTextSchema,
+  serialNumbers: z.array(z.string().min(1)),
+});
+
+export const cartLineSchema = z.object({
+  itemId: z.string().min(1),
+  name: z.string().min(1),
+  unitPrice: moneySchema,
+  quantity: quantityTextSchema,
+  /** The unit sold, for a serial-tracked item; null for counted items. */
+  serialNumber: z.string().min(1).nullable(),
+});
+
+/** What Complete sale sends: the lines, a discount, and the payment received now (null: all due). */
+export const saleDraftSchema = z.object({
+  customerName: z.string().trim().min(1).max(200).nullable(),
+  lines: z.array(cartLineSchema).min(1),
+  discount: moneySchema,
+  payment: z.object({ method: paymentMethodSchema, amount: moneySchema }).nullable(),
+});
+
+export const invoiceSummarySchema = z.object({
+  number: z.string().min(1),
+  issuedAt: z.iso.datetime(),
+  customerName: z.string().min(1),
+  total: moneySchema,
+  paid: moneySchema,
+  status: invoiceStatusSchema,
+});
+
+export const invoiceDetailSchema = invoiceSummarySchema.extend({
+  soldBy: z.string().min(1),
+  lines: z.array(
+    z.object({
+      description: z.string().min(1),
+      quantity: quantityTextSchema,
+      unitPrice: moneySchema,
+      amount: moneySchema,
+    }),
+  ),
+  discount: moneySchema,
+  payments: z.array(
+    z.object({ receivedAt: z.iso.datetime(), method: paymentMethodSchema, amount: moneySchema }),
+  ),
+  balance: moneySchema,
+});

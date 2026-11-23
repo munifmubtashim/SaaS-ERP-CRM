@@ -4,7 +4,7 @@ import type { AuthContext, TenantScope } from '@erp/shared';
 declare global {
   namespace Express {
     interface Request {
-      /** Set by authMiddleware once auth exists (Phase 1). */
+      /** Set by authMiddleware from the session cookie (ADR 0018 section 6). */
       auth?: AuthContext;
       /** Set by tenantMiddleware once tenancy exists (Phase 1). */
       tenant?: TenantScope;

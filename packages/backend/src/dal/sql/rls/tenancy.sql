@@ -61,3 +61,27 @@ BEGIN
   RETURN string_to_array(v, ',')::uuid[];
 END
 $$;
+
+-- The login lookup's key (ADR 0018 section 4; Munif, 22 Nov). Shipped in migration auth_access. Unlike the three
+-- functions above it returns NULL when unset instead of raising: only the user table's SELECT policy reads it, to
+-- choose between the login path (key set: the one row whose lower(email) or phone equals it) and the normal
+-- organization check (key unset: app_organization_id() raises as usual). AuthQuery sets it, with set_config(...,
+-- true), only in its own login transaction.
+CREATE FUNCTION public.app_login_key() RETURNS text
+  LANGUAGE sql STABLE PARALLEL SAFE
+  SET search_path = pg_catalog
+AS $$
+  SELECT nullif(current_setting('app.login_key', true), '')
+$$;
+
+-- The session lookup's key (ADR 0050 section 6; Munif, 22 Nov). Shipped in the sessions migration. Like
+-- app_login_key() it returns NULL when unset instead of raising, so the session table's policies can choose between
+-- the session path (key set: the one row whose token_hash equals it) and the organization check. The value is the
+-- hex SHA-256 of the cookie token; a value that isn't hex raises. AuthQuery sets it, with set_config(..., true),
+-- only in its own session-lookup transaction.
+CREATE FUNCTION public.app_session_key() RETURNS bytea
+  LANGUAGE sql STABLE PARALLEL SAFE
+  SET search_path = pg_catalog
+AS $$
+  SELECT decode(nullif(current_setting('app.session_key', true), ''), 'hex')
+$$;

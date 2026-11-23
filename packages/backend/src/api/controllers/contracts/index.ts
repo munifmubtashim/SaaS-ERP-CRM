@@ -13,7 +13,7 @@ import type { IServiceManager } from './IServiceManager.js';
 import type { ICrmManager } from './ICrmManager.js';
 
 export type { IHealthManager } from './IHealthManager.js';
-export type { IAuthManager } from './IAuthManager.js';
+export type { AuthenticatedSession, IAuthManager, LoginOutcome } from './IAuthManager.js';
 export type { IOrganizationManager } from './IOrganizationManager.js';
 export type { IProductManager } from './IProductManager.js';
 export type { IInventoryManager } from './IInventoryManager.js';
@@ -25,6 +25,7 @@ export type { ISalesManager } from './ISalesManager.js';
 export type { IPurchaseManager } from './IPurchaseManager.js';
 export type { IServiceManager } from './IServiceManager.js';
 export type { ICrmManager } from './ICrmManager.js';
+export type { ITenantScopeRunner, TenantRunOptions } from './ITenantScopeRunner.js';
 
 /**
  * What the api layer needs from businessLogic, as interfaces it owns. server.ts passes the result of

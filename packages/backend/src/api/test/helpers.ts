@@ -1,5 +1,11 @@
 import { createLogger } from '../config/logger.js';
-import type { ApiManagers, IHealthManager } from '../controllers/contracts/index.js';
+import { AppError } from '@erp/shared';
+import type {
+  ApiManagers,
+  IAuthManager,
+  IHealthManager,
+  ITenantScopeRunner,
+} from '../controllers/contracts/index.js';
 
 export const silentLogger = createLogger({ level: 'silent', pretty: false });
 
@@ -16,11 +22,18 @@ export class FakeHealthManager implements IHealthManager {
   }
 }
 
+/** An auth Manager for tests that never log in: using it is a test bug, so it fails loudly. */
+export const unusedAuth: IAuthManager = {
+  login: () => Promise.reject(new AppError('INTERNAL_ERROR', 'This test logged in without an auth Manager.')),
+  authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
+  logout: () => Promise.resolve(),
+};
+
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
 export function fakeManagers(health: IHealthManager): ApiManagers {
   return {
     health,
-    auth: {},
+    auth: unusedAuth,
     organization: {},
     product: {},
     inventory: {},
@@ -37,3 +50,9 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
 
 export const managersWithDatabase = (databaseOk: boolean): ApiManagers =>
   fakeManagers(new FakeHealthManager(databaseOk));
+
+/** Tenant runner for tests that open no tenant scope: using it is a test bug, so it fails loudly. */
+export const noTenantScope: ITenantScopeRunner = {
+  run: () =>
+    Promise.reject(new AppError('INTERNAL_ERROR', 'This test opened a tenant scope it did not expect.')),
+};

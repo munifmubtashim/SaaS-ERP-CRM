@@ -1,3 +1,132 @@
-// Auth module: login, sessions, refresh tokens, 2FA (roadmap 5.1)
+// Auth module: users, roles, permissions and the scopes users hold roles in (ADR 0008 section 2, ADR 0009 part 3).
 // Owner: Munif. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// RLS is enabled and forced on app_user, role, role_permission and user_scope, scoped by organization, with one
+// login path on app_user keyed on app.login_key (ADR 0050), and on auth_session, with a session path keyed on
+// app.session_key (ADR 0050 section 6). Only AuthQuery names these tables (ADR 0008 test 15, ADR 0018 test 12).
+// The case-insensitive email index, the CHECKs, the user_scope triggers, the grants and the policies are raw SQL
+// in dal/sql/rls/auth_access.sql and dal/sql/triggers/user_scope.sql, copied into migration auth_access.
+
+model AppUser {
+  id             String    @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  /// One organization per user (ADR 0008 open question 1).
+  organizationId String    @map("organization_id") @db.Uuid
+  /// Unique across the system on lower(email), in raw SQL. Nullable: a user may sign in by phone only.
+  email          String?
+  /// E.164. Unique across the system (ADR 0018 open question 3).
+  phone          String?   @unique
+  /// argon2id; the settings are encoded in the hash (ADR 0018 section 5).
+  passwordHash   String    @map("password_hash")
+  displayName    String    @map("display_name")
+  isActive       Boolean   @default(true) @map("is_active")
+  lockedUntil    DateTime? @map("locked_until") @db.Timestamptz(6)
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  /// Two-factor secret, encrypted by the application; two-factor sign-in is phase 3 (ADR 0018).
+  mfaSecretEnc   Bytes?    @map("mfa_secret_enc")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// NULL only when seeded. No foreign key (ADR 0008 section 5).
+  createdBy      String?   @map("created_by") @db.Uuid
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  scopes          UserScope[]
+  /// Back-relation for idempotency_key.user_id (ON DELETE RESTRICT); only the idempotency Query uses that table.
+  idempotencyKeys IdempotencyKey[]
+  sessions        AuthSession[]
+
+  /// For auth_session (user_id, organization_id): a session can't name a user of another organization (ADR 0050 §6).
+  @@unique([id, organizationId])
+  @@map("app_user")
+}
+
+model Role {
+  id             String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// One of ROLE_CODES for the five system roles; never changed after insert.
+  code           String
+  name           String
+  /// System roles can't be edited or deactivated through the API (ADR 0008 section 2).
+  isSystem       Boolean  @default(false) @map("is_system")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy      String?  @map("created_by") @db.Uuid
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  permissions  RolePermission[]
+  scopes       UserScope[]
+
+  @@unique([organizationId, code])
+  @@map("role")
+}
+
+/// Global and seeded from shared/src/utils/permissions.ts; read-only to erp_app.
+model Permission {
+  code        String @id
+  description String
+
+  roles RolePermission[]
+
+  @@map("permission")
+}
+
+/// A permission leaves a custom role by deactivation, never deletion (ADR 0050); erp_app updates is_active only.
+model RolePermission {
+  roleId         String   @map("role_id") @db.Uuid
+  permissionCode String   @map("permission_code")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionCode], references: [code])
+
+  @@id([roleId, permissionCode])
+  @@map("role_permission")
+}
+
+/// Where a user holds a role. Both scope columns null = whole group (Owner only, by trigger); business only = one
+/// business; branch set = one branch of that business (composite foreign key). Removed by deactivating, never deleted.
+model UserScope {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  businessId String?  @map("business_id") @db.Uuid
+  branchId   String?  @map("branch_id") @db.Uuid
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  user     AppUser   @relation(fields: [userId], references: [id])
+  role     Role      @relation(fields: [roleId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch   Branch?   @relation(fields: [businessId, branchId], references: [businessId, id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("user_scope")
+}
+
+/// A signed-in session (ADR 0018 section 1, ADR 0050 section 6). The cookie holds the token; only its SHA-256 is
+/// stored. Rows are never deleted: a session expires or is revoked (a retention job comes later).
+model AuthSession {
+  id                String    @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  /// SHA-256 of the cookie token, 32 bytes (CHECK); the session path's key.
+  tokenHash         Bytes     @unique @map("token_hash")
+  userId            String    @map("user_id") @db.Uuid
+  /// Copied from the user; the composite foreign key keeps them in step.
+  organizationId    String    @map("organization_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Moved at most once every 5 minutes, with idle_expires_at.
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  idleExpiresAt     DateTime  @map("idle_expires_at") @db.Timestamptz(6)
+  /// Never extended.
+  absoluteExpiresAt DateTime  @map("absolute_expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  /// First 200 characters, for the session list later (U-08).
+  userAgent         String?   @map("user_agent") @db.VarChar(200)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         AppUser      @relation(fields: [userId, organizationId], references: [id, organizationId])
+
+  @@index([userId])
+  @@map("auth_session")
+}

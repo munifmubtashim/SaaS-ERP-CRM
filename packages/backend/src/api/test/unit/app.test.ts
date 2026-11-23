@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { createApp } from '../../app.js';
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
 import { parseInput } from '../../middleware/validate.js';
-import { managersWithDatabase, silentLogger } from '../helpers.js';
+import { managersWithDatabase, noTenantScope, silentLogger } from '../helpers.js';
 
 const appWith = (databaseOk: boolean) =>
-  createApp({ logger: silentLogger, managers: managersWithDatabase(databaseOk) });
+  createApp({ logger: silentLogger, managers: managersWithDatabase(databaseOk), tenantScope: noTenantScope });
 
 describe('GET /health (HealthRoutes -> HealthController -> HealthManager)', () => {
   it('returns 200 and the shared health contract when the database answers', async () => {
@@ -33,11 +33,19 @@ describe('GET /health (HealthRoutes -> HealthController -> HealthManager)', () =
 });
 
 describe('error shape {code, message, fields[], requestId}', () => {
-  it('is used for unknown routes, including stub module paths with no routes yet', async () => {
-    const res = await request(appWith(true)).get('/v1/sales/anything');
+  it('is used for unknown routes', async () => {
+    const res = await request(appWith(true)).get('/not-a-route');
     expect(res.status).toBe(404);
     const err = apiErrorSchema.parse(res.body);
     expect(err.code).toBe('NOT_FOUND');
+    expect(err.requestId).toBe(res.headers['x-request-id']);
+  });
+
+  it('is used when a /v1 request has no session, before any 404 (ADR 0018 section 6)', async () => {
+    const res = await request(appWith(true)).get('/v1/sales/anything');
+    expect(res.status).toBe(401);
+    const err = apiErrorSchema.parse(res.body);
+    expect(err.code).toBe('UNAUTHENTICATED');
     expect(err.requestId).toBe(res.headers['x-request-id']);
   });
 
@@ -64,6 +72,7 @@ describe('error shape {code, message, fields[], requestId}', () => {
   it('rejects malformed JSON with VALIDATION_FAILED, not a 500', async () => {
     const res = await request(appWith(true))
       .post('/health')
+      .set('Origin', 'http://localhost:5173')
       .set('Content-Type', 'application/json')
       .send('{"broken":');
     expect(res.status).toBe(400);

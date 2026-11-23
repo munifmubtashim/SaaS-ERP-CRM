@@ -20,9 +20,22 @@ export interface IHttpClient {
     schema: T,
     options?: { allowStatuses?: number[] },
   ): Promise<z.infer<T>>;
+  /** POST a JSON body and validate the answer with a shared Zod schema. Throws ApiRequestError on a non-2xx. */
+  postJson<T extends z.ZodType>(
+    path: string,
+    body: unknown,
+    schema: T,
+    options?: { idempotencyKey?: string },
+  ): Promise<z.infer<T>>;
+  /** POST with no answer expected (for example logout's 204). Throws ApiRequestError on a non-2xx. */
+  post(path: string, body?: unknown): Promise<void>;
 }
 
-/** fetch-based client. In development, Vite proxies /api to the API server. */
+/**
+ * fetch-based client. In development, Vite proxies /api to the API server, so every call is same-origin: the
+ * browser sends the HttpOnly session cookie and the app's Origin itself (ADR 0018 section 2). No token is ever read,
+ * stored or sent by this code; there is no Authorization header.
+ */
 export class HttpClient implements IHttpClient {
   constructor(private readonly baseUrl = '/api') {}
 
@@ -31,13 +44,50 @@ export class HttpClient implements IHttpClient {
     schema: T,
     options?: { allowStatuses?: number[] },
   ): Promise<z.infer<T>> {
-    const res = await fetch(`${this.baseUrl}${path}`, { headers: { Accept: 'application/json' } });
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    });
     const json: unknown = await res.json().catch(() => null);
-    if (!res.ok && !options?.allowStatuses?.includes(res.status)) {
-      const parsed = apiErrorSchema.safeParse(json);
-      throw new ApiRequestError(res.status, parsed.success ? parsed.data : null);
-    }
+    if (!res.ok && !options?.allowStatuses?.includes(res.status)) throw toError(res.status, json);
     // Contract drift between backend and frontend fails loudly here instead of rendering wrong numbers.
     return schema.parse(json);
   }
+
+  /** A money or stock POST passes its Idempotency-Key (ADR 0011): a retry with the same key answers the first result. */
+  async postJson<T extends z.ZodType>(
+    path: string,
+    body: unknown,
+    schema: T,
+    options?: { idempotencyKey?: string },
+  ): Promise<z.infer<T>> {
+    const res = await this.send(path, body, options?.idempotencyKey);
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) throw toError(res.status, json);
+    return schema.parse(json);
+  }
+
+  async post(path: string, body?: unknown): Promise<void> {
+    const res = await this.send(path, body);
+    if (!res.ok) throw toError(res.status, await res.json().catch(() => null));
+  }
+
+  private send(path: string, body: unknown, idempotencyKey?: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+    return fetch(`${this.baseUrl}${path}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      body: JSON.stringify(body ?? {}),
+    });
+  }
+}
+
+function toError(status: number, json: unknown): ApiRequestError {
+  const parsed = apiErrorSchema.safeParse(json);
+  return new ApiRequestError(status, parsed.success ? parsed.data : null);
 }

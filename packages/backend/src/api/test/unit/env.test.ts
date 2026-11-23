@@ -25,3 +25,95 @@ describe('loadEnv: database limits (ADR 0005)', () => {
     expect(() => loadEnv({ ...base, [name]: value })).toThrow(name);
   });
 });
+
+describe('loadEnv: PROVISIONING_DATABASE_URL (ADR 0010, Munif 20 Nov on #32)', () => {
+  const url = 'postgresql://erp_provisioner:x@localhost:5433/erp';
+
+  it('is optional in development and tests (provisioning then answers 503)', () => {
+    expect(loadEnv(base).PROVISIONING_DATABASE_URL).toBeUndefined();
+    expect(loadEnv({ ...base, NODE_ENV: 'test' }).PROVISIONING_DATABASE_URL).toBeUndefined();
+  });
+
+  it('is read when set', () => {
+    expect(loadEnv({ ...base, PROVISIONING_DATABASE_URL: url }).PROVISIONING_DATABASE_URL).toBe(url);
+  });
+
+  it('is required in production: start-up fails without it', () => {
+    expect(() => loadEnv({ ...base, NODE_ENV: 'production' })).toThrow('PROVISIONING_DATABASE_URL');
+    expect(
+      loadEnv({
+        ...base,
+        NODE_ENV: 'production',
+        PROVISIONING_DATABASE_URL: url,
+        APP_ORIGIN: 'https://erp.example.com',
+      }).NODE_ENV,
+    ).toBe('production');
+  });
+
+  it('must be a URL when set', () => {
+    expect(() => loadEnv({ ...base, PROVISIONING_DATABASE_URL: 'not a url' })).toThrow(
+      'PROVISIONING_DATABASE_URL',
+    );
+  });
+});
+
+describe('loadEnv: sessions (ADR 0018 sections 2 and 3)', () => {
+  const prod = {
+    ...base,
+    NODE_ENV: 'production',
+    PROVISIONING_DATABASE_URL: 'postgresql://erp_provisioner:x@localhost:5433/erp',
+    APP_ORIGIN: 'https://erp.example.com',
+  };
+
+  it('defaults to 8 hours idle, 7 days absolute, and a Secure __Host- cookie', () => {
+    const env = loadEnv(base);
+    expect(env.SESSION_IDLE_HOURS).toBe(8);
+    expect(env.SESSION_ABSOLUTE_DAYS).toBe(7);
+    expect(env.SESSION_COOKIE_SECURE).toBe(true);
+  });
+
+  it('reads the lifetimes, and allows a non-Secure cookie for http://localhost in development', () => {
+    const env = loadEnv({
+      ...base,
+      SESSION_IDLE_HOURS: '4',
+      SESSION_ABSOLUTE_DAYS: '3',
+      SESSION_COOKIE_SECURE: 'false',
+    });
+    expect([env.SESSION_IDLE_HOURS, env.SESSION_ABSOLUTE_DAYS, env.SESSION_COOKIE_SECURE]).toEqual([
+      4,
+      3,
+      false,
+    ]);
+  });
+
+  it('production always uses the Secure __Host- cookie: start-up fails with SESSION_COOKIE_SECURE=false', () => {
+    expect(() => loadEnv({ ...prod, SESSION_COOKIE_SECURE: 'false' })).toThrow('SESSION_COOKIE_SECURE');
+    expect(loadEnv(prod).SESSION_COOKIE_SECURE).toBe(true);
+  });
+
+  it('refuses an idle timeout longer than the absolute one', () => {
+    expect(() => loadEnv({ ...base, SESSION_IDLE_HOURS: '200', SESSION_ABSOLUTE_DAYS: '7' })).toThrow(
+      'SESSION_IDLE_HOURS',
+    );
+  });
+});
+
+describe('loadEnv: APP_ORIGIN (ADR 0018 section 2)', () => {
+  const prod = {
+    ...base,
+    NODE_ENV: 'production',
+    PROVISIONING_DATABASE_URL: 'postgresql://erp_provisioner:x@localhost:5433/erp',
+  };
+
+  it('is optional in development (the Vite dev server is assumed)', () => {
+    expect(loadEnv(base).APP_ORIGIN).toBeUndefined();
+  });
+
+  it('is required in production, and must be a URL', () => {
+    expect(() => loadEnv(prod)).toThrow('APP_ORIGIN');
+    expect(() => loadEnv({ ...prod, APP_ORIGIN: 'erp.example.com' })).toThrow('APP_ORIGIN');
+    expect(loadEnv({ ...prod, APP_ORIGIN: 'https://erp.example.com' }).APP_ORIGIN).toBe(
+      'https://erp.example.com',
+    );
+  });
+});

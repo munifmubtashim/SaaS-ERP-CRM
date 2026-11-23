@@ -1,18 +1,31 @@
-import { createManagers } from '@erp/business-logic';
+import { createManagers, DenyAllRoleSource } from '@erp/business-logic';
 import { createApp } from './app.js';
 import { loadEnv } from './config/env.js';
 import { createLogger } from './config/logger.js';
 
 const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
-const { managers, close } = createManagers({
+const { managers, tenantScope, close } = createManagers({
   databaseUrl: env.DATABASE_URL,
   version: env.APP_VERSION,
   dbPoolMax: env.DB_POOL_MAX,
   dbTxTimeoutMs: env.DB_TX_TIMEOUT_MS,
+  provisioningDatabaseUrl: env.PROVISIONING_DATABASE_URL,
+  // Until A5 reads roles from the session (ADR 0010, decided by Farhan on #32): nobody may provision yet.
+  roleSource: new DenyAllRoleSource(),
+  sessionLifetimes: {
+    idleMs: env.SESSION_IDLE_HOURS * 3_600_000,
+    absoluteMs: env.SESSION_ABSOLUTE_DAYS * 24 * 3_600_000,
+  },
 });
 
-const server = createApp({ logger, managers }).listen(env.API_PORT, () => {
+const server = createApp({
+  logger,
+  managers,
+  tenantScope,
+  sessionCookie: { secure: env.SESSION_COOKIE_SECURE },
+  appOrigin: env.APP_ORIGIN,
+}).listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'api listening');
 });
 

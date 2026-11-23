@@ -56,6 +56,8 @@ describe('RLS policy functions (ADR 0005)', () => {
         SELECT app_organization_id()::text AS org,
                app_business_ids()::text[] AS businesses,
                app_branch_ids()::text[] AS branches`,
+      // Several businesses are allowed only read-only (ADR 0005, Q2).
+      { readOnly: true },
     );
     expect(row).toEqual({ org: ORG, businesses: [BIZ_A, BIZ_B], branches: [BRANCH_A1, BRANCH_A2] });
   });

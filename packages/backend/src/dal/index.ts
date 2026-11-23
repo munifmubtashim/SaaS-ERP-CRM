@@ -1,14 +1,22 @@
 // Public surface of @erp/dal. Only businessLogic imports it. Never re-export generated Prisma types.
 export { createDbClient, type DbClient, type DbClientOptions } from './config/db.js';
-export { runInTenantScope } from './config/tenantScope.js';
+export { runInTenantScope, TenantScopeRunner, type TenantRunOptions } from './config/tenantScope.js';
 export { BaseDTO, type BaseRow } from './dto/BaseDTO.js';
 export { HealthDTO } from './dto/HealthDTO.js';
 export { BaseQuery } from './query/BaseQuery.js';
 export { HealthQuery } from './query/HealthQuery.js';
-export { AuthDTO } from './dto/AuthDTO.js';
-export { AuthQuery } from './query/AuthQuery.js';
+export { AuthDTO, LoginUserDTO, SessionDTO } from './dto/AuthDTO.js';
+export { AuthQuery, type CreateUserInput, type NewSessionInput } from './query/AuthQuery.js';
 export { OrganizationDTO } from './dto/OrganizationDTO.js';
 export { OrganizationQuery } from './query/OrganizationQuery.js';
+// The provisioner (ADR 0010): the factory and the types only. The client stays inside dal.
+export { BusinessDTO, BranchDTO } from './dto/OrganizationDTO.js';
+export {
+  createProvisioningQuery,
+  type ProvisioningQuery,
+  type CreateBusinessInput,
+  type CreateBranchInput,
+} from './query/ProvisioningQuery.js';
 export { ProductDTO } from './dto/ProductDTO.js';
 export { ProductQuery } from './query/ProductQuery.js';
 export { InventoryDTO } from './dto/InventoryDTO.js';
@@ -29,3 +37,11 @@ export { ServiceDTO } from './dto/ServiceDTO.js';
 export { ServiceQuery } from './query/ServiceQuery.js';
 export { CrmDTO } from './dto/CrmDTO.js';
 export { CrmQuery } from './query/CrmQuery.js';
+// Seeds (ADR 0009 part 4): run as the migration owner, outside requests, by the seed script.
+export { seedPermissions, seedSystemRoles } from './prisma/seeds/systemRoles.js';
+export {
+  DEMO_IDS,
+  seedDemoOrganization,
+  type DemoIds,
+  type DemoOwner,
+} from './prisma/seeds/demoOrganization.js';
