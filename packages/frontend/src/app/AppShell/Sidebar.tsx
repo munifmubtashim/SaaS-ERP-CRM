@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react';
-import { DemoBadge, Icon } from '../../components/ui';
+import { BrandLogo, DemoBadge, Icon } from '../../components/ui';
 import { useMyBusinesses } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { useSession } from '../../store/sessionStore';
@@ -24,7 +24,12 @@ export function Sidebar({ footer }: { footer?: ReactNode }) {
       className={`glass side sticky top-3 m-3 hidden h-[calc(100vh-1.5rem)] flex-col gap-3 overflow-y-auto rounded-3xl p-3 md:flex ${compact ? 'w-18' : 'w-58'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        {!compact && <span className="num text-lg font-bold">{t('app.name')}</span>}
+        {!compact && (
+          <BrandLogo
+            className="h-[72px]"
+            fallback={<span className="num text-lg font-bold">{t('app.name')}</span>}
+          />
+        )}
         <button
           type="button"
           className="inline-flex size-11 items-center justify-center rounded-xl border border-card-border bg-chip hover:border-accent"

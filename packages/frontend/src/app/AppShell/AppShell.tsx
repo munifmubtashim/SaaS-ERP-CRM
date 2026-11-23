@@ -5,7 +5,7 @@ import { ScopeSwitcher } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
 import { Backdrop } from './Backdrop';
-import { Icon } from '../../components/ui';
+import { BrandLogo, Icon } from '../../components/ui';
 import { LanguageSwitch } from './LanguageSwitch';
 import { PhoneTabs } from './PhoneTabs';
 import { Sidebar } from './Sidebar';
@@ -44,6 +44,7 @@ export function AppShell() {
       <Sidebar footer={account} />
       <div className="flex min-w-0 flex-1 flex-col pb-24 md:pb-0">
         <header className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
+          <BrandLogo variant="mark" className="h-8 md:hidden" fallback={null} />
           <div className="mr-auto">
             <ScopeSwitcher />
           </div>
