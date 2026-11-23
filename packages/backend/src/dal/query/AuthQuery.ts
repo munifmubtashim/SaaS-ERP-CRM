@@ -1,5 +1,5 @@
 import { AppError } from '@erp/shared';
-import { LoginUserDTO, SessionDTO, type SessionRow } from '../dto/AuthDTO.js';
+import { LoginUserDTO, ScopeDTO, SessionDTO, type ScopeRow, type SessionRow } from '../dto/AuthDTO.js';
 import type { TxClient } from '../config/tenantScope.js';
 import { UnscopedQuery } from './UnscopedQuery.js';
 
@@ -216,6 +216,45 @@ export class AuthQuery extends UnscopedQuery {
         UPDATE auth_session SET revoked_at = ${now}
         WHERE user_id = ${user.id}::uuid AND organization_id = ${user.organizationId}::uuid AND revoked_at IS NULL`,
     );
+  }
+
+  /**
+   * The roles that let a user work in one business and branch (ADR 0051, verified rather than listed). Inside the
+   * session's organization, with app.business_ids and app.branch_ids set to the ids the request names, so RLS shows
+   * the business only if it is this organization's and the branch only if it is that business's. Null when either
+   * is missing, inactive or another organization's, or when no active scope of the user covers both: the caller
+   * can't tell which.
+   */
+  async scopeFor(
+    userId: string,
+    organizationId: string,
+    businessId: string,
+    branchId: string,
+  ): Promise<ScopeDTO | null> {
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT set_config('app.organization_id', ${organizationId}, true),
+               set_config('app.business_ids', ${businessId}, true),
+               set_config('app.branch_ids', ${branchId}, true)`;
+      const place = await tx.$queryRaw<{ ok: number }[]>`
+        SELECT 1 AS ok FROM branch br JOIN business bu ON bu.id = br.business_id
+         WHERE br.id = ${branchId}::uuid AND bu.id = ${businessId}::uuid
+           AND bu.organization_id = ${organizationId}::uuid AND bu.is_active AND br.is_active`;
+      if (place.length !== 1) return null;
+      const rows = await tx.$queryRaw<ScopeRow[]>`
+        SELECT r.code AS role,
+               coalesce(array_agg(rp.permission_code ORDER BY rp.permission_code)
+                        FILTER (WHERE rp.is_active), '{}') AS permissions
+          FROM user_scope us
+          JOIN role r ON r.id = us.role_id AND r.is_active
+          LEFT JOIN role_permission rp ON rp.role_id = r.id
+         WHERE us.user_id = ${userId}::uuid AND us.is_active
+           AND (us.business_id IS NULL
+                OR (us.business_id = ${businessId}::uuid AND (us.branch_id IS NULL OR us.branch_id = ${branchId}::uuid)))
+         GROUP BY r.code
+         ORDER BY r.code`;
+      return rows.length > 0 ? ScopeDTO.fromRows(rows) : null;
+    });
   }
 
   /** One short transaction with only app.session_key set (transaction-local): the session path (ADR 0050 §6). */

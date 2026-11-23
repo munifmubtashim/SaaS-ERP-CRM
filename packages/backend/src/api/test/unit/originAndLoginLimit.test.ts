@@ -18,6 +18,7 @@ const refuseAll: IAuthManager = {
     Promise.reject(new AppError('UNAUTHENTICATED', 'Login or password is wrong.')),
   authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
   logout: () => Promise.resolve(),
+  resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
 };
 
 function appWith(clock = { now: 0 }) {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  hasAnyRole,
+  hasPermission,
   PERMISSIONS,
   permissionCodeSchema,
   ROLE_CODES,
@@ -112,5 +114,20 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
 
   it('maps Owner explicitly to every code in PERMISSIONS (no wildcard)', () => {
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.owner)).toEqual(sorted(PERMISSIONS));
+  });
+});
+
+describe('the access checks the api uses (ADR 0051 section 2)', () => {
+  it('hasPermission: only a granted code passes', () => {
+    expect(hasPermission(['report.profit.view'], 'report.profit.view')).toBe(true);
+    expect(hasPermission(['product.cost.view'], 'report.profit.view')).toBe(false);
+    expect(hasPermission([], 'accounting.salary.view')).toBe(false);
+  });
+
+  it('hasAnyRole: one of the allowed role codes passes; an unknown or empty role list does not', () => {
+    expect(hasAnyRole(['cashier', 'business_manager'], ['owner', 'business_manager'])).toBe(true);
+    expect(hasAnyRole(['branch_manager', 'cashier'], ['owner', 'business_manager'])).toBe(false);
+    expect(hasAnyRole(['custom_role'], ['owner'])).toBe(false);
+    expect(hasAnyRole([], ['owner'])).toBe(false);
   });
 });

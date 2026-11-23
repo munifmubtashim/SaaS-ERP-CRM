@@ -5,7 +5,7 @@ import { createLogger } from './config/logger.js';
 
 const env = loadEnv();
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
-const { managers, tenantScope, close } = createManagers({
+const { managers, provided, tenantScope, close } = createManagers({
   databaseUrl: env.DATABASE_URL,
   version: env.APP_VERSION,
   dbPoolMax: env.DB_POOL_MAX,
@@ -23,6 +23,7 @@ const server = createApp({
   logger,
   managers,
   tenantScope,
+  idempotency: provided.idempotency,
   sessionCookie: { secure: env.SESSION_COOKIE_SECURE },
   appOrigin: env.APP_ORIGIN,
 }).listen(env.API_PORT, () => {

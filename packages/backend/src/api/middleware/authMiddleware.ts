@@ -20,7 +20,7 @@ export function createAuthMiddleware(manager: IAuthManager, cookie: SessionCooki
       const token = readSessionToken(cookie, req.headers.cookie);
       if (!token) throw new AppError('UNAUTHENTICATED', 'Sign in to continue.');
       const session = await manager.authenticate(token);
-      req.auth = { ...session, roles: [] };
+      req.auth = { ...session, roles: [], permissions: [] };
       next();
     } catch (err) {
       next(err);

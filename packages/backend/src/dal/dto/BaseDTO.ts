@@ -10,7 +10,8 @@ export interface BaseRow {
   branchId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  createdBy: string;
+  /** The caller who created the row; NULL only when seeded (#27). */
+  createdBy: string | null;
   /** Optimistic-locking version. */
   version: number;
 }
@@ -26,7 +27,7 @@ export abstract class BaseDTO {
   readonly branchId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly createdBy: string;
+  readonly createdBy: string | null;
   readonly version: number;
 
   protected constructor(row: BaseRow) {

@@ -27,6 +27,9 @@ class FakeAuthManager implements IAuthManager {
   async login(): Promise<never> {
     throw new AppError('INTERNAL_ERROR', 'not used here');
   }
+  async resolveScope(): Promise<never> {
+    throw new AppError('INTERNAL_ERROR', 'not used here');
+  }
   async authenticate(token: string): Promise<AuthenticatedSession> {
     this.authenticated.push(token);
     if (token !== TOKEN || this.revoked.has(token)) throw new AppError('UNAUTHENTICATED', 'Sign in again.');
@@ -64,7 +67,7 @@ describe('authMiddleware (ADR 0018 section 6)', () => {
       .get('/v1/anything')
       .set('Cookie', `theme=dark; __Host-erp_sid=${TOKEN}`);
     expect(res.status).toBe(200);
-    expect(res.body.auth).toEqual({ ...WHO, roles: [] });
+    expect(res.body.auth).toEqual({ ...WHO, roles: [], permissions: [] });
   });
 
   it.each([

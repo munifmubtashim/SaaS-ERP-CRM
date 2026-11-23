@@ -8,4 +8,21 @@ export interface IsolationCase {
   attempts: string[];
 }
 
-export const ISOLATION_CASES: Record<string, IsolationCase> = {};
+export const ISOLATION_CASES: Record<string, IsolationCase> = {
+  // Run by products.isolation.test.ts against real Postgres.
+  'GET /v1/products': {
+    attempts: [
+      "list in business Y and find X's product: none",
+      "name another organization's business, a business without a scope or a guessed id: the same 404",
+    ],
+  },
+  'GET /v1/products/:id': {
+    attempts: ["read X's product from Y: 404, the same as a guessed id"],
+  },
+  'POST /v1/products': {
+    attempts: ['send businessId of Y in the body: 400; the row lands only in the scope business'],
+  },
+  'PATCH /v1/products/:id': {
+    attempts: ["edit X's product from Y: 404, and X's product is unchanged"],
+  },
+};
