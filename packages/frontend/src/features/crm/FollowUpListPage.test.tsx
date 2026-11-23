@@ -39,6 +39,14 @@ class FakeCrmService implements ICrmService {
     this.failWith = undefined;
   }
 
+  recordFollowUp(): never {
+    throw new Error('The list does not record follow-ups.');
+  }
+
+  listCollectors(): never {
+    throw new Error('The list does not load collectors.');
+  }
+
   async listFollowUps(query: FollowUpListQueryInput): Promise<FollowUpListResponse> {
     this.queries.push(query);
     if (this.failWith) throw this.failWith;
@@ -111,6 +119,16 @@ describe('FollowUpListPage (CR-05, mock data)', () => {
     if (!row) throw new Error('no row');
     expect(within(row).getByText('No answer')).toBeInTheDocument();
     expect(within(row).getByText('Rang twice')).toBeInTheDocument();
+  });
+
+  it("links each row to the follow-up form for that row's customer", async () => {
+    renderPage(new FakeCrmService(ROWS));
+    const row = (await screen.findByText('Sample Customer 01')).closest('tr');
+    if (!row) throw new Error('no row');
+    expect(within(row).getByRole('link', { name: 'Record follow-up' })).toHaveAttribute(
+      'href',
+      `/follow-ups/new?partyId=${ROWS[0]?.partyId}`,
+    );
   });
 
   it('says there are no broken promises when there are none', async () => {

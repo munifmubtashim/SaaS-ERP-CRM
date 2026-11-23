@@ -1,7 +1,12 @@
 import {
+  collectorListResponseSchema,
   followUpListResponseSchema,
+  followUpSchema,
+  type CollectorListResponse,
+  type FollowUp,
   type FollowUpListQueryInput,
   type FollowUpListResponse,
+  type RecordFollowUpInput,
 } from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
 
@@ -9,6 +14,10 @@ import type { IHttpClient } from './HttpClient';
 export interface ICrmService {
   /** One page of follow-ups in the active business, newest first. */
   listFollowUps(query: FollowUpListQueryInput): Promise<FollowUpListResponse>;
+  /** Records a follow-up; refusals carry the stable codes of #137 and the shared schema. */
+  recordFollowUp(input: RecordFollowUpInput): Promise<FollowUp>;
+  /** TEMPORARY, until A4's staff route: who can be picked as the collector. */
+  listCollectors(): Promise<CollectorListResponse>;
 }
 
 /**
@@ -27,5 +36,15 @@ export class CrmService implements ICrmService {
     }
     const qs = params.toString();
     return this.http.getJson(`/v1/follow-ups${qs ? `?${qs}` : ''}`, followUpListResponseSchema);
+  }
+
+  /** POST /v1/follow-ups. No Idempotency-Key: a follow-up moves no money or stock (invariant 5). */
+  recordFollowUp(input: RecordFollowUpInput): Promise<FollowUp> {
+    return this.http.postJson('/v1/follow-ups', input, followUpSchema);
+  }
+
+  /** GET /v1/follow-ups/collectors. TEMPORARY: replaced by the staff list once A4 exists. */
+  listCollectors(): Promise<CollectorListResponse> {
+    return this.http.getJson('/v1/follow-ups/collectors', collectorListResponseSchema);
   }
 }

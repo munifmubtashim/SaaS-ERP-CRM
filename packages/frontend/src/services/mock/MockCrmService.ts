@@ -1,10 +1,17 @@
 import {
+  businessDateInDhaka,
   DEFAULT_PAGE_SIZE,
+  formatMoney,
+  parseMoney,
+  recordFollowUpSchema,
+  type CollectorListResponse,
+  type FollowUp,
   type FollowUpListItem,
   type FollowUpListQueryInput,
   type FollowUpListResponse,
   type FollowUpOutcome,
   type PromiseStatus,
+  type RecordFollowUpInput,
 } from '@erp/shared';
 import type { ICrmService } from '../crmService';
 import { ApiRequestError } from '../HttpClient';
@@ -63,6 +70,19 @@ const SAMPLE_FOLLOW_UPS: FollowUpListItem[] = SAMPLES.map(
   },
 );
 
+/** The business's walk-in customer in the sample data: it never has dues, so it can't be followed up (ADR 0006). */
+export const MOCK_WALK_IN_PARTY_ID = '0196f000-0000-7000-8000-000000c00000';
+
+function refuse(status: number, path: string, code: string, message: string): ApiRequestError {
+  const errorCode = status === 404 ? 'NOT_FOUND' : status === 409 ? 'CONFLICT' : 'VALIDATION_FAILED';
+  return new ApiRequestError(status, {
+    code: errorCode,
+    message,
+    fields: [{ path, code, message }],
+    requestId: 'mock',
+  });
+}
+
 const encodeCursor = (offset: number) => btoa(`f:${offset}`);
 
 function decodeCursor(cursor: string): number {
@@ -81,19 +101,84 @@ function decodeCursor(cursor: string): number {
 }
 
 /**
- * Stands in for GET /v1/follow-ups until the follow-up table and route exist. Answers like the API will: filters
- * by customer and promise status, newest first, an opaque cursor.
+ * Stands in for the follow-up routes until the follow-up table and routes exist. Answers like the API will: filters
+ * by customer and promise status, newest first, an opaque cursor; recording applies #137's rules with its codes.
+ * Each instance keeps its own list, so what the form records appears in the list until the page reloads.
  */
 export class MockCrmService implements ICrmService {
-  constructor(private readonly delayMs = 400) {}
+  private readonly rows = [...SAMPLE_FOLLOW_UPS];
+
+  constructor(
+    private readonly delayMs = 400,
+    private readonly now: () => Date = () => new Date(),
+  ) {}
+
+  private wait() {
+    return new Promise((resolve) => setTimeout(resolve, this.delayMs));
+  }
+
+  /** TEMPORARY, until A4's staff route: the two sample collectors. */
+  async listCollectors(): Promise<CollectorListResponse> {
+    await this.wait();
+    return { items: COLLECTORS.map(([id, name]) => ({ id, name })) };
+  }
+
+  async recordFollowUp(input: RecordFollowUpInput): Promise<FollowUp> {
+    await this.wait();
+    const parsed = recordFollowUpSchema.safeParse(input);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const params = issue?.code === 'custom' ? (issue.params as { code?: unknown } | undefined) : undefined;
+      const code = typeof params?.code === 'string' ? params.code : (issue?.code ?? 'invalid');
+      throw refuse(400, issue?.path.join('.') ?? '', code, issue?.message ?? 'Invalid.');
+    }
+    const f = parsed.data;
+    const contactedAt = this.now();
+    if (f.promise && f.promise.promisedOn < businessDateInDhaka(contactedAt)) {
+      throw refuse(
+        400,
+        'promise.promisedOn',
+        'followup.promise_date_past',
+        'The promise date cannot be before today.',
+      );
+    }
+    if (f.partyId === MOCK_WALK_IN_PARTY_ID) {
+      throw refuse(
+        409,
+        'partyId',
+        'followup.walk_in_not_allowed',
+        'The walk-in customer has no dues to follow up.',
+      );
+    }
+    const customer = CUSTOMERS.find(([id]) => id === f.partyId);
+    if (!customer) throw refuse(404, 'partyId', 'followup.party_not_found', 'Customer not found.');
+    const collector = COLLECTORS.find(([id]) => id === f.collectorId);
+
+    const saved: FollowUp = {
+      id: `0196f000-0000-7000-8000-000000f01${String(this.rows.length).padStart(3, '0')}`,
+      partyId: f.partyId,
+      collectorId: f.collectorId,
+      channel: f.channel,
+      outcome: f.outcome,
+      promise: f.promise && {
+        promisedOn: f.promise.promisedOn,
+        amount: formatMoney(parseMoney(f.promise.amount)),
+        status: 'open',
+      },
+      note: f.note,
+      contactedAt: contactedAt.toISOString(),
+    };
+    this.rows.unshift({ ...saved, partyName: customer[1], collectorName: collector?.[1] ?? '—' });
+    return saved;
+  }
 
   async listFollowUps(query: FollowUpListQueryInput): Promise<FollowUpListResponse> {
-    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    await this.wait();
     const limit = Number(query.limit ?? DEFAULT_PAGE_SIZE);
     const start = query.cursor ? decodeCursor(query.cursor) : 0;
-    const rows = SAMPLE_FOLLOW_UPS.filter((r) => !query.partyId || r.partyId === query.partyId).filter(
-      (r) => !query.promiseStatus || r.promise?.status === query.promiseStatus,
-    );
+    const rows = this.rows
+      .filter((r) => !query.partyId || r.partyId === query.partyId)
+      .filter((r) => !query.promiseStatus || r.promise?.status === query.promiseStatus);
     const end = start + limit;
     return { items: rows.slice(start, end), nextCursor: end < rows.length ? encodeCursor(end) : null };
   }

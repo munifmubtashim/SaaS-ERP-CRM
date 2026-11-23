@@ -1,5 +1,7 @@
 import type { z } from 'zod';
 import type {
+  collectorListResponseSchema,
+  collectorSchema,
   crmSchema,
   followUpChannelSchema,
   followUpListItemSchema,
@@ -31,3 +33,6 @@ export type FollowUpListItem = z.infer<typeof followUpListItemSchema>;
 export type FollowUpListQueryInput = z.input<typeof followUpListQuerySchema>;
 export type FollowUpListQuery = z.infer<typeof followUpListQuerySchema>;
 export type FollowUpListResponse = z.infer<typeof followUpListResponseSchema>;
+/** Temporary, until A4's staff route. */
+export type Collector = z.infer<typeof collectorSchema>;
+export type CollectorListResponse = z.infer<typeof collectorListResponseSchema>;

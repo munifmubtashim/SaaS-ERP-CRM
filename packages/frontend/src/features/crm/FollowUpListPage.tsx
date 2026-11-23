@@ -135,6 +135,7 @@ function FollowUpTable({ rows, stale }: { rows: FollowUpListItem[]; stale: boole
     'followUps.col.status',
     'followUps.col.collector',
     'followUps.col.contacted',
+    'followUps.col.action',
   ];
   return (
     <table
@@ -185,6 +186,16 @@ function FollowUpTable({ rows, stale }: { rows: FollowUpListItem[]; stale: boole
             </td>
             <td role="cell" className={`${cell} num order-5 text-[13px] text-muted`}>
               {formatDateTimeBD(row.contactedAt)}
+            </td>
+            <td role="cell" className={`${cell} order-6 w-full md:w-auto`}>
+              {/* The form takes the customer from here: it has no customer search yet (#33). */}
+              <Link
+                to={`/follow-ups/new?partyId=${row.partyId}`}
+                state={{ partyName: row.partyName }}
+                className="inline-flex min-h-11 items-center font-medium text-accent-text"
+              >
+                {t('followUps.record')}
+              </Link>
             </td>
           </tr>
         ))}

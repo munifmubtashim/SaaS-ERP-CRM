@@ -102,3 +102,10 @@ export const followUpListItemSchema = followUpSchema.extend({
 });
 
 export const followUpListResponseSchema = cursorPageSchema(followUpListItemSchema);
+
+/**
+ * TEMPORARY, until A4's staff route: the staff who can be picked as the collector in the follow-up form
+ * (GET /v1/follow-ups/collectors). Replace it with the staff list when that exists.
+ */
+export const collectorSchema = z.object({ id: z.uuid(), name: z.string().trim().min(1).max(200) });
+export const collectorListResponseSchema = z.object({ items: z.array(collectorSchema) });

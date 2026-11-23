@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collectorListResponseSchema,
   followUpChannelSchema,
   followUpListItemSchema,
   followUpListQuerySchema,
@@ -163,5 +164,15 @@ describe('followUpListQuerySchema', () => {
   it('refuses an unknown promise status and a party id that is not a uuid', () => {
     expect(followUpListQuerySchema.safeParse({ promiseStatus: 'late' }).success).toBe(false);
     expect(followUpListQuerySchema.safeParse({ partyId: 'C-0001' }).success).toBe(false);
+  });
+});
+
+describe('collectorListResponseSchema (temporary, until the staff route, A4)', () => {
+  it('lists the staff who can follow up, by id and name', () => {
+    const list = { items: [{ id: collectorId, name: 'Sample Collector' }] };
+    expect(collectorListResponseSchema.parse(list)).toEqual(list);
+    expect(collectorListResponseSchema.safeParse({ items: [{ id: collectorId, name: ' ' }] }).success).toBe(
+      false,
+    );
   });
 });
