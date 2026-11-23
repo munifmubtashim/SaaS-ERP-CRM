@@ -26,7 +26,8 @@ export {
   type ProductChanges,
   type ProductFilter,
 } from './query/ProductQuery.js';
-export { InventoryDTO } from './dto/InventoryDTO.js';
+export { SerialUnitQuery } from './query/SerialUnitQuery.js';
+export { InventoryDTO, SerialUnitDTO, type SerialUnitRow } from './dto/InventoryDTO.js';
 export { InventoryQuery } from './query/InventoryQuery.js';
 export { AccountingDTO } from './dto/AccountingDTO.js';
 export { AccountingQuery } from './query/AccountingQuery.js';
