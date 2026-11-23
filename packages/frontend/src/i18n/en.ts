@@ -46,6 +46,7 @@ export const en = {
   'login.error.unavailable': 'Could not sign in. Try again in a moment.',
   'login.error.tooMany': 'Too many attempts. Wait 15 minutes, then try again.',
   'shell.signedInAs': 'Signed in as',
+  'demo.badge': 'Demo data',
   'shell.signOut': 'Sign out',
 } as const;
 
