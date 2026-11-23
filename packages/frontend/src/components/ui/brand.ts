@@ -9,6 +9,8 @@ export interface Brand {
   mark: string;
   icon: string;
   touchIcon: string;
+  /** The logo without its tagline, for small spaces such as the phone header. */
+  wordmark: string;
 }
 
 export function readBrand(env: { VITE_BRAND_NAME?: string; VITE_BRAND_DIR?: string }): Brand | null {
@@ -22,6 +24,7 @@ export function readBrand(env: { VITE_BRAND_NAME?: string; VITE_BRAND_DIR?: stri
     mark: `${dir}/mark.png`,
     icon: `${dir}/icon.png`,
     touchIcon: `${dir}/icon-180.png`,
+    wordmark: `${dir}/wordmark.png`,
   };
 }
 
