@@ -19,8 +19,13 @@ export {
   type CreateBusinessInput,
   type CreateBranchInput,
 } from './query/ProvisioningQuery.js';
-export { ProductDTO } from './dto/ProductDTO.js';
-export { ProductQuery } from './query/ProductQuery.js';
+export { ProductDTO, type ProductRow } from './dto/ProductDTO.js';
+export {
+  ProductQuery,
+  type NewProduct,
+  type ProductChanges,
+  type ProductFilter,
+} from './query/ProductQuery.js';
 export { InventoryDTO } from './dto/InventoryDTO.js';
 export { InventoryQuery } from './query/InventoryQuery.js';
 export { AccountingDTO } from './dto/AccountingDTO.js';

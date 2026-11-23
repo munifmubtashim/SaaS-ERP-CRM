@@ -1,4 +1,3 @@
-import { AppError } from '@erp/shared';
 import { BaseQuery } from './BaseQuery.js';
 
 /** A number taken from a series: the raw value as a decimal string (bigint as text), never formatted in SQL. */
@@ -19,14 +18,7 @@ export interface TakenNumberRow {
  */
 export class NumberSeriesQuery extends BaseQuery {
   async take(kind: string, branchId: string | null): Promise<TakenNumberRow | null> {
-    const [scope] = await this.db.$queryRaw<{ businesses: number }[]>`
-      SELECT coalesce(array_length((SELECT app_business_ids()), 1), 0)::int AS businesses`;
-    if (scope?.businesses !== 1) {
-      throw new AppError(
-        'INTERNAL_ERROR',
-        'A number is taken for exactly one business; the scope has several.',
-      );
-    }
+    await this.requireOneBusiness('A number');
     const rows = branchId
       ? await this.db.$queryRaw<TakenNumberRow[]>`
           UPDATE number_series SET next_value = next_value + 1
