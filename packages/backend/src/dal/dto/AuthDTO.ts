@@ -81,3 +81,25 @@ export class SessionDTO {
     );
   }
 }
+
+/** One role a user holds for a business and branch, with its active permission codes (ADR 0051). */
+export interface ScopeRow {
+  role: string;
+  permissions: string[];
+}
+
+/** What a user may do in one business and branch: their roles there, and the union of those roles' permissions. */
+export class ScopeDTO {
+  private constructor(
+    readonly roles: string[],
+    readonly permissions: string[],
+  ) {}
+
+  static fromRows(rows: readonly ScopeRow[]): ScopeDTO {
+    const permissions = [...new Set(rows.flatMap((row) => row.permissions))].sort();
+    return new ScopeDTO(
+      rows.map((row) => row.role),
+      permissions,
+    );
+  }
+}

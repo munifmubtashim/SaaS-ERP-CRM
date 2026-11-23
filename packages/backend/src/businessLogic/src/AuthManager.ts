@@ -1,4 +1,4 @@
-import { AppError } from '@erp/shared';
+import { AppError, permissionCodeSchema, type PermissionCode, type TenantScope } from '@erp/shared';
 import type { IAuthQuery, LoginUser } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
@@ -33,6 +33,19 @@ export interface AuthenticatedSession {
   userId: string;
   organizationId: string;
   sessionId: string;
+}
+
+/** The business and branch a tenant request names (X-Business-Id, X-Branch-Id). */
+export interface RequestedScope {
+  businessId: string;
+  branchId: string;
+}
+
+/** A verified tenant scope: what tenantMiddleware sets on req.tenant, and the roles and permissions that apply. */
+export interface ResolvedScope {
+  tenant: TenantScope;
+  roles: string[];
+  permissions: PermissionCode[];
 }
 
 /** The user agent stored on a session: its first 200 characters (ADR 0018 section 1). */
@@ -113,6 +126,37 @@ export class AuthManager {
     const newHash = this.hasher.needsRehash(user.passwordHash) ? await this.hasher.hash(password) : null;
     await this.query.recordSuccessfulLogin(user, newHash);
     return { userId: user.id, organizationId: user.organizationId, displayName: user.displayName };
+  }
+
+  /**
+   * ADR 0051, verified rather than listed: the business and branch the request names must be the session
+   * organization's, active, and covered by one of the user's active scopes. Every refusal is the same 404, so an id
+   * of another business, a guessed id and an inactive one can't be told apart (ADR 0007 step 5).
+   */
+  async resolveScope(
+    session: Pick<AuthenticatedSession, 'userId' | 'organizationId'>,
+    requested: RequestedScope,
+  ): Promise<ResolvedScope> {
+    const grant = await this.query.scopeFor(
+      session.userId,
+      session.organizationId,
+      requested.businessId,
+      requested.branchId,
+    );
+    if (!grant) throw new AppError('NOT_FOUND', 'Business or branch not found.');
+    return {
+      tenant: {
+        organizationId: session.organizationId,
+        businessIds: [requested.businessId],
+        branchIds: [requested.branchId],
+        branchId: requested.branchId,
+      },
+      roles: grant.roles,
+      // Only the codes this build knows: a code added in the database first grants nothing until shipped.
+      permissions: grant.permissions.filter(
+        (code): code is PermissionCode => permissionCodeSchema.safeParse(code).success,
+      ),
+    };
   }
 
   private isLocked(user: LoginUser, now: Date): boolean {

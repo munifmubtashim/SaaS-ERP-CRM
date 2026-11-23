@@ -5,7 +5,7 @@ export { BaseDTO, type BaseRow } from './dto/BaseDTO.js';
 export { HealthDTO } from './dto/HealthDTO.js';
 export { BaseQuery } from './query/BaseQuery.js';
 export { HealthQuery } from './query/HealthQuery.js';
-export { AuthDTO, LoginUserDTO, SessionDTO } from './dto/AuthDTO.js';
+export { AuthDTO, LoginUserDTO, ScopeDTO, SessionDTO } from './dto/AuthDTO.js';
 export { AuthQuery, type CreateUserInput, type NewSessionInput } from './query/AuthQuery.js';
 export { NumberSeriesQuery, type TakenNumberRow } from './query/NumberSeriesQuery.js';
 export { IdempotencyQuery, type ClaimKeyInput, type StoredKeyRow } from './query/IdempotencyQuery.js';

@@ -46,9 +46,23 @@ import type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IClock } from './contracts/IClock.js';
 export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
-export type { ActiveSession, IAuthQuery, LoginUser, NewSession, UserRef } from './contracts/IAuthQuery.js';
+export type {
+  ActiveSession,
+  IAuthQuery,
+  LoginUser,
+  NewSession,
+  ScopeGrant,
+  UserRef,
+} from './contracts/IAuthQuery.js';
 export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
-export type { AuthenticatedSession, LoginOutcome, SessionLifetimes, VerifiedLogin } from './AuthManager.js';
+export type {
+  AuthenticatedSession,
+  LoginOutcome,
+  RequestedScope,
+  ResolvedScope,
+  SessionLifetimes,
+  VerifiedLogin,
+} from './AuthManager.js';
 export type { ISessionTokens } from './contracts/ISessionTokens.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
 export type { IProductQuery } from './contracts/IProductQuery.js';
