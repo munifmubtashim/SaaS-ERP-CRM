@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type {
   crmSchema,
   followUpChannelSchema,
+  followUpListItemSchema,
   followUpListQuerySchema,
   followUpListResponseSchema,
   followUpOutcomeSchema,
@@ -25,6 +26,7 @@ export type RecordFollowUpInput = z.input<typeof recordFollowUpSchema>;
 /** What the server works with after parsing. */
 export type RecordFollowUp = z.infer<typeof recordFollowUpSchema>;
 export type FollowUp = z.infer<typeof followUpSchema>;
+export type FollowUpListItem = z.infer<typeof followUpListItemSchema>;
 /** What the caller may send (limit optional, as text or number). */
 export type FollowUpListQueryInput = z.input<typeof followUpListQuerySchema>;
 export type FollowUpListQuery = z.infer<typeof followUpListQuerySchema>;

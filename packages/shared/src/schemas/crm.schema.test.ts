@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   followUpChannelSchema,
+  followUpListItemSchema,
   followUpListQuerySchema,
   followUpListResponseSchema,
   followUpOutcomeSchema,
@@ -139,8 +140,17 @@ describe('followUpSchema (a recorded follow-up, read back)', () => {
     expect(followUpSchema.safeParse({ ...followUp, contactedAt: '2026-11-22' }).success).toBe(false);
   });
 
-  it('pages follow-ups with a cursor', () => {
-    expect(followUpListResponseSchema.safeParse({ items: [followUp], nextCursor: null }).success).toBe(true);
+  it('pages follow-ups with a cursor, each row with the customer and collector names', () => {
+    const row = { ...followUp, partyName: 'Sample Customer', collectorName: 'Sample Collector' };
+    expect(followUpListResponseSchema.safeParse({ items: [row], nextCursor: null }).success).toBe(true);
+  });
+
+  it('refuses a list row without the names the screen shows', () => {
+    expect(followUpListItemSchema.safeParse(followUp).success).toBe(false);
+    expect(
+      followUpListItemSchema.safeParse({ ...followUp, partyName: '', collectorName: 'Sample Collector' })
+        .success,
+    ).toBe(false);
   });
 });
 

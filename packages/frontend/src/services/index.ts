@@ -12,9 +12,11 @@ import { SalesService, type ISalesService } from './salesService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
 import { ServiceService, type IServiceService } from './serviceService';
 import { CrmService, type ICrmService } from './crmService';
+import { MockCrmService } from './mock/MockCrmService';
 
 export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
 export type { IHealthService } from './healthService';
+export type { ICrmService } from './crmService';
 
 /** Every API service, as interfaces. Components reach them through useServices(), never `new`. */
 export interface Services {
@@ -33,8 +35,19 @@ export interface Services {
   crm: ICrmService;
 }
 
+export interface CreateServicesOptions {
+  /**
+   * Use the mock services for routes that don't exist yet. On by default only in a development build
+   * (`vite dev`), so a deployed app never shows invented data.
+   */
+  useMocks?: boolean;
+}
+
 /** Frontend composition root: the ONLY place services are constructed (lint-enforced). */
-export function createServices(http: IHttpClient = new HttpClient()): Services {
+export function createServices(
+  http: IHttpClient = new HttpClient(),
+  { useMocks = import.meta.env.DEV }: CreateServicesOptions = {},
+): Services {
   return {
     health: new HealthService(http),
     auth: new AuthService(http),
@@ -48,6 +61,7 @@ export function createServices(http: IHttpClient = new HttpClient()): Services {
     sales: new SalesService(http),
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
-    crm: new CrmService(http),
+    // Mock in development until GET /v1/follow-ups exists; a production build calls the API.
+    crm: useMocks ? new MockCrmService() : new CrmService(http),
   };
 }
