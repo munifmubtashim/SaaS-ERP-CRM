@@ -25,7 +25,7 @@ export const SIDEBAR: { key: MessageKey; items: NavItem[] }[] = [
       { to: null, key: 'shell.nav.booking', icon: 'cal' },
       { to: null, key: 'shell.nav.purchase', icon: 'bag' },
       { to: '/inventory', key: 'shell.nav.inventory', icon: 'box' },
-      { to: null, key: 'shell.nav.products', icon: 'bike' },
+      { to: '/products', key: 'shell.nav.products', icon: 'bike' },
       { to: null, key: 'shell.nav.service', icon: 'wrench' },
     ],
   },
@@ -50,5 +50,5 @@ export const PHONE_TABS: NavItem[] = [
   { to: '/', key: 'shell.nav.home', icon: 'home' },
   { to: '/sales', key: 'shell.nav.sales', icon: 'cart' },
   { to: '/inventory', key: 'shell.tab.stock', icon: 'box' },
-  { to: null, key: 'shell.nav.products', icon: 'bike' },
+  { to: '/products', key: 'shell.nav.products', icon: 'bike' },
 ];
