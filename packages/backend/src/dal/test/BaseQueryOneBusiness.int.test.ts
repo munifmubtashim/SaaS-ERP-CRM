@@ -37,7 +37,11 @@ class ProbeDTO extends BaseDTO {
 
 const probe = new OneBusinessProbe();
 const inScope = (businessIds: string[]) =>
-  runInTenantScope(app, { organizationId: ORG, businessIds, branchIds: [BRANCH] }, () => probe.check());
+  runInTenantScope(app, { organizationId: ORG, businessIds, branchIds: [BRANCH] }, () => probe.check(), {
+    // Here the scope runner itself refuses several businesses unless the route is read-only (#8); a read-only
+    // scope reaching a one-business write is exactly what the helper guards.
+    readOnly: businessIds.length > 1,
+  });
 
 afterAll(async () => {
   await app.$disconnect();
