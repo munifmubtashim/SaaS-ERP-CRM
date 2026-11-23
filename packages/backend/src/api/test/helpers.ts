@@ -27,6 +27,7 @@ export const unusedAuth: IAuthManager = {
   login: () => Promise.reject(new AppError('INTERNAL_ERROR', 'This test logged in without an auth Manager.')),
   authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
   logout: () => Promise.resolve(),
+  resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
 };
 
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */

@@ -1,4 +1,4 @@
-import { AppError } from '@erp/shared';
+import { AppError, hasAnyRole, hasPermission, type PermissionCode, type RoleCode } from '@erp/shared';
 import type { Request, RequestHandler, Response } from 'express';
 import type { HttpResult } from '../controllers/BaseController.js';
 import type { IIdempotency, ITenantScopeRunner } from '../controllers/contracts/index.js';
@@ -6,7 +6,13 @@ import type { IIdempotency, ITenantScopeRunner } from '../controllers/contracts/
 /** A Controller method as a route sees it: the request in, {status, body} out. */
 export type RouteHandler = (req: Request) => Promise<HttpResult>;
 
-export interface TenantRouteOptions {
+/** Who may use a tenant route: a permission code (ADR 0033), or the system role codes allowed (role check). */
+export interface RouteAccess {
+  permission?: PermissionCode;
+  roles?: readonly RoleCode[];
+}
+
+export interface TenantRouteOptions extends RouteAccess {
   /** A read-only group route: may span several businesses, and its transaction runs READ ONLY (ADR 0005 Q2). */
   readOnly?: boolean;
   /**
@@ -30,7 +36,14 @@ export interface RouteWrappers {
  */
 export function createRouteWrappers(runner: ITenantScopeRunner, idempotency?: IIdempotency): RouteWrappers {
   return {
-    tenant: (handler, { readOnly = false, idempotent = false } = {}) => {
+    tenant: (handler, { readOnly = false, idempotent = false, permission, roles } = {}) => {
+      if (!permission && !roles?.length) {
+        // ADR 0051 test 8: every tenant route says who may use it, so none is open to every signed-in user by mistake.
+        throw new AppError(
+          'INTERNAL_ERROR',
+          'A tenant route must declare who may use it: a permission or roles.',
+        );
+      }
       if (idempotent && (readOnly || !idempotency)) {
         // Refused when the route is built, so a misconfigured money route never starts.
         throw new AppError(
@@ -41,7 +54,8 @@ export function createRouteWrappers(runner: ITenantScopeRunner, idempotency?: II
         );
       }
       const run = idempotent && idempotency ? withIdempotency(idempotency, handler) : handler;
-      return async (req, res, next) => {
+      const access: RouteAccess = permission ? { permission } : { roles };
+      const routeHandler: RequestHandler = async (req, res, next) => {
         try {
           const tenant = req.tenant;
           if (!tenant) {
@@ -50,6 +64,11 @@ export function createRouteWrappers(runner: ITenantScopeRunner, idempotency?: II
               'Tenant route without a tenant scope: tenantMiddleware must set it.',
             );
           }
+          // Checked on the API, after the scope is known and before the transaction opens (ADR 0051 section 1.3).
+          const granted = req.auth?.permissions ?? [];
+          const held = req.auth?.roles ?? [];
+          const allowed = permission ? hasPermission(granted, permission) : hasAnyRole(held, roles ?? []);
+          if (!allowed) throw new AppError('FORBIDDEN', 'You may not do this here.');
           const result = await runner.run(tenant, () => run(req), { readOnly });
           // The transaction has committed. If sending fails from here on (for example a body that can't be
           // serialized), the client gets an error for a write that WAS saved, and may retry it. Money and stock
@@ -59,6 +78,8 @@ export function createRouteWrappers(runner: ITenantScopeRunner, idempotency?: II
           next(err);
         }
       };
+      // Read by the route-coverage walk (isolation suite): every tenant route must carry its access.
+      return Object.assign(routeHandler, { access });
     },
     public: (handler) => async (req, res, next) => {
       try {

@@ -1,3 +1,5 @@
+import type { PermissionCode, TenantHeaders, TenantScope } from '@erp/shared';
+
 /** A successful login, as AuthController needs it. The token goes into the cookie only, never the body. */
 export interface LoginOutcome {
   token: string;
@@ -24,4 +26,12 @@ export interface IAuthManager {
   authenticate(token: string): Promise<AuthenticatedSession>;
   /** ADR 0018 section 3: revokes the session behind the token, if any. */
   logout(token: string): Promise<void>;
+  /**
+   * ADR 0051: the business and branch a tenant request names, verified against the user's scopes. Throws 404
+   * NOT_FOUND, the same for every refusal.
+   */
+  resolveScope(
+    session: Pick<AuthenticatedSession, 'userId' | 'organizationId'>,
+    requested: TenantHeaders,
+  ): Promise<{ tenant: TenantScope; roles: string[]; permissions: PermissionCode[] }>;
 }
