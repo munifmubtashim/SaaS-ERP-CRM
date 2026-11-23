@@ -212,3 +212,77 @@
   color: var(--on-warn);
   background: var(--warn);
 }
+
+/*
+ * Chart motion (Main.dc.html): lines and areas draw in from the left (.rv on the clip rectangle), bars grow up one
+ * after another (.bv), the pie turns in (.pv), and a hovered slice springs out (.ps). Reduced motion turns them off.
+ */
+.rv {
+  animation: ix-rv 1.1s var(--ease-reveal) both;
+}
+.bv {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ix-bar 1.1s var(--ease-reveal) both;
+  transition: opacity 150ms ease-out;
+  cursor: pointer;
+}
+.pv {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: ix-pie 1.1s var(--ease-reveal) both;
+}
+.ps {
+  transition:
+    transform 320ms var(--ease-pop),
+    opacity 150ms linear;
+}
+@keyframes ix-rv {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes ix-bar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes ix-pie {
+  from {
+    transform: scale(0) rotate(-90deg);
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv,
+  .bv,
+  .pv {
+    animation: none;
+  }
+  .bv,
+  .ps {
+    transition: none;
+  }
+}
+
+/* A chart's hover card: solid, so figures stay readable over the lines (the design's tooltip). */
+.chart-tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  min-width: 168px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--dot-fill);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}

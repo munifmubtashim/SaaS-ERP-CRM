@@ -1,14 +1,16 @@
 import {
   formatLakhCrore,
+  formatMoney,
   formatShare,
   parseMoney,
-  ratioBasisPoints,
   sumMoney,
   type MonthlyResults,
 } from '@erp/shared';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useI18n, type MessageKey } from '../../i18n';
+import { ringSlice, sliceAngles, slicePop } from './chartShapes';
 import { chartFrame, margin } from './derive';
+import { smoothPath, type Point } from './sparkline';
 import { ReportCard } from './ReportCard';
 import { useReport } from './useReport';
 
@@ -21,18 +23,27 @@ const Y1 = 208;
 type Month = MonthlyResults['months'][number];
 const monthKey = (month: string) => `month.${month.slice(5, 7)}` as MessageKey;
 
-/** A line through points; the last segment dotted when the last month is an estimate (the design's "Nov est."). */
-function Line({ points, color, estimate }: { points: [number, number][]; color: string; estimate: boolean }) {
+/**
+ * A smooth line through the points; when the last month is an estimate (the design's "Nov est.") its last segment is
+ * dotted and straight.
+ */
+function Line({ points, color, estimate }: { points: Point[]; color: string; estimate: boolean }) {
   const solid = estimate ? points.slice(0, -1) : points;
   const tail = estimate && points.length > 1 ? points.slice(-2) : [];
-  const d = (pts: [number, number][]) => pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
   return (
     <g fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d={d(solid)} />
-      {tail.length === 2 && <path d={d(tail)} strokeDasharray="4 5" />}
+      <path d={smoothPath(solid)} />
+      {tail.length === 2 && <path d={smoothPath(tail)} strokeDasharray="2 6" />}
     </g>
   );
 }
+
+/** The fading fill under a line, down to the plot's bottom edge. */
+const areaPath = (points: Point[]) => {
+  const first = points[0];
+  const last = points[points.length - 1];
+  return first && last ? `${smoothPath(points)} L${last[0]} ${Y1} L${first[0]} ${Y1} Z` : '';
+};
 
 /** The design's "Revenue and expenses" card, with its "Net profit" view, a hover tooltip and a table view. */
 export function MonthlyChart() {
@@ -42,6 +53,7 @@ export function MonthlyChart() {
   const results = useReport('monthlyResults');
   const [view, setView] = useState<'revenue' | 'profit'>('revenue');
   const [hover, setHover] = useState<number | null>(null);
+  const id = useId();
   const title = t('dash.chart.title');
   return (
     <ReportCard title={title} calls={['monthlyResults']} queries={[results]}>
@@ -99,6 +111,28 @@ export function MonthlyChart() {
             </ul>
             <div className="relative overflow-x-auto">
               <svg viewBox="0 0 640 240" className="h-auto w-full min-w-[480px]" aria-hidden={false}>
+                <defs>
+                  {series.map((s, i) => (
+                    <linearGradient key={s.key} id={`${id}a${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor={s.color} stopOpacity={i === 0 ? 0.42 : 0.34} />
+                      <stop offset="0.55" stopColor={s.color} stopOpacity={i === 0 ? 0.12 : 0.1} />
+                      <stop offset="1" stopColor={s.color} stopOpacity="0" />
+                    </linearGradient>
+                  ))}
+                  <linearGradient id={`${id}fade`} x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="white" stopOpacity="0" />
+                    <stop offset="0.024" stopColor="white" stopOpacity="1" />
+                    <stop offset="0.976" stopColor="white" stopOpacity="1" />
+                    <stop offset="1" stopColor="white" stopOpacity="0" />
+                  </linearGradient>
+                  <mask id={`${id}mask`} maskUnits="userSpaceOnUse" x="0" y="0" width="640" height="240">
+                    <rect x={X0 - 8} y="0" width={X1 - X0 + 16} height="240" fill={`url(#${id}fade)`} />
+                  </mask>
+                  <clipPath id={`${id}clip`}>
+                    {/* Keyed by the view, so switching tabs draws the lines in again (the design's rv / rv2). */}
+                    <rect key={view} className="rv" x="0" y="0" width="640" height="240" />
+                  </clipPath>
+                </defs>
                 {frame.ticks.map((tick) => (
                   <g key={tick}>
                     <line x1={X0} x2={X1} y1={y(tick)} y2={y(tick)} stroke="var(--grid)" strokeWidth="1" />
@@ -112,14 +146,26 @@ export function MonthlyChart() {
                     {t(monthKey(m.month))}
                   </text>
                 ))}
-                {series.map((s) => (
-                  <Line
-                    key={s.key}
-                    color={s.color}
-                    estimate={last?.estimate ?? false}
-                    points={months.map((m, i) => [x(i), y(m[s.key])])}
-                  />
-                ))}
+                <g mask={`url(#${id}mask)`} clipPath={`url(#${id}clip)`}>
+                  {series
+                    .map((s, index) => ({ s, index }))
+                    .reverse()
+                    .map(({ s, index }) => (
+                      <path
+                        key={s.key}
+                        d={areaPath(months.map((m, i): Point => [x(i), y(m[s.key])]))}
+                        fill={`url(#${id}a${index})`}
+                      />
+                    ))}
+                  {[...series].reverse().map((s) => (
+                    <Line
+                      key={s.key}
+                      color={s.color}
+                      estimate={last?.estimate ?? false}
+                      points={months.map((m, i): Point => [x(i), y(m[s.key])])}
+                    />
+                  ))}
+                </g>
                 {hovered && hover !== null && (
                   <g>
                     <line x1={x(hover)} x2={x(hover)} y1={Y0} y2={Y1} stroke="var(--muted)" strokeWidth="1" />
@@ -159,7 +205,7 @@ export function MonthlyChart() {
               {hovered && hover !== null && (
                 <div
                   role="tooltip"
-                  className="glass pointer-events-none absolute top-2 rounded-xl px-3 py-2 text-[13px]"
+                  className="chart-tip top-2 flex flex-col gap-1.5"
                   style={{ left: `${Math.min(70, (x(hover) / 640) * 100)}%` }}
                 >
                   <p className="font-semibold">{t(monthKey(hovered.month))}</p>
@@ -208,59 +254,103 @@ export function MonthlyChart() {
   );
 }
 
-const RING = 2 * Math.PI * 60;
 const BUSINESS_COLORS = ['var(--biz-a)', 'var(--biz-b)'];
 
-/** The design's "Revenue by business" ring: each business's month-to-date revenue and share, labelled. */
+/**
+ * The design's "Revenue by business": a gradient ring that turns in, the total in the middle; hovering or focusing
+ * a slice springs it out, dims the others and puts that business in the middle. The legend names every business.
+ */
 export function RevenueByBusiness() {
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
+  const money = (amount: string) => `৳${formatLakhCrore(amount, loc)}`;
   const sales = useReport('salesToday');
+  const id = useId();
+  const [hover, setHover] = useState<number | null>(null);
   return (
     <ReportCard title={t('dash.business.title')} calls={['salesToday']} queries={[sales]}>
       {() => {
         const rows = sales.data?.byBusiness ?? [];
         const total = sumMoney(rows.map((r) => parseMoney(r.monthToDate)));
-        if (rows.length === 0 || total <= 0n)
-          return <p className="text-[13px] text-text2">{t('dash.business.empty')}</p>;
-        let offset = 0;
+        const slices = sliceAngles(rows.map((r) => r.monthToDate));
+        if (slices.length === 0) return <p className="text-[13px] text-text2">{t('dash.business.empty')}</p>;
+        const shown = hover === null ? null : rows[hover];
+        const color = (i: number) => BUSINESS_COLORS[i % BUSINESS_COLORS.length] ?? 'var(--biz-a)';
         return (
           <div className="flex flex-col items-center gap-4">
-            <svg viewBox="0 0 160 160" className="size-36 -rotate-90" aria-hidden="true">
-              {rows.map((r, i) => {
-                const fraction = Number(ratioBasisPoints(parseMoney(r.monthToDate), total)) / 10_000;
-                const length = Math.max(0, fraction * RING - 2); // a 2px gap between slices
-                const slice = (
-                  <circle
-                    key={r.businessId}
-                    cx="80"
-                    cy="80"
-                    r="60"
-                    fill="none"
-                    stroke={BUSINESS_COLORS[i % BUSINESS_COLORS.length]}
-                    strokeWidth="18"
-                    strokeDasharray={`${length} ${RING - length}`}
-                    strokeDashoffset={-offset}
-                  >
-                    <title>{r.name}</title>
-                  </circle>
-                );
-                offset += fraction * RING;
-                return slice;
-              })}
-            </svg>
+            <div className="relative">
+              <svg viewBox="0 0 140 140" className="size-61 max-w-full overflow-visible">
+                <defs>
+                  {rows.map((r, i) => (
+                    <linearGradient
+                      key={r.businessId}
+                      id={`${id}${i}`}
+                      gradientUnits="userSpaceOnUse"
+                      x1="10"
+                      y1="10"
+                      x2="130"
+                      y2="130"
+                    >
+                      <stop offset="0" style={{ stopColor: `color-mix(in oklab, ${color(i)} 68%, white)` }} />
+                      <stop offset="0.55" style={{ stopColor: color(i) }} />
+                      <stop offset="1" style={{ stopColor: `color-mix(in oklab, ${color(i)} 84%, black)` }} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <g className="pv" aria-hidden="true">
+                  {slices.map((slice, i) => (
+                    <path
+                      key={rows[i]?.businessId}
+                      className="ps"
+                      d={ringSlice(slice.start, slice.end)}
+                      fill={`url(#${id}${i})`}
+                      style={{
+                        transform: hover === i ? slicePop(slice.mid) : 'translate(0px, 0px)',
+                        opacity: hover === null || hover === i ? 1 : 0.4,
+                      }}
+                    />
+                  ))}
+                </g>
+                {slices.map((slice, i) => (
+                  <path
+                    key={rows[i]?.businessId}
+                    role="img"
+                    tabIndex={0}
+                    aria-label={rows[i]?.name}
+                    className="cursor-pointer outline-none"
+                    d={ringSlice(slice.start, slice.end)}
+                    fill="transparent"
+                    onMouseEnter={() => setHover(i)}
+                    onMouseLeave={() => setHover(null)}
+                    onFocus={() => setHover(i)}
+                    onBlur={() => setHover(null)}
+                  />
+                ))}
+              </svg>
+              <div
+                data-testid="ring-middle"
+                aria-live="polite"
+                className="pointer-events-none absolute top-1/2 left-1/2 flex w-27 -translate-1/2 flex-col gap-0.5 text-center"
+              >
+                <span className="num text-2xl leading-tight font-bold">
+                  {money(shown ? shown.monthToDate : formatMoney(total))}
+                </span>
+                <span className="truncate text-xs text-muted">
+                  {shown ? shown.name : t('dash.business.total')}
+                </span>
+              </div>
+            </div>
             <ul className="flex w-full flex-col gap-2 text-[13px]">
               {rows.map((r, i) => (
                 <li key={r.businessId} className="flex items-center gap-2">
                   <span
                     className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: BUSINESS_COLORS[i % BUSINESS_COLORS.length] }}
+                    style={{ background: color(i) }}
                     aria-hidden="true"
                   />
                   <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
                   <span className="num text-text2">
-                    ৳{formatLakhCrore(r.monthToDate, loc)} ·{' '}
-                    {formatShare(parseMoney(r.monthToDate), total, loc)}
+                    {money(r.monthToDate)} · {formatShare(parseMoney(r.monthToDate), total, loc)}
                   </span>
                 </li>
               ))}
