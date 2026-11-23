@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agingBuckets, cashForecast, margin, targetProgress } from './derive';
+import { agingBuckets, branchResults, cashForecast, customerShares, margin, targetProgress } from './derive';
 
 /**
  * Dashboard figures derived on screen (design/owner-dashboard/Main.dc.html), all through the shared money helpers.
@@ -100,5 +100,101 @@ describe('margin', () => {
 
   it('no revenue: no margin share', () => {
     expect(margin({ revenue: '0.00', expenses: '10.00' }).share).toBeNull();
+  });
+});
+
+describe('branchResults', () => {
+  const branches = [
+    {
+      branchId: 'b1',
+      branchName: 'Branch One',
+      businessName: 'Sample Motors',
+      revenue: '5240000.00',
+      profit: '1100000.00',
+    },
+    {
+      branchId: 'b2',
+      branchName: 'Branch Two',
+      businessName: 'Sample Motors',
+      revenue: '1870000.00',
+      profit: '65000.00',
+    },
+    {
+      branchId: 'b3',
+      branchName: 'Branch Three',
+      businessName: 'Sample Spare Parts',
+      revenue: '1610000.00',
+      profit: '-71000.00',
+    },
+  ];
+
+  it('each branch gets its margin; a loss branch has a negative margin', () => {
+    const rows = branchResults(branches).branches;
+    expect(rows.map((r) => r.margin)).toEqual([
+      { part: 110000000n, whole: 524000000n },
+      { part: 6500000n, whole: 187000000n },
+      { part: -7100000n, whole: 161000000n },
+    ]);
+  });
+
+  it('totals per business, in first-seen order, with their margins', () => {
+    expect(branchResults(branches).businesses).toEqual([
+      {
+        businessName: 'Sample Motors',
+        revenue: '7110000.00',
+        profit: '1165000.00',
+        margin: { part: 116500000n, whole: 711000000n },
+      },
+      {
+        businessName: 'Sample Spare Parts',
+        revenue: '1610000.00',
+        profit: '-71000.00',
+        margin: { part: -7100000n, whole: 161000000n },
+      },
+    ]);
+  });
+
+  it('a branch with no revenue has no margin', () => {
+    expect(
+      branchResults([
+        {
+          branchId: 'b1',
+          branchName: 'Branch One',
+          businessName: 'Sample Motors',
+          revenue: '0.00',
+          profit: '0.00',
+        },
+      ]).branches[0]?.margin,
+    ).toBeNull();
+  });
+});
+
+describe('customerShares', () => {
+  it('repeat rate, new buyers and the top customers share of revenue', () => {
+    expect(
+      customerShares({
+        customersBought: 214,
+        repeatCustomers: 124,
+        totalRevenue: '14059500.00',
+        topCustomers: ['1240000.00', '985000.00', '720000.00', '495000.00', '360000.00'].map((revenue) => ({
+          name: 'x',
+          revenue,
+        })),
+      }),
+    ).toEqual({
+      repeat: { part: 124n, whole: 214n },
+      newBuyers: 90,
+      top: { part: 380000000n, whole: 1405950000n },
+    });
+  });
+
+  it('nobody bought: no shares', () => {
+    expect(
+      customerShares({ customersBought: 0, repeatCustomers: 0, totalRevenue: '0.00', topCustomers: [] }),
+    ).toEqual({
+      repeat: null,
+      newBuyers: 0,
+      top: null,
+    });
   });
 });

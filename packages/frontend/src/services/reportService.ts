@@ -1,21 +1,31 @@
 import {
   agedDuesSchema,
   bankFeedSchema,
+  branchResultsSchema,
   cashPositionSchema,
+  customerInsightsSchema,
+  dayCloseStatusSchema,
   monthlyResultsSchema,
+  needsActionSchema,
   ownerDashboardSchema,
   salesTargetSchema,
   salesTodaySchema,
   stockValueSchema,
+  unitStockSchema,
   vatReturnSchema,
   type AgedDues,
   type BankFeed,
+  type BranchResults,
   type CashPosition,
+  type CustomerInsights,
+  type DayCloseStatus,
   type MonthlyResults,
+  type NeedsAction,
   type OwnerDashboard,
   type SalesTarget,
   type SalesToday,
   type StockValue,
+  type UnitStock,
   type VatReturn,
 } from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
@@ -23,7 +33,8 @@ import type { IHttpClient } from './HttpClient';
 /**
  * The owner dashboard's figures, one call per group, so each can be real or sample on its own (VITE_DEMO_DATA key
  * `report.<call>`). Will be real: ownerDashboard (#10: collections and dues), salesToday, stockValue, customerDues.
- * Stay sample: supplierDues, salesTarget, vatReturn, cashPosition, monthlyResults, bankFeed.
+ * Stay sample: supplierDues, salesTarget, vatReturn, cashPosition, monthlyResults, bankFeed, branchResults,
+ * customerInsights, needsAction, dayCloseStatus, unitStock (the last will be real with the stock ledger).
  */
 export interface IReportService {
   ownerDashboard(): Promise<OwnerDashboard>;
@@ -36,6 +47,11 @@ export interface IReportService {
   cashPosition(): Promise<CashPosition>;
   monthlyResults(): Promise<MonthlyResults>;
   bankFeed(): Promise<BankFeed>;
+  branchResults(): Promise<BranchResults>;
+  customerInsights(): Promise<CustomerInsights>;
+  needsAction(): Promise<NeedsAction>;
+  dayCloseStatus(): Promise<DayCloseStatus>;
+  unitStock(): Promise<UnitStock>;
 }
 
 export type ReportCall = keyof IReportService;
@@ -56,6 +72,11 @@ export class ReportService implements IReportService {
   cashPosition = () => this.http.getJson('/v1/reports/cash-position', cashPositionSchema);
   monthlyResults = () => this.http.getJson('/v1/reports/monthly-results', monthlyResultsSchema);
   bankFeed = () => this.http.getJson('/v1/reports/bank-feed', bankFeedSchema);
+  branchResults = () => this.http.getJson('/v1/reports/branch-results', branchResultsSchema);
+  customerInsights = () => this.http.getJson('/v1/reports/customer-insights', customerInsightsSchema);
+  needsAction = () => this.http.getJson('/v1/reports/needs-action', needsActionSchema);
+  dayCloseStatus = () => this.http.getJson('/v1/reports/day-close-status', dayCloseStatusSchema);
+  unitStock = () => this.http.getJson('/v1/reports/unit-stock', unitStockSchema);
 }
 
 /** Sends each call to the sample or the real service, by its own key. Built only in createServices. */
@@ -78,4 +99,9 @@ export class ReportServiceSwitch implements IReportService {
   cashPosition = () => this.pick('cashPosition').cashPosition();
   monthlyResults = () => this.pick('monthlyResults').monthlyResults();
   bankFeed = () => this.pick('bankFeed').bankFeed();
+  branchResults = () => this.pick('branchResults').branchResults();
+  customerInsights = () => this.pick('customerInsights').customerInsights();
+  needsAction = () => this.pick('needsAction').needsAction();
+  dayCloseStatus = () => this.pick('dayCloseStatus').dayCloseStatus();
+  unitStock = () => this.pick('unitStock').unitStock();
 }

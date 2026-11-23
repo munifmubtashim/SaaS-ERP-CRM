@@ -1,12 +1,17 @@
 import type {
   AgedDues,
   BankFeed,
+  BranchResults,
   CashPosition,
+  CustomerInsights,
+  DayCloseStatus,
   MonthlyResults,
+  NeedsAction,
   OwnerDashboard,
   SalesTarget,
   SalesToday,
   StockValue,
+  UnitStock,
   VatReturn,
 } from '@erp/shared';
 import type { IReportService, ReportCall } from '../reportService';
@@ -23,6 +28,11 @@ export const REPORT_CALLS: readonly ReportCall[] = [
   'cashPosition',
   'monthlyResults',
   'bankFeed',
+  'branchResults',
+  'customerInsights',
+  'needsAction',
+  'dayCloseStatus',
+  'unitStock',
 ];
 
 /*
@@ -32,6 +42,31 @@ export const REPORT_CALLS: readonly ReportCall[] = [
 const AS_OF = '2026-11-12T03:00:00.000Z'; // 9:00 AM in Dhaka
 const MOTORS = { businessId: '0196f000-0000-7000-8000-00000000d0a1', name: 'Sample Motors' };
 const PARTS = { businessId: '0196f000-0000-7000-8000-00000000d0a2', name: 'Sample Spare Parts' };
+
+const PERIOD = { from: '2026-11-01', to: '2026-11-11' };
+const branch = (
+  branchId: string,
+  branchName: string,
+  businessName: string,
+  revenue: string,
+  profit: string,
+) => ({
+  branchId,
+  branchName,
+  businessName,
+  revenue,
+  profit,
+});
+const action = (
+  id: string,
+  kind: NeedsAction['items'][number]['kind'],
+  severity: 'critical' | 'warning',
+  ageDays: number,
+  amount: string | null,
+  count: number | null,
+  businessName: string | null,
+  branchName: string | null,
+) => ({ id, kind, severity, ageDays, amount, count, businessName, branchName });
 
 const crore = (amounts: string) => amounts.split(' ');
 const REVENUE = crore('31200000.00 29900000.00 34100000.00 35700000.00 37200000.00 38300000.00');
@@ -106,6 +141,50 @@ const SAMPLE: { [K in ReportCall]: Awaited<ReturnType<IReportService[K]>> } = {
     })),
   } satisfies MonthlyResults,
   bankFeed: { lastSyncAt: AS_OF } satisfies BankFeed,
+  branchResults: {
+    period: PERIOD,
+    branches: [
+      branch('0196f000-0000-7000-8000-00000000d0b1', 'Mirpur-10', MOTORS.name, '5240000.00', '1100000.00'),
+      branch('0196f000-0000-7000-8000-00000000d0b2', 'Uttara', MOTORS.name, '3125000.00', '688000.00'),
+      branch('0196f000-0000-7000-8000-00000000d0b3', 'Mirpur-10', PARTS.name, '2215000.00', '531000.00'),
+      branch('0196f000-0000-7000-8000-00000000d0b4', 'Narayanganj', MOTORS.name, '1870000.00', '65000.00'),
+      branch('0196f000-0000-7000-8000-00000000d0b5', 'Agrabad', PARTS.name, '1610000.00', '-71000.00'),
+    ],
+  } satisfies BranchResults,
+  customerInsights: {
+    period: PERIOD,
+    customersBought: 214,
+    repeatCustomers: 124,
+    totalRevenue: '14059500.00',
+    topCustomers: [
+      { name: 'Sample Traders', revenue: '1240000.00' },
+      { name: 'Sample Auto Centre', revenue: '985000.00' },
+      { name: 'Sample Enterprise', revenue: '720000.00' },
+      { name: 'Sample Customer One', revenue: '495000.00' },
+      { name: 'Sample Customer Two', revenue: '360000.00' },
+    ],
+  } satisfies CustomerInsights,
+  needsAction: {
+    items: [
+      action('a1', 'unit_sold_not_delivered', 'critical', 6, '134000.00', null, MOTORS.name, 'Mirpur-10'),
+      action('a2', 'bank_receipt_unmatched', 'critical', 3, '85000.00', null, MOTORS.name, 'Uttara'),
+      // The design shows "parts sold at zero stock", which the system can't do (negative stock is blocked).
+      action('a3', 'parts_below_reorder', 'warning', 2, null, 4, PARTS.name, 'Agrabad'),
+      action('a4', 'supplier_duplicates', 'warning', 1, null, 3, null, null),
+    ],
+  } satisfies NeedsAction,
+  dayCloseStatus: {
+    status: 'not_balanced',
+    lastClosedOn: '2026-11-10',
+    unmatchedBankItems: 2,
+  } satisfies DayCloseStatus,
+  unitStock: {
+    asOf: AS_OF,
+    available: 58,
+    reserved: 14,
+    soldNotDelivered: 7,
+    over90Days: 15,
+  } satisfies UnitStock,
 };
 
 /** The dashboard's sample figures behind IReportService. Development builds only (VITE_DEMO_DATA). */
@@ -124,4 +203,9 @@ export class SampleReportService implements IReportService {
   cashPosition = () => this.answer('cashPosition');
   monthlyResults = () => this.answer('monthlyResults');
   bankFeed = () => this.answer('bankFeed');
+  branchResults = () => this.answer('branchResults');
+  customerInsights = () => this.answer('customerInsights');
+  needsAction = () => this.answer('needsAction');
+  dayCloseStatus = () => this.answer('dayCloseStatus');
+  unitStock = () => this.answer('unitStock');
 }

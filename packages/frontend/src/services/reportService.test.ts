@@ -1,12 +1,17 @@
 import {
   agedDuesSchema,
   bankFeedSchema,
+  branchResultsSchema,
   cashPositionSchema,
+  customerInsightsSchema,
+  dayCloseStatusSchema,
   monthlyResultsSchema,
+  needsActionSchema,
   ownerDashboardSchema,
   salesTargetSchema,
   salesTodaySchema,
   stockValueSchema,
+  unitStockSchema,
   vatReturnSchema,
 } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
@@ -59,5 +64,23 @@ describe('SampleReportService: invented figures in the shared shapes', () => {
     expect(cashPositionSchema.parse(await sample.cashPosition())).toBeTruthy();
     expect(monthlyResultsSchema.parse(await sample.monthlyResults())).toBeTruthy();
     expect(bankFeedSchema.parse(await sample.bankFeed())).toBeTruthy();
+    expect(branchResultsSchema.parse(await sample.branchResults())).toBeTruthy();
+    expect(customerInsightsSchema.parse(await sample.customerInsights())).toBeTruthy();
+    expect(needsActionSchema.parse(await sample.needsAction())).toBeTruthy();
+    expect(dayCloseStatusSchema.parse(await sample.dayCloseStatus())).toBeTruthy();
+    expect(unitStockSchema.parse(await sample.unitStock())).toBeTruthy();
+  });
+});
+
+describe('the second-half calls', () => {
+  it('needs action has only kinds the system can produce, and never offers a day close', async () => {
+    const sample = new SampleReportService(0);
+    const { items } = await sample.needsAction();
+    expect(items.map((item) => item.kind)).not.toContain('sold_at_zero_stock');
+    expect(Object.keys(await sample.dayCloseStatus()).sort()).toEqual([
+      'lastClosedOn',
+      'status',
+      'unmatchedBankItems',
+    ]);
   });
 });
