@@ -27,6 +27,17 @@
   --sidebar-width: 232px;
   --sidebar-width-min: 72px;
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  /*
+   * Card density. Compact is the default (Munif's review, a deliberate change from the design); roomy restores the
+   * approved design's spacing and is switched on by data-density="roomy" on <html> (the density preference).
+   */
+  --card-pad: 16px;
+  --kpi-pad: 12px;
+  --card-gap: 10px;
+  --card-gap-lg: 12px;
+  --row-gap: 4px;
+  --kpi-icon: 28px;
+  --kpi-value: 24px;
   /* Widest the page content grows on large screens before it centres (the design frame is 1440px). */
   --page-max: 1680px;
 
@@ -226,6 +237,17 @@
   --tint-warn: rgba(242, 171, 68, 0.17);
   /* Key figure cards: how strong the tone tint is at its faded end (Main.dc.html: 0.05 light, 0.035 dark). */
   --kpi-tint-end: 0.035;
+}
+
+/* The approved design's spacing (roomy density). */
+:root[data-density='roomy'] {
+  --card-pad: 20px;
+  --kpi-pad: 16px;
+  --card-gap: 12px;
+  --card-gap-lg: 16px;
+  --row-gap: 6px;
+  --kpi-icon: 36px;
+  --kpi-value: 27px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { DemoBadge, Icon, type IconName } from '../../components/ui';
 import { useServices } from '../../app/servicesContext';
+import { usePreferences } from '../../store/preferencesStore';
 import { useI18n } from '../../i18n';
 import type { ReportCall } from '../../services';
 
@@ -25,27 +26,29 @@ export function ReportCard({
 }) {
   const { t } = useI18n();
   const { demo } = useServices();
+  const { density } = usePreferences();
+  const compact = density === 'compact';
   const sample = calls.find((call) => demo.has(`report.${call}`));
   const failed = queries.filter((q) => q.isError);
   const loading = queries.some((q) => q.isPending);
   return (
     <article
-      className={`glass flex min-w-0 flex-col gap-2 ${kpi ? 'kpi rounded-3xl p-4' : 'rounded-[28px] p-5'}`}
+      className={`glass flex min-w-0 flex-col gap-2 ${kpi ? 'kpi rounded-3xl p-[var(--kpi-pad)]' : 'rounded-[28px] p-[var(--card-pad)]'}`}
       data-tone={kpi?.tone}
       aria-busy={loading}
     >
-      <div className={`flex items-center justify-between gap-2 ${kpi ? 'flex-wrap' : ''}`}>
+      <div className={`flex items-center justify-between gap-2 ${kpi && !compact ? 'flex-wrap' : ''}`}>
         {kpi ? (
-          <span className="flex items-center gap-2.5">
+          <span className="flex min-w-0 items-center gap-2.5">
             <span className="kpi-icon">
               <Icon name={kpi.icon} size={18} stroke={1.9} />
             </span>
-            <span className="text-[13px] leading-tight text-text2">{title}</span>
+            <span className="truncate text-[13px] leading-tight text-text2">{title}</span>
           </span>
         ) : (
           <span className="text-[13px] font-semibold text-muted">{title}</span>
         )}
-        {sample && <DemoBadge service={`report.${sample}`} />}
+        {sample && <DemoBadge service={`report.${sample}`} compact={compact} />}
       </div>
       {failed.length > 0 ? (
         <div role="alert" className="flex flex-col items-start gap-2 text-[13px] text-neg-text">
