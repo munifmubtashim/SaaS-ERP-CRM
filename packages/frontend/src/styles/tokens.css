@@ -30,6 +30,14 @@
 
   /* The design's glass: 30px blur. index.css drops it where it can't run well (see the glass utility). */
   --glass-blur: blur(30px) saturate(190%);
+
+  /* The design's highlight over a filled bar (.gloss): light on top, a little shade at the bottom. */
+  --gloss: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(0, 0, 0, 0.14)
+  );
 }
 
 :root,

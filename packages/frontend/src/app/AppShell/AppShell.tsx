@@ -4,6 +4,7 @@ import { useLogout } from '../../features/auth';
 import { ScopeSwitcher } from '../../features/organization';
 import { useI18n } from '../../i18n';
 import { preferencesStore, usePreferences } from '../../store/preferencesStore';
+import { Backdrop } from './Backdrop';
 import { Icon } from './icons';
 import { LanguageSwitch } from './LanguageSwitch';
 import { PhoneTabs } from './PhoneTabs';
@@ -38,7 +39,8 @@ export function AppShell() {
     </>
   );
   return (
-    <div className="flex min-h-screen">
+    <div className="relative isolate flex min-h-screen">
+      <Backdrop />
       <Sidebar footer={account} />
       <div className="flex min-w-0 flex-1 flex-col pb-24 md:pb-0">
         <header className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
