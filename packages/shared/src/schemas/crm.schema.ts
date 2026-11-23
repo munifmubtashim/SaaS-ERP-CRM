@@ -92,4 +92,13 @@ export const followUpListQuerySchema = pageQuerySchema.extend({
   promiseStatus: promiseStatusSchema.optional(),
 });
 
-export const followUpListResponseSchema = cursorPageSchema(followUpSchema);
+/**
+ * A row of the follow-ups list: the follow-up plus the names the screen shows, so the list needs no second
+ * request per row. The collector's name comes from the staff table once it exists (A4).
+ */
+export const followUpListItemSchema = followUpSchema.extend({
+  partyName: z.string().trim().min(1).max(200),
+  collectorName: z.string().trim().min(1).max(200),
+});
+
+export const followUpListResponseSchema = cursorPageSchema(followUpListItemSchema);

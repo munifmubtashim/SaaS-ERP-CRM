@@ -1,5 +1,5 @@
 import type { HealthResponse } from '@erp/shared';
-import type { IHealthService, Services } from '../services';
+import type { ICrmService, IHealthService, Services } from '../services';
 
 /** Fake IHealthService: returns a fixed answer or fails, with no network. */
 export class FakeHealthService implements IHealthService {
@@ -10,8 +10,13 @@ export class FakeHealthService implements IHealthService {
   }
 }
 
-/** Services made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
-export function fakeServices(health: IHealthService): Services {
+/** A Crm service a test did not expect to be called: using it fails loudly. */
+const unusedCrm: ICrmService = {
+  listFollowUps: () => Promise.reject(new Error('This test did not expect a follow-up request.')),
+};
+
+/** Services made of fakes. Stub modules have empty contracts, so `{}` satisfies them. Override per test. */
+export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
     health,
     auth: {},
@@ -25,6 +30,7 @@ export function fakeServices(health: IHealthService): Services {
     sales: {},
     purchase: {},
     service: {},
-    crm: {},
+    crm: unusedCrm,
+    ...overrides,
   };
 }
