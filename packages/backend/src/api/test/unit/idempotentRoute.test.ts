@@ -67,6 +67,7 @@ function setup(handler: (req: Request) => Promise<HttpResult>) {
   });
   app.post('/v1/payments', wrap.tenant(handler, { idempotent: true }));
   app.post('/v1/notes', wrap.tenant(handler));
+  app.post('/v1/invoices/:id/post', wrap.tenant(handler, { idempotent: true }));
   app.use(errorMiddleware);
   return { app, keys };
 }
@@ -172,5 +173,18 @@ describe('wrap.tenant(handler, { idempotent: true }) (ADR 0014 section 2)', () =
     expect(() =>
       createRouteWrappers(new MemoryRunner(new MemoryKeys())).tenant(handler, { idempotent: true }),
     ).toThrow(/needs the idempotency guard/);
+  });
+
+  it('the same key on another invoice id (same route pattern, empty body) is 409 key_reused, not a replay', async () => {
+    const { calls, handler } = counting();
+    const { app } = setup(handler);
+    const first = await request(app).post('/v1/invoices/inv-a/post').set('Idempotency-Key', 'key-5');
+    const other = await request(app).post('/v1/invoices/inv-b/post').set('Idempotency-Key', 'key-5');
+    expect(first.status).toBe(201);
+    expect(other.status).toBe(409);
+    expect(other.body.fields[0].code).toBe('idempotency.key_reused');
+    expect(calls).toHaveLength(1);
+    const repeat = await request(app).post('/v1/invoices/inv-a/post').set('Idempotency-Key', 'key-5');
+    expect(repeat.headers['idempotent-replayed']).toBe('true');
   });
 });

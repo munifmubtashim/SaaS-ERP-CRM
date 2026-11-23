@@ -82,7 +82,10 @@ function withIdempotency(guard: IIdempotency, handler: RouteHandler): RouteHandl
       throw new AppError('INTERNAL_ERROR', 'Idempotent route without a session: authMiddleware must set it.');
     const key = req.get('Idempotency-Key');
     const route = `${req.method} ${req.baseUrl}${String(req.route?.path ?? req.path)}`;
-    const claim = await guard.claim({ key, route, userId: auth.userId, body: req.body });
+    // The hash covers the method, the concrete path (its real ids) and the body, so one key sent to two invoices
+    // of the same action route, with equal bodies, is refused as key_reused instead of replaying the first answer.
+    const request = { method: req.method, path: `${req.baseUrl}${req.path}`, body: req.body ?? null };
+    const claim = await guard.claim({ key, route, userId: auth.userId, body: request });
     if (claim.kind === 'replay') {
       return {
         status: claim.statusCode,
