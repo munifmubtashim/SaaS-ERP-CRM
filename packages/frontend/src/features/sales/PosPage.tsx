@@ -95,7 +95,7 @@ export function PosPage() {
     <div className="flex flex-col gap-4">
       <h1 className="num text-[28px] font-bold">{t('shell.nav.sales')}</h1>
       {toast && (
-        <p role="status" className="glass rounded-2xl px-4 py-3 text-[13px] font-semibold text-pos-text">
+        <p role="status" className="glass pop rounded-2xl px-4 py-3 text-[13px] font-semibold text-pos-text">
           {toast}
         </p>
       )}

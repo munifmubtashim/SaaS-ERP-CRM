@@ -26,7 +26,7 @@ export function ReportCard({
   const failed = queries.filter((q) => q.isError);
   const loading = queries.some((q) => q.isPending);
   return (
-    <article className="glass flex min-w-0 flex-col gap-2 rounded-3xl p-4" aria-busy={loading}>
+    <article className="glass flex min-w-0 flex-col gap-2 rounded-[28px] p-5" aria-busy={loading}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[13px] font-semibold text-muted">{title}</span>
         {sample && <DemoBadge service={`report.${sample}`} />}
@@ -43,10 +43,12 @@ export function ReportCard({
           </button>
         </div>
       ) : loading ? (
-        <div
-          className="h-8 w-32 animate-pulse rounded-lg bg-track"
-          aria-label={t('dash.card.loading', { title })}
-        />
+        <div role="status" aria-label={t('dash.card.loading', { title })} className="flex flex-col gap-2.5">
+          <span className="sk h-4.5 w-[46%]" />
+          <span className="sk h-3 w-[72%]" />
+          <span className="sk min-h-11 rounded-[14px]" />
+          <span className="sk h-3 w-[58%]" />
+        </div>
       ) : (
         children()
       )}

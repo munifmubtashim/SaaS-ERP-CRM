@@ -43,7 +43,7 @@ export function BranchCards() {
                   </div>
                   <div className="h-2 rounded-full bg-track" aria-hidden="true">
                     <div
-                      className={`h-full rounded-full ${BUSINESS_TONES[businesses.indexOf(b.businessName) % 2]}`}
+                      className={`gloss h-full rounded-full ${BUSINESS_TONES[businesses.indexOf(b.businessName) % 2]}`}
                       style={{ width: `${frame.position(b.revenue) * 100}%` }}
                     />
                   </div>
