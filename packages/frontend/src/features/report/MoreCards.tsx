@@ -1,7 +1,8 @@
 import { formatLakhCrore, formatLongDateBD, formatShare, formatTaka } from '@erp/shared';
 import type { NeedsAction } from '@erp/shared';
 import { useI18n, type MessageKey } from '../../i18n';
-import { branchResults, chartFrame, customerShares } from './derive';
+import { BranchRevenueChart } from './BranchRevenueChart';
+import { branchResults, customerShares } from './derive';
 import { ReportCard } from './ReportCard';
 import { useReport } from './useReport';
 
@@ -17,8 +18,6 @@ function useMoney() {
   };
 }
 
-const BUSINESS_TONES = ['bg-biz-a', 'bg-biz-b'];
-
 /** The design's "Revenue by branch" bars and "Profit by branch" card (business totals, then every branch). */
 export function BranchCards() {
   const { t } = useI18n();
@@ -27,31 +26,7 @@ export function BranchCards() {
   return (
     <>
       <ReportCard title={t('dash.branch.revenueTitle')} calls={['branchResults']} queries={[results]}>
-        {() => {
-          const branches = results.data?.branches ?? [];
-          const frame = chartFrame(branches.map((b) => b.revenue));
-          const businesses = [...new Set(branches.map((b) => b.businessName))];
-          return (
-            <ul className="flex flex-col gap-2 text-[13px]">
-              {branches.map((b) => (
-                <li key={b.branchId} className="flex flex-col gap-1">
-                  <div className="flex justify-between gap-2">
-                    <span className="truncate">
-                      {t('dash.branch.label', { branch: b.branchName, business: b.businessName })}
-                    </span>
-                    <span className="num font-semibold">{lakh(b.revenue)}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-track" aria-hidden="true">
-                    <div
-                      className={`gloss h-full rounded-full ${BUSINESS_TONES[businesses.indexOf(b.businessName) % 2]}`}
-                      style={{ width: `${frame.position(b.revenue) * 100}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          );
-        }}
+        {() => <BranchRevenueChart branches={results.data?.branches ?? []} lakh={lakh} loc={loc} />}
       </ReportCard>
       <ReportCard title={t('dash.branch.profitTitle')} calls={['branchResults']} queries={[results]}>
         {() => {
