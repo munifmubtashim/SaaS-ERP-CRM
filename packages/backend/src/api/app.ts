@@ -1,4 +1,4 @@
-import type { ApiManagers, ITenantScopeRunner } from './controllers/contracts/index.js';
+import type { ApiManagers, IIdempotency, ITenantScopeRunner } from './controllers/contracts/index.js';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
@@ -19,6 +19,8 @@ export interface AppDeps {
   managers: ApiManagers;
   /** Opens the one transaction per tenant request (ADR 0005). */
   tenantScope: ITenantScopeRunner;
+  /** The Idempotency-Key guard for money and stock routes (ADR 0014); a route asking for it without one fails to build. */
+  idempotency?: IIdempotency;
   /** The session cookie (ADR 0018 section 2); default: the production cookie, `__Host-erp_sid` with Secure. */
   sessionCookie?: SessionCookieConfig;
   /** The app's origin; every non-GET request must carry it (ADR 0018 section 2). Default: the Vite dev server. */
@@ -61,7 +63,7 @@ export function createApp(deps: AppDeps): Express {
 
   const routes = buildRoutes(
     createControllers(deps.managers, cookie),
-    createRouteWrappers(deps.tenantScope),
+    createRouteWrappers(deps.tenantScope, deps.idempotency),
     deps.loginRateLimiter,
   );
   for (const { basePath, router } of routes) {

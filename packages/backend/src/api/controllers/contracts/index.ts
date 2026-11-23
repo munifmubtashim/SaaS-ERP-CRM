@@ -26,6 +26,7 @@ export type { IPurchaseManager } from './IPurchaseManager.js';
 export type { IServiceManager } from './IServiceManager.js';
 export type { ICrmManager } from './ICrmManager.js';
 export type { ITenantScopeRunner, TenantRunOptions } from './ITenantScopeRunner.js';
+export type { IIdempotency, IdempotentClaim, IdempotentRouteRequest } from './IIdempotency.js';
 
 /**
  * What the api layer needs from businessLogic, as interfaces it owns. server.ts passes the result of
