@@ -16,6 +16,7 @@ describe('targetProgress', () => {
       behindBy: '607166.67',
       aheadBy: null,
       projection: '38344090.91',
+      projectionShare: { part: 3834409091n, whole: 4000000000n },
     });
   });
 
@@ -29,6 +30,7 @@ describe('targetProgress', () => {
     const start = targetProgress({ ...november, achieved: '0.00', daysElapsed: 0 });
     expect(start.paceAmount).toBe('0.00');
     expect(start.projection).toBeNull();
+    expect(start.projectionShare).toBeNull();
   });
 });
 

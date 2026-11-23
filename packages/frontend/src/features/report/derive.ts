@@ -30,6 +30,8 @@ export interface TargetProgress {
   aheadBy: string | null;
   /** The month at this pace; null on day 0. */
   projection: string | null;
+  /** The projection as a share of the target; null on day 0. */
+  projectionShare: Share | null;
 }
 
 export function targetProgress(input: {
@@ -45,13 +47,15 @@ export function targetProgress(input: {
   const pace = prorate(target, elapsed, inMonth);
   const gap = subtractMoney(pace, achieved);
   const behind = compareMoney(gap, ZERO) > 0;
+  const projected = elapsed > 0n ? prorate(achieved, inMonth, elapsed) : null;
   return {
     reached: { part: achieved, whole: target },
     pace: { part: elapsed, whole: inMonth },
     paceAmount: formatMoney(pace),
     behindBy: behind ? formatMoney(gap) : null,
     aheadBy: behind ? null : formatMoney(negateMoney(gap)),
-    projection: elapsed > 0n ? formatMoney(prorate(achieved, inMonth, elapsed)) : null,
+    projection: projected === null ? null : formatMoney(projected),
+    projectionShare: projected === null ? null : { part: projected, whole: target },
   };
 }
 
