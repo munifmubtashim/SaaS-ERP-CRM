@@ -122,6 +122,16 @@
   backdrop-filter: none;
 }
 
+/*
+ * The one page container for every screen (dashboard, POS, inventory, products): fills the space beside the sidebar,
+ * up to --page-max, then centres. Used by the shell's header and main, so screens never set their own width.
+ */
+@utility page-frame {
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+}
+
 @utility gloss {
   background-image: var(--gloss);
 }

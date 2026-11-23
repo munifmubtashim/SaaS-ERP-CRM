@@ -43,7 +43,7 @@ export function AppShell() {
       <Backdrop />
       <Sidebar footer={account} />
       <div className="flex min-w-0 flex-1 flex-col pb-24 md:pb-0">
-        <header className="flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
+        <header className="page-frame flex flex-wrap items-center gap-2 px-4 py-3 md:px-6">
           <BrandLogo variant="mark" className="h-8 md:hidden" fallback={null} />
           <div className="mr-auto">
             <ScopeSwitcher />
@@ -83,7 +83,7 @@ export function AppShell() {
             <Icon name="bell" />
           </button>
         </header>
-        <main className="w-full max-w-6xl p-4 md:p-6">
+        <main className="page-frame p-4 md:p-6">
           <Outlet />
         </main>
       </div>
