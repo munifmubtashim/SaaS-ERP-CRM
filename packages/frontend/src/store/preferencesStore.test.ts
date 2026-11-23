@@ -11,10 +11,33 @@ describe('preferences are kept on this device', () => {
   });
 
   it('nothing saved, or something unreadable, gives the defaults', () => {
-    expect(loadPreferences()).toEqual({ locale: 'en', theme: 'light', sidebarCollapsed: false });
+    expect(loadPreferences()).toEqual({
+      locale: 'en',
+      theme: 'light',
+      sidebarCollapsed: false,
+      density: 'compact',
+    });
     localStorage.setItem(PREFERENCES_KEY, '{not json');
-    expect(loadPreferences()).toEqual({ locale: 'en', theme: 'light', sidebarCollapsed: false });
+    expect(loadPreferences()).toEqual({
+      locale: 'en',
+      theme: 'light',
+      sidebarCollapsed: false,
+      density: 'compact',
+    });
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ theme: 'purple', locale: 'fr' }));
-    expect(loadPreferences()).toEqual({ locale: 'en', theme: 'light', sidebarCollapsed: false });
+    expect(loadPreferences()).toEqual({
+      locale: 'en',
+      theme: 'light',
+      sidebarCollapsed: false,
+      density: 'compact',
+    });
+  });
+
+  it('density: compact by default; roomy is kept when chosen; anything else is compact (no settings screen yet)', () => {
+    expect(loadPreferences().density).toBe('compact');
+    preferencesStore.set({ density: 'roomy' });
+    expect(loadPreferences().density).toBe('roomy');
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ density: 'tiny' }));
+    expect(loadPreferences().density).toBe('compact');
   });
 });
