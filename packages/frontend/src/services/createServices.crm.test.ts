@@ -3,7 +3,8 @@ import { CrmService } from './crmService';
 import { createServices, type IHttpClient } from './index';
 import { MockCrmService } from './mock/MockCrmService';
 
-const http: IHttpClient = { getJson: () => Promise.reject(new Error('no network in this test')) };
+const offline = () => Promise.reject(new Error('no network in this test'));
+const http: IHttpClient = { getJson: offline, postJson: offline, post: offline };
 
 describe('createServices: the mock Crm service only in development (as #33 does for Party)', () => {
   it('builds the real CrmService when mocks are off, as in a production build', () => {

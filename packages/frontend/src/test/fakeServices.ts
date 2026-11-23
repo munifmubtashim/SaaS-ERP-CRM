@@ -13,6 +13,8 @@ export class FakeHealthService implements IHealthService {
 /** A Crm service a test did not expect to be called: using it fails loudly. */
 const unusedCrm: ICrmService = {
   listFollowUps: () => Promise.reject(new Error('This test did not expect a follow-up request.')),
+  recordFollowUp: () => Promise.reject(new Error('This test did not expect a follow-up to be recorded.')),
+  listCollectors: () => Promise.reject(new Error('This test did not expect a collector request.')),
 };
 
 /** Services made of fakes. Stub modules have empty contracts, so `{}` satisfies them. Override per test. */

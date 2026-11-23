@@ -39,6 +39,14 @@ class FakeCrmService implements ICrmService {
     this.failWith = undefined;
   }
 
+  recordFollowUp(): never {
+    throw new Error('The list does not record follow-ups.');
+  }
+
+  listCollectors(): never {
+    throw new Error('The list does not load collectors.');
+  }
+
   async listFollowUps(query: FollowUpListQueryInput): Promise<FollowUpListResponse> {
     this.queries.push(query);
     if (this.failWith) throw this.failWith;
@@ -51,13 +59,13 @@ class FakeCrmService implements ICrmService {
   }
 }
 
-function renderPage(crm: ICrmService, locale: 'en' | 'bn' = 'en') {
+function renderPage(crm: ICrmService, locale: 'en' | 'bn' = 'en', state: unknown = null) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <ServicesContext.Provider value={fakeServices(new FakeHealthService(new Error('unused')), { crm })}>
       <QueryClientProvider client={client}>
         <I18nProvider locale={locale}>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[{ pathname: '/follow-ups', state }]}>
             <FollowUpListPage />
           </MemoryRouter>
         </I18nProvider>
@@ -111,6 +119,38 @@ describe('FollowUpListPage (CR-05, mock data)', () => {
     if (!row) throw new Error('no row');
     expect(within(row).getByText('No answer')).toBeInTheDocument();
     expect(within(row).getByText('Rang twice')).toBeInTheDocument();
+  });
+
+  it("links each row to the follow-up form for that row's customer", async () => {
+    renderPage(new FakeCrmService(ROWS));
+    const row = (await screen.findByText('Sample Customer 01')).closest('tr');
+    if (!row) throw new Error('no row');
+    expect(within(row).getByRole('link', { name: 'Record follow-up' })).toHaveAttribute(
+      'href',
+      `/follow-ups/new?partyId=${ROWS[0]?.partyId}`,
+    );
+  });
+
+  it('after a saved promise, says so and opens on Open, where the new promise is', async () => {
+    const crm = new FakeCrmService(ROWS);
+    renderPage(crm, 'en', { saved: true, promiseStatus: 'open' });
+    expect(screen.getByRole('status')).toHaveTextContent('Follow-up saved.');
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute('aria-pressed', 'true');
+    await screen.findByText('Sample Customer 02');
+    expect(crm.queries[0]).toMatchObject({ promiseStatus: 'open' });
+  });
+
+  it('after a save without a promise, says so in Bangla and keeps the usual Broken filter', async () => {
+    renderPage(new FakeCrmService(ROWS), 'bn', { saved: true });
+    expect(screen.getByRole('status')).toHaveTextContent('ফলো-আপ সংরক্ষণ হয়েছে।');
+    expect(screen.getByRole('button', { name: 'ভঙ্গ' })).toHaveAttribute('aria-pressed', 'true');
+    await screen.findByText('Sample Customer 01');
+  });
+
+  it('shows no saved message on a normal visit', async () => {
+    renderPage(new FakeCrmService(ROWS));
+    await screen.findByText('Sample Customer 01');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('says there are no broken promises when there are none', async () => {

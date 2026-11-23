@@ -5,12 +5,22 @@ import {
   type FollowUpListItem,
   type PromiseStatus,
 } from '@erp/shared';
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Button, Card } from '../../components/ui';
 import { useI18n, type MessageKey } from '../../i18n';
 import { ApiRequestError } from '../../services';
 import { useFollowUps } from './useFollowUps';
+
+const STATUSES: readonly PromiseStatus[] = ['open', 'kept', 'broken'];
+
+/** The navigation state the follow-up form leaves after a save; anything else is ignored. */
+function readArrival(state: unknown): { saved: boolean; promiseStatus?: PromiseStatus } {
+  if (typeof state !== 'object' || state === null) return { saved: false };
+  const { saved, promiseStatus } = state as { saved?: unknown; promiseStatus?: unknown };
+  const status = STATUSES.find((s) => s === promiseStatus);
+  return status ? { saved: saved === true, promiseStatus: status } : { saved: saved === true };
+}
 
 /** Broken first: the screen is exception-first (erp-ui-design), so it opens on what needs action. */
 const FILTERS: { value: PromiseStatus | undefined; key: MessageKey; empty: MessageKey }[] = [
@@ -29,7 +39,15 @@ const segment =
  */
 export function FollowUpListPage() {
   const { t } = useI18n();
-  const [status, setStatus] = useState<PromiseStatus | undefined>('broken');
+  const location = useLocation();
+  const navigate = useNavigate();
+  // After a save, the form passes { saved, promiseStatus } so the list can say so and open where the row is.
+  const [arrival] = useState(() => readArrival(location.state));
+  const [status, setStatus] = useState<PromiseStatus | undefined>(arrival.promiseStatus ?? 'broken');
+  // Clear that state, so a reload or Back doesn't say "saved" again.
+  useEffect(() => {
+    if (location.state) void navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
   const followUps = useFollowUps(status);
   const empty = FILTERS.find((f) => f.value === status)?.empty ?? 'followUps.empty.all';
 
@@ -37,6 +55,11 @@ export function FollowUpListPage() {
     <>
       <h1 className="mb-1 text-2xl font-semibold">{t('followUps.title')}</h1>
       <p className="text-muted">{t('followUps.subtitle')}</p>
+      {arrival.saved && (
+        <p role="status" className="mt-4 rounded-md bg-pos-bg px-4 py-2 text-pos-text">
+          {t('followUps.saved')}
+        </p>
+      )}
 
       <div
         role="group"
@@ -135,6 +158,7 @@ function FollowUpTable({ rows, stale }: { rows: FollowUpListItem[]; stale: boole
     'followUps.col.status',
     'followUps.col.collector',
     'followUps.col.contacted',
+    'followUps.col.action',
   ];
   return (
     <table
@@ -185,6 +209,16 @@ function FollowUpTable({ rows, stale }: { rows: FollowUpListItem[]; stale: boole
             </td>
             <td role="cell" className={`${cell} num order-5 text-[13px] text-muted`}>
               {formatDateTimeBD(row.contactedAt)}
+            </td>
+            <td role="cell" className={`${cell} order-6 w-full md:w-auto`}>
+              {/* The form takes the customer from here: it has no customer search yet (#33). */}
+              <Link
+                to={`/follow-ups/new?partyId=${row.partyId}`}
+                state={{ partyName: row.partyName }}
+                className="inline-flex min-h-11 items-center font-medium text-accent-text"
+              >
+                {t('followUps.record')}
+              </Link>
             </td>
           </tr>
         ))}
