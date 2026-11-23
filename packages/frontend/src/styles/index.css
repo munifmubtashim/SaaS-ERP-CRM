@@ -24,13 +24,51 @@
   --color-nav-active: var(--nav-active);
   --color-nav-hover: var(--nav-hover);
   --color-chip: var(--chip-bg);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --color-insight: var(--insight);
+  --color-biz-a: var(--biz-a);
+  --color-biz-b: var(--biz-b);
+  --color-grid: var(--grid);
+  --color-track: var(--track);
+  --color-dot-fill: var(--dot-fill);
+  --color-ico-ink: var(--ico-ink);
+  --color-c1: var(--c1);
+  --color-c2: var(--c2);
+  --color-c3: var(--c3);
+  --color-tint-accent: var(--tint-accent);
+  --color-tint-pos: var(--tint-pos);
+  --color-tint-neg: var(--tint-neg);
+  --color-tint-warn: var(--tint-warn);
 }
 
-/* Glass surface from the approved design (design/owner-dashboard). */
+/* Glass surface from the approved design (design/owner-dashboard): 30px blur behind a translucent card. */
 @utility glass {
   background: var(--card);
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/*
+ * No-blur fallback: the same card without the blur, as the design itself shows while the sidebar moves. Used when
+ * the browser can't blur, when the user asks for less transparency, and when the app sets data-glass="off" on
+ * <html> (slow phones).
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-blur: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-blur: none;
+  }
+}
+:root[data-glass='off'] {
+  --glass-blur: none;
 }
 
 @utility num {

@@ -4,6 +4,8 @@
  * Components use only these variables: no one-off colours (see .claude/skills/erp-ui-design).
  *
  * Theme: set data-theme="light" | "dark" on <html>. Without it, the OS preference decides.
+ * The colour blocks are generated from the design objects; tools/src/designTokens.test.ts checks them.
+ * --tint-* come from the phone dashboard (PhoneLight.dc.html); --orb-* colour the background glows.
  */
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Bengali', sans-serif;
@@ -25,18 +27,33 @@
   --sidebar-width: 232px;
   --sidebar-width-min: 72px;
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* The design's glass: 30px blur. index.css drops it where it can't run well (see the glass utility). */
+  --glass-blur: blur(30px) saturate(190%);
 }
 
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: linear-gradient(180deg, #f7f8fc 0%, #eef1f8 100%);
+  --bg:
+    radial-gradient(900px 700px at 0% 0%, rgba(99, 102, 241, 0), transparent 62%),
+    linear-gradient(
+      270deg,
+      rgba(197, 113, 119, 0.24) 0%,
+      rgba(197, 113, 119, 0.1) 28%,
+      rgba(197, 113, 119, 0) 55%
+    ),
+    radial-gradient(900px 760px at 100% 100%, rgba(31, 163, 145, 0), transparent 62%),
+    radial-gradient(800px 700px at 0% 100%, rgba(99, 102, 241, 0), transparent 60%),
+    linear-gradient(180deg, #f7f8fc 0%, #eef1f8 100%);
   --text: #0e1836;
   --text2: #33405f;
   --muted: #3f4a6e;
   --card: linear-gradient(145deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.3));
   --card-border: rgba(255, 255, 255, 0.95);
-  --card-shadow: 0 0 0 1px rgba(40, 56, 130, 0.07), 0 26px 50px -18px rgba(40, 56, 130, 0.34);
+  --card-shadow:
+    0 0 0 1px rgba(40, 56, 130, 0.07), inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35), 0 26px 50px -18px rgba(40, 56, 130, 0.34);
   --row-border: rgba(16, 27, 59, 0.08);
   --accent: #4f5df0;
   --accent-soft: rgba(79, 93, 240, 0.13);
@@ -51,15 +68,37 @@
   --warn: #e89a1c;
   --warn-text: #744205;
   --warn-bg: rgba(232, 154, 28, 0.18);
+  --insight: #12a9bf;
+  --biz-a: #3346b8;
+  --biz-b: #1fa391;
+  --grid: rgba(16, 27, 59, 0.1);
+  --track: rgba(16, 27, 59, 0.08);
   --nav-active: rgba(79, 93, 240, 0.14);
   --nav-hover: rgba(16, 27, 59, 0.05);
   --chip-bg: rgba(255, 255, 255, 0.48);
+  --dot-fill: #f4f6fa;
+  --orb-a: rgba(255, 255, 255, 0.5);
+  --orb-b: rgba(197, 113, 119, 0.18);
+  --orb-c: rgba(255, 255, 255, 0.55);
+  --orb-d: rgba(255, 255, 255, 0.4);
+  --ico-ink: #ffffff;
+  --c1: #3346b8;
+  --c2: #a61e4d;
+  --c3: #1fa391;
+  --tint-accent: rgba(79, 93, 240, 0.2);
+  --tint-pos: rgba(18, 165, 122, 0.2);
+  --tint-neg: rgba(224, 68, 102, 0.18);
+  --tint-warn: rgba(232, 154, 28, 0.22);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: linear-gradient(135deg, #000000 0%, #000000 55%, #02040e 100%);
+    --bg:
+      radial-gradient(900px 600px at 8% -4%, rgba(56, 110, 255, 0.18), transparent 62%),
+      radial-gradient(820px 580px at 100% 100%, rgba(124, 82, 255, 0.14), transparent 62%),
+      radial-gradient(600px 420px at 72% 28%, rgba(34, 211, 238, 0.05), transparent 65%),
+      linear-gradient(135deg, #000000 0%, #000000 55%, #02040e 100%);
     --text: #f2f5ff;
     --text2: #b7c1de;
     --muted: #93a1c6;
@@ -70,7 +109,9 @@
       rgba(120, 90, 255, 0.04)
     );
     --card-border: rgba(170, 195, 255, 0.16);
-    --card-shadow: 0 28px 56px -20px rgba(0, 0, 0, 0.95), 0 0 36px -14px rgba(80, 130, 255, 0.35);
+    --card-shadow:
+      0 28px 56px -20px rgba(0, 0, 0, 0.95), 0 0 36px -14px rgba(80, 130, 255, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
     --row-border: rgba(255, 255, 255, 0.09);
     --accent: #8c98ff;
     --accent-soft: rgba(140, 152, 255, 0.2);
@@ -85,15 +126,37 @@
     --warn: #f2ab44;
     --warn-text: #ffc673;
     --warn-bg: rgba(242, 171, 68, 0.14);
+    --insight: #2cc4d8;
+    --biz-a: #7f92f7;
+    --biz-b: #2fb3a0;
+    --grid: rgba(255, 255, 255, 0.1);
+    --track: rgba(255, 255, 255, 0.1);
     --nav-active: rgba(140, 152, 255, 0.22);
     --nav-hover: rgba(255, 255, 255, 0.06);
     --chip-bg: rgba(255, 255, 255, 0.04);
+    --dot-fill: #0a0e1c;
+    --orb-a: rgba(59, 130, 246, 0.16);
+    --orb-b: rgba(139, 92, 246, 0.12);
+    --orb-c: rgba(34, 211, 238, 0.05);
+    --orb-d: rgba(59, 130, 246, 0.09);
+    --ico-ink: #0a1030;
+    --c1: #7f92f7;
+    --c2: #f26d55;
+    --c3: #2fb3a0;
+    --tint-accent: rgba(131, 146, 255, 0.2);
+    --tint-pos: rgba(47, 201, 154, 0.17);
+    --tint-neg: rgba(240, 98, 124, 0.17);
+    --tint-warn: rgba(242, 171, 68, 0.17);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: linear-gradient(135deg, #000000 0%, #000000 55%, #02040e 100%);
+  --bg:
+    radial-gradient(900px 600px at 8% -4%, rgba(56, 110, 255, 0.18), transparent 62%),
+    radial-gradient(820px 580px at 100% 100%, rgba(124, 82, 255, 0.14), transparent 62%),
+    radial-gradient(600px 420px at 72% 28%, rgba(34, 211, 238, 0.05), transparent 65%),
+    linear-gradient(135deg, #000000 0%, #000000 55%, #02040e 100%);
   --text: #f2f5ff;
   --text2: #b7c1de;
   --muted: #93a1c6;
@@ -104,7 +167,9 @@
     rgba(120, 90, 255, 0.04)
   );
   --card-border: rgba(170, 195, 255, 0.16);
-  --card-shadow: 0 28px 56px -20px rgba(0, 0, 0, 0.95), 0 0 36px -14px rgba(80, 130, 255, 0.35);
+  --card-shadow:
+    0 28px 56px -20px rgba(0, 0, 0, 0.95), 0 0 36px -14px rgba(80, 130, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
   --row-border: rgba(255, 255, 255, 0.09);
   --accent: #8c98ff;
   --accent-soft: rgba(140, 152, 255, 0.2);
@@ -119,9 +184,27 @@
   --warn: #f2ab44;
   --warn-text: #ffc673;
   --warn-bg: rgba(242, 171, 68, 0.14);
+  --insight: #2cc4d8;
+  --biz-a: #7f92f7;
+  --biz-b: #2fb3a0;
+  --grid: rgba(255, 255, 255, 0.1);
+  --track: rgba(255, 255, 255, 0.1);
   --nav-active: rgba(140, 152, 255, 0.22);
   --nav-hover: rgba(255, 255, 255, 0.06);
   --chip-bg: rgba(255, 255, 255, 0.04);
+  --dot-fill: #0a0e1c;
+  --orb-a: rgba(59, 130, 246, 0.16);
+  --orb-b: rgba(139, 92, 246, 0.12);
+  --orb-c: rgba(34, 211, 238, 0.05);
+  --orb-d: rgba(59, 130, 246, 0.09);
+  --ico-ink: #0a1030;
+  --c1: #7f92f7;
+  --c2: #f26d55;
+  --c3: #2fb3a0;
+  --tint-accent: rgba(131, 146, 255, 0.2);
+  --tint-pos: rgba(47, 201, 154, 0.17);
+  --tint-neg: rgba(240, 98, 124, 0.17);
+  --tint-warn: rgba(242, 171, 68, 0.17);
 }
 
 @media (prefers-reduced-motion: reduce) {
