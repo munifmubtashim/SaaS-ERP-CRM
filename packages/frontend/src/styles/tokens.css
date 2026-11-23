@@ -27,6 +27,8 @@
   --sidebar-width: 232px;
   --sidebar-width-min: 72px;
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Widest the page content grows on large screens before it centres (the design frame is 1440px). */
+  --page-max: 1680px;
 
   /* The design's glass: 30px blur. index.css drops it where it can't run well (see the glass utility). */
   --glass-blur: blur(30px) saturate(190%);
