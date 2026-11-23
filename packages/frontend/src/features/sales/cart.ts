@@ -175,3 +175,12 @@ export function filterItems(items: readonly PosItem[], search: string, category:
 export function categoriesOf(items: readonly PosItem[]): string[] {
   return ['all', ...new Set(items.map((item) => item.category))];
 }
+
+/** Typed taka ("1,250.5") to a money string ("1250.50") by text rules only, never a float; empty is 0; else null. */
+export function takaInput(typed: string): string | null {
+  const text = typed.trim().replace(/,/g, '');
+  if (text === '') return '0.00';
+  const match = /^(\d{1,13})(?:\.(\d{0,2}))?$/.exec(text);
+  if (!match) return null;
+  return `${match[1]}.${(match[2] ?? '').padEnd(2, '0')}`;
+}
