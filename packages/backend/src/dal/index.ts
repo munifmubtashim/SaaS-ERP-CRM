@@ -8,6 +8,7 @@ export { HealthQuery } from './query/HealthQuery.js';
 export { AuthDTO, LoginUserDTO, SessionDTO } from './dto/AuthDTO.js';
 export { AuthQuery, type CreateUserInput, type NewSessionInput } from './query/AuthQuery.js';
 export { NumberSeriesQuery, type TakenNumberRow } from './query/NumberSeriesQuery.js';
+export { IdempotencyQuery, type ClaimKeyInput, type StoredKeyRow } from './query/IdempotencyQuery.js';
 export { OrganizationDTO } from './dto/OrganizationDTO.js';
 export { OrganizationQuery } from './query/OrganizationQuery.js';
 // The provisioner (ADR 0010): the factory and the types only. The client stays inside dal.
