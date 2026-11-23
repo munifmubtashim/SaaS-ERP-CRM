@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import * as productSchemas from './product.schema.js';
 import {
+  productCreateSchema,
+  productDetailSchema,
+  productEditSchema,
   productListItemSchema,
   productListQuerySchema,
   productListResponseSchema,
@@ -65,5 +69,66 @@ describe('productListQuerySchema', () => {
 describe('productListResponseSchema', () => {
   it('is a cursor page of product rows', () => {
     expect(productListResponseSchema.safeParse({ items: [item], nextCursor: null }).success).toBe(true);
+  });
+});
+
+describe('ADR 0052 test 1: create and edit bodies', () => {
+  const create = {
+    code: 'HLM-01',
+    name: 'Helmet',
+    unit: 'pcs',
+    tracking: 'quantity',
+    sellPrice: '2500.50',
+  };
+
+  it('accepts a create with money as a two-decimal string; optional fields default to null', () => {
+    expect(productCreateSchema.parse(create)).toEqual({
+      ...create,
+      nameBn: null,
+      brand: null,
+      category: null,
+    });
+  });
+
+  it('refuses a number, a one-decimal string or a negative amount for sellPrice', () => {
+    for (const sellPrice of [2500.5, '12.5', '-1.00']) {
+      expect(productCreateSchema.safeParse({ ...create, sellPrice }).success, String(sellPrice)).toBe(false);
+    }
+  });
+
+  it('refuses unknown keys on create, such as businessId (ADR 0052 test 8)', () => {
+    expect(productCreateSchema.safeParse({ ...create, businessId: item.id }).success).toBe(false);
+  });
+
+  it('an edit carries the version it read and at least one change; code, tracking and businessId are refused', () => {
+    expect(productEditSchema.parse({ version: 3, name: 'Helmet XL' })).toEqual({
+      version: 3,
+      name: 'Helmet XL',
+    });
+    for (const bad of [
+      { version: 3 },
+      { name: 'x' },
+      { version: 3, code: 'NEW' },
+      { version: 3, tracking: 'serial' },
+      { version: 3, businessId: item.id },
+      { version: 0, name: 'x' },
+    ]) {
+      expect(productEditSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+});
+
+describe('ADR 0052 test 2 / ADR 0020 test 10: no product response carries a cost', () => {
+  it('no key of any product schema mentions cost', () => {
+    const keysOf = (schema: unknown): string[] => {
+      const shape = (schema as { shape?: Record<string, unknown> }).shape;
+      return shape ? Object.keys(shape) : [];
+    };
+    const keys = Object.values(productSchemas).flatMap(keysOf);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.filter((key) => key.toLowerCase().includes('cost'))).toEqual([]);
+    expect(keysOf(productDetailSchema)).toEqual(
+      expect.arrayContaining(['sellPrice', 'version', 'nameBn', 'category']),
+    );
   });
 });

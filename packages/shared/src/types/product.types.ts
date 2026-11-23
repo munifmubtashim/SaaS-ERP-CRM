@@ -1,5 +1,8 @@
 import type { z } from 'zod';
 import type {
+  productCreateSchema,
+  productDetailSchema,
+  productEditSchema,
   productListItemSchema,
   productListQuerySchema,
   productListResponseSchema,
@@ -15,3 +18,6 @@ export type ProductListItem = z.infer<typeof productListItemSchema>;
 export type ProductListQueryInput = z.input<typeof productListQuerySchema>;
 export type ProductListQuery = z.infer<typeof productListQuerySchema>;
 export type ProductListResponse = z.infer<typeof productListResponseSchema>;
+export type ProductDetail = z.infer<typeof productDetailSchema>;
+export type ProductCreate = z.infer<typeof productCreateSchema>;
+export type ProductEdit = z.infer<typeof productEditSchema>;
