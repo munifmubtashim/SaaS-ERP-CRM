@@ -22,6 +22,7 @@ describe('readBrand', () => {
       mark: '/brand/local/mark.png',
       icon: '/brand/local/icon.png',
       touchIcon: '/brand/local/icon-180.png',
+      wordmark: '/brand/local/wordmark.png',
     });
   });
 
@@ -43,6 +44,23 @@ describe('BrandLogo', () => {
   it('the mark variant shows the mark', () => {
     render(<BrandLogo brand={brand} variant="mark" fallback="ERP" />);
     expect(screen.getByRole('img', { name: 'Sample Brand' })).toHaveAttribute('src', '/brand/local/mark.png');
+  });
+
+  it('the wordmark variant (logo without the tagline, for small spaces) shows the wordmark', () => {
+    render(<BrandLogo brand={brand} variant="wordmark" fallback="ERP" />);
+    expect(screen.getByRole('img', { name: 'Sample Brand' })).toHaveAttribute(
+      'src',
+      '/brand/local/wordmark.png',
+    );
+  });
+
+  it('a missing wordmark falls back to the full logo, then to the plain name', () => {
+    render(<BrandLogo brand={brand} variant="wordmark" fallback="ERP" />);
+    fireEvent.error(screen.getByRole('img'));
+    expect(screen.getByRole('img', { name: 'Sample Brand' })).toHaveAttribute('src', '/brand/local/logo.png');
+    fireEvent.error(screen.getByRole('img'));
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('ERP')).toBeInTheDocument();
   });
 
   it('shows the plain name when there is no brand, or when the image is missing', () => {

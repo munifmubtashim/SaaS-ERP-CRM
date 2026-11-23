@@ -42,7 +42,7 @@ export function TargetCard() {
         }
         const p = targetProgress({ ...goal, achieved: sold.monthToDate });
         return (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-[var(--card-gap)]">
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="num text-[28px] font-bold">
                 {formatShare(p.reached.part, p.reached.whole, loc)}
@@ -118,7 +118,7 @@ function AgedDuesGroup({
   const aged = agingBuckets(entries);
   const tones = ['bg-pos', 'bg-warn', 'bg-neg'];
   return (
-    <div role="group" aria-label={label} className="flex flex-col gap-1.5">
+    <div role="group" aria-label={label} className="flex flex-col gap-[var(--row-gap)]">
       <div className="flex justify-between gap-2 text-[13px]">
         <span className="font-semibold">{label}</span>
         <span className="num font-semibold">৳{formatTaka(aged.total, loc)}</span>
@@ -164,9 +164,9 @@ export function CashCard() {
           </div>
         );
         return (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-[var(--card-gap-lg)]">
             <p className="text-[13px] text-text2">{t('dash.cash.subtitle')}</p>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-[var(--card-gap)] lg:grid-cols-4">
               {figure(
                 t('dash.cash.now'),
                 taka(position.cashNow),
@@ -176,7 +176,7 @@ export function CashCard() {
               {figure(t('dash.cash.out'), `−${taka(c.goingOut)}`, t('dash.cash.outHelp'))}
               {figure(t('dash.cash.in30'), taka(c.cashIn30Days), t('dash.cash.in30Help'))}
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-[var(--card-gap-lg)] md:grid-cols-2">
               <AgedDuesGroup
                 label={t('dash.cash.customers')}
                 entries={customers.data.entries}

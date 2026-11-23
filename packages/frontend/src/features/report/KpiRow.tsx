@@ -8,7 +8,7 @@ import { ReportCard } from './ReportCard';
 import { sparkline } from './sparkline';
 import { useReport } from './useReport';
 
-const value = 'num text-[27px] font-semibold leading-[1.1]';
+const value = 'num kpi-value font-semibold leading-[1.1]';
 const note = 'text-[13px] text-text2';
 
 /** The design's small trend line under a key figure: a 2px line in the card's tone over a fading fill. */

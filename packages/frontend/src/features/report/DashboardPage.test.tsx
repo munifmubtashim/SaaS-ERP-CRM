@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
 import type { DemoService, IReportService } from '../../services';
 import { SampleReportService } from '../../services/sample/SampleReportService';
+import { preferencesStore } from '../../store/preferencesStore';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { DashboardPage } from './DashboardPage';
 
@@ -39,6 +40,8 @@ function renderPage({
 }
 
 describe('DashboardPage summary', () => {
+  afterEach(() => preferencesStore.set({ density: 'compact' }));
+
   it('greets by the time of day in Dhaka and shows the long date', async () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Good morning, Sample Owner');
@@ -103,6 +106,25 @@ describe('DashboardPage summary', () => {
     await within(figures).findByText('৳1,40,59,500');
     await within(figures).findByText('৳39,98,175');
     expect(figures.querySelectorAll('[data-trend]')).toHaveLength(5);
+  });
+
+  it('compact density (the default): sample cards carry a small marker named Demo data on the title line', async () => {
+    renderPage();
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const card = (label: string) => within(figures).getByText(label).closest('article') as HTMLElement;
+    expect(within(card('Net profit')).getByRole('button', { name: 'Demo data' })).toBeInTheDocument();
+    expect(within(card('Revenue')).queryByRole('button', { name: 'Demo data' })).toBeNull(); // real figure
+  });
+
+  it('roomy density keeps the design’s full Demo data badge', async () => {
+    preferencesStore.set({ density: 'roomy' });
+    renderPage();
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const card = within(figures).getByText('Net profit').closest('article') as HTMLElement;
+    expect(within(card).getByText('Demo data')).toBeVisible();
+    expect(within(card).queryByRole('button', { name: 'Demo data' })).toBeNull();
   });
 
   it('a card whose figures fail shows its own error with a retry; the others still show', async () => {

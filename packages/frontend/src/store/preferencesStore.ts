@@ -1,16 +1,18 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Client-side UI preferences: language, theme, sidebar. Server state lives in TanStack Query, not here.
+ * Client-side UI preferences: language, theme, sidebar, density. Server state lives in TanStack Query, not here.
  * TODO(Munif, Phase 1): persist server-side per user once auth exists (roadmap 4.5).
  */
 export interface Preferences {
   locale: 'en' | 'bn';
   theme: 'light' | 'dark';
   sidebarCollapsed: boolean;
+  /** Card density: compact by default (Munif's review); roomy is the approved design's spacing. No screen sets it yet. */
+  density: 'compact' | 'roomy';
 }
 
-const DEFAULTS: Preferences = { locale: 'en', theme: 'light', sidebarCollapsed: false };
+const DEFAULTS: Preferences = { locale: 'en', theme: 'light', sidebarCollapsed: false, density: 'compact' };
 /** localStorage key: preferences are per viewer and per device, a convenience only. */
 export const PREFERENCES_KEY = 'erp.preferences';
 
@@ -24,6 +26,7 @@ export function loadPreferences(): Preferences {
       locale: saved.locale === 'bn' ? 'bn' : DEFAULTS.locale,
       theme: saved.theme === 'dark' ? 'dark' : DEFAULTS.theme,
       sidebarCollapsed: saved.sidebarCollapsed === true,
+      density: saved.density === 'roomy' ? 'roomy' : DEFAULTS.density,
     };
   } catch {
     return DEFAULTS;

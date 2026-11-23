@@ -10,13 +10,14 @@ const queryClient = new QueryClient({
 });
 const defaultServices = createServices();
 
-/** Applies the chosen theme and language to <html> on every page, the login screen included. */
+/** Applies the chosen theme, density and language to <html> on every page, the login screen included. */
 function PreferenceEffects() {
-  const { theme, locale } = usePreferences();
+  const { theme, locale, density } = usePreferences();
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.density = density;
     document.documentElement.lang = locale;
-  }, [theme, locale]);
+  }, [theme, locale, density]);
   return null;
 }
 

@@ -402,6 +402,7 @@ export const bn: Record<MessageKey, string> = {
   'login.error.tooMany': 'অনেকবার চেষ্টা করা হয়েছে। ১৫ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।',
   'shell.signedInAs': 'সাইন ইন করেছেন',
   'demo.badge': 'নমুনা তথ্য',
+  'demo.explain': 'নমুনা তথ্য: এগুলো নমুনা অঙ্ক, আপনার আসল হিসাব নয়।',
   'shell.signOut': 'সাইন আউট',
   'error.home': 'হোমে ফিরে যান',
 };

@@ -399,6 +399,7 @@ export const en = {
   'login.error.tooMany': 'Too many attempts. Wait 15 minutes, then try again.',
   'shell.signedInAs': 'Signed in as',
   'demo.badge': 'Demo data',
+  'demo.explain': 'Demo data: sample figures, not your real records.',
   'shell.signOut': 'Sign out',
 } as const;
 
