@@ -1,5 +1,8 @@
 import {
   addDaysISO,
+  formatMoney,
+  parseMoney,
+  prorate,
   addMonthsISO,
   daysInMonthISO,
   todayBD,
@@ -89,6 +92,14 @@ function sampleFor(today: string): Answers {
   const firstOfMonth = `${month}-01`;
   const PERIOD = { from: firstOfMonth, to: today === firstOfMonth ? today : addDaysISO(today, -1) };
   const months = [-5, -4, -3, -2, -1, 0].map((n) => addMonthsISO(month, n));
+  const daysInMonth = daysInMonthISO(month);
+  const daysElapsed = Math.max(1, Number(today.slice(8, 10)) - 1);
+  /**
+   * Month-to-date amounts grow with the month, so the target always tells the design's story (11 of 30 days:
+   * 35.1% reached against a 36.7% pace, slightly behind). On the story day the factor is exactly 1.
+   */
+  const toDate = (amount: string) =>
+    formatMoney(prorate(parseMoney(amount), BigInt(daysElapsed * 30), BigInt(daysInMonth * 11)));
   return {
     ownerDashboard: {
       asOf: AS_OF,
@@ -102,10 +113,10 @@ function sampleFor(today: string): Answers {
       asOf: AS_OF,
       today: '1280000.00',
       invoicesToday: 14,
-      monthToDate: '14059500.00',
+      monthToDate: toDate('14059500.00'),
       byBusiness: [
-        { ...MOTORS, monthToDate: '10248000.00' },
-        { ...PARTS, monthToDate: '3811500.00' },
+        { ...MOTORS, monthToDate: toDate('10248000.00') },
+        { ...PARTS, monthToDate: toDate('3811500.00') },
       ],
     } satisfies SalesToday,
     stockValue: { asOf: AS_OF, unitsInStock: 46, unitsOver90Days: 4 } satisfies StockValue,
@@ -129,8 +140,8 @@ function sampleFor(today: string): Answers {
     } satisfies AgedDues,
     salesTarget: {
       month,
-      daysInMonth: daysInMonthISO(month),
-      daysElapsed: Math.max(1, Number(today.slice(8, 10)) - 1),
+      daysInMonth,
+      daysElapsed,
       target: '40000000.00',
       byBusiness: [
         { ...MOTORS, target: '28000000.00' },
@@ -161,24 +172,54 @@ function sampleFor(today: string): Answers {
     branchResults: {
       period: PERIOD,
       branches: [
-        branch('0196f000-0000-7000-8000-00000000d0b1', 'Mirpur-10', MOTORS.name, '5240000.00', '1100000.00'),
-        branch('0196f000-0000-7000-8000-00000000d0b2', 'Uttara', MOTORS.name, '3125000.00', '688000.00'),
-        branch('0196f000-0000-7000-8000-00000000d0b3', 'Mirpur-10', PARTS.name, '2215000.00', '531000.00'),
-        branch('0196f000-0000-7000-8000-00000000d0b4', 'Narayanganj', MOTORS.name, '1870000.00', '65000.00'),
-        branch('0196f000-0000-7000-8000-00000000d0b5', 'Agrabad', PARTS.name, '1610000.00', '-71000.00'),
+        branch(
+          '0196f000-0000-7000-8000-00000000d0b1',
+          'Mirpur-10',
+          MOTORS.name,
+          toDate('5240000.00'),
+          toDate('1100000.00'),
+        ),
+        branch(
+          '0196f000-0000-7000-8000-00000000d0b2',
+          'Uttara',
+          MOTORS.name,
+          toDate('3125000.00'),
+          toDate('688000.00'),
+        ),
+        branch(
+          '0196f000-0000-7000-8000-00000000d0b3',
+          'Mirpur-10',
+          PARTS.name,
+          toDate('2215000.00'),
+          toDate('531000.00'),
+        ),
+        branch(
+          '0196f000-0000-7000-8000-00000000d0b4',
+          'Narayanganj',
+          MOTORS.name,
+          toDate('1870000.00'),
+          toDate('65000.00'),
+        ),
+        branch(
+          '0196f000-0000-7000-8000-00000000d0b5',
+          'Agrabad',
+          PARTS.name,
+          toDate('1610000.00'),
+          toDate('-71000.00'),
+        ),
       ],
     } satisfies BranchResults,
     customerInsights: {
       period: PERIOD,
       customersBought: 214,
       repeatCustomers: 124,
-      totalRevenue: '14059500.00',
+      totalRevenue: toDate('14059500.00'),
       topCustomers: [
-        { name: 'Sample Traders', revenue: '1240000.00' },
-        { name: 'Sample Auto Centre', revenue: '985000.00' },
-        { name: 'Sample Enterprise', revenue: '720000.00' },
-        { name: 'Sample Customer One', revenue: '495000.00' },
-        { name: 'Sample Customer Two', revenue: '360000.00' },
+        { name: 'Sample Traders', revenue: toDate('1240000.00') },
+        { name: 'Sample Auto Centre', revenue: toDate('985000.00') },
+        { name: 'Sample Enterprise', revenue: toDate('720000.00') },
+        { name: 'Sample Customer One', revenue: toDate('495000.00') },
+        { name: 'Sample Customer Two', revenue: toDate('360000.00') },
       ],
     } satisfies CustomerInsights,
     needsAction: {
