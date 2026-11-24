@@ -241,7 +241,7 @@ export function createManagers(config: ManagerConfig): {
     inventory: new InventoryManager(new InventoryQuery()),
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
-    report: new ReportManager(new ReportQuery()),
+    report: new ReportManager(new ReportQuery(), clock),
     party: new PartyManager(new PartyQuery()),
     sales: new SalesManager(new SalesQuery(), {
       stock,

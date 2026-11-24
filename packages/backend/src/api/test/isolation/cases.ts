@@ -25,6 +25,14 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
   'PATCH /v1/products/:id': {
     attempts: ["edit X's product from Y: 404, and X's product is unchanged"],
   },
+  // Run by reports.isolation.test.ts against real Postgres (M6, ADR 0023).
+  'GET /v1/reports/owner-dashboard': {
+    attempts: [
+      "organization B's Owner reads the dashboard naming X: 404, the same as a guessed business",
+      "B's own dashboard lists only Y",
+      'Accountant, Branch Manager and Cashier: 403',
+    ],
+  },
   // Run by invoices.isolation.test.ts against real Postgres (item 3b).
   'POST /v1/invoices': {
     attempts: [
