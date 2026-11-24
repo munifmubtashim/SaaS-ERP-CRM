@@ -116,3 +116,17 @@ export async function seedDemoCatalogue(db: DbClient, ids: DemoIds): Promise<voi
     }
   });
 }
+
+/** The demo's sell prices, for the seed to work out exact totals: parts and models by index (S3). */
+export function demoPrices(ids: DemoIds): {
+  parts: { productId: string; price: string }[];
+  models: { productId: string; price: string }[];
+} {
+  return {
+    parts: PARTS.map(([, , price], index) => ({ productId: demoProductId(ids, `part:${index}`), price })),
+    models: DEMO_MODELS.map(([, , , price], index) => ({
+      productId: demoProductId(ids, `model:${index}`),
+      price,
+    })),
+  };
+}

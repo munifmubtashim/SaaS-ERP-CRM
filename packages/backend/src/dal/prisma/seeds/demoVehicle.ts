@@ -19,6 +19,10 @@ const COLOURS = ['Black', 'Red', 'Blue', 'Grey', 'White', 'Silver'] as const;
 const REGISTRATION_FEE = { name: 'Registration fee', code: 'REG-F0001-26', price: '15000.00' } as const;
 
 export const demoRegistrationFeeId = (ids: DemoIds) => demoProductId(ids, 'registration-fee');
+export const DEMO_REGISTRATION_FEE_PRICE = REGISTRATION_FEE.price;
+/** The `n`th unit (from 0) of model `model`. */
+export const demoUnitId = (ids: DemoIds, model: number, n: number) =>
+  demoId(ids.businessId, `unit:${model}:${n}`);
 
 interface DemoUnit {
   unitId: string;
@@ -33,7 +37,7 @@ interface DemoUnit {
 export function demoUnits(ids: DemoIds): DemoUnit[] {
   return DEMO_MODELS.flatMap(([, chassis, engine, , unitCost, count], model) =>
     Array.from({ length: count }, (_, n) => ({
-      unitId: demoId(ids.businessId, `unit:${model}:${n}`),
+      unitId: demoUnitId(ids, model, n),
       productId: demoProductId(ids, `model:${model}`),
       chassisNo: `${chassis}-${String(101 + n).padStart(6, '0')}`,
       engineNo: `${engine}-${String(550101 + n)}`,

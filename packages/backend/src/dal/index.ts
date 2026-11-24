@@ -57,9 +57,21 @@ export {
   type DemoIds,
   type DemoOwner,
 } from './prisma/seeds/demoOrganization.js';
-export { DEMO_LOGINS, seedDemoBusiness, type DemoLogin } from './prisma/seeds/demoBusiness.js';
-export { demoOpeningParts, seedDemoCatalogue } from './prisma/seeds/demoCatalogue.js';
-export { demoUnits, seedDemoVehicles } from './prisma/seeds/demoVehicle.js';
+export {
+  DEMO_LOGINS,
+  demoLoginUserId,
+  seedDemoBusiness,
+  type DemoLogin,
+} from './prisma/seeds/demoBusiness.js';
+export { demoOpeningParts, demoPrices, seedDemoCatalogue } from './prisma/seeds/demoCatalogue.js';
+export {
+  DEMO_REGISTRATION_FEE_PRICE,
+  demoRegistrationFeeId,
+  demoUnitId,
+  demoUnits,
+  seedDemoVehicles,
+} from './prisma/seeds/demoVehicle.js';
+export { demoCustomerIdsByPhone, demoSalesDone, demoWalkInId } from './prisma/seeds/demoSales.js';
 export {
   DEMO_OPENING_SOURCE,
   demoOpeningStockDone,
