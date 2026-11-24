@@ -1,3 +1,107 @@
 // Sales module: invoices, payments, POS sessions, returns (roadmap 5.6)
 // Owner: Farhan. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// A sale (ADR 0022 section 1). Posted on insert with its journal (invariant 4); posted is permanent apart from
+/// posted → voided (trigger, sql/rls/sales_invoice.sql). Branch-scoped, RLS forced.
+model Invoice {
+  id           String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  /// From INumberSeries.next('invoice', branchId) (ADR 0015).
+  number       String
+  /// The customer, or the walk-in party. No foreign key until the party table (A11) exists: known gap 2.
+  partyId      String   @map("party_id") @db.Uuid
+  /// The customer's name as printed on this invoice (ADR 0022 amendment, Munif 24 Nov); null for a walk-in.
+  customerName String?  @map("customer_name")
+  invoiceDate  DateTime @map("invoice_date") @db.Date
+  subtotal     Decimal  @db.Decimal(18, 2)
+  discount     Decimal  @default(0) @db.Decimal(18, 2)
+  total        Decimal  @db.Decimal(18, 2)
+  /// posted or voided; there is no draft row.
+  status       String   @default("posted")
+  /// The sale's journal (invariant 4): NOT NULL, one invoice per journal.
+  journalId    String   @unique @map("journal_id") @db.Uuid
+  soldBy       String   @map("sold_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+  version      Int      @default(1)
+
+  branch   Branch         @relation(fields: [businessId, branchId], references: [businessId, id])
+  journal  Journal        @relation("InvoiceJournal", fields: [businessId, journalId], references: [businessId, id])
+  lines    InvoiceLine[]
+  payments SalesPayment[]
+
+  @@unique([businessId, id])
+  @@unique([businessId, number])
+  @@map("invoice")
+}
+
+/// One line of a sale (ADR 0022 section 1). Append-only; follows its invoice for RLS.
+model InvoiceLine {
+  id           String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  invoiceId    String   @map("invoice_id") @db.Uuid
+  lineNo       Int      @map("line_no")
+  productId    String   @map("product_id") @db.Uuid
+  /// Set for a serial product, and then qty = 1.
+  serialUnitId String?  @map("serial_unit_id") @db.Uuid
+  qty          Decimal  @db.Decimal(18, 3)
+  /// Copied from the product at sale time (P-07).
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(18, 2)
+  lineTotal    Decimal  @map("line_total") @db.Decimal(18, 2)
+  /// The cost the stock service used. A hidden field: never in an API response without product.cost.view.
+  costAmount   Decimal  @map("cost_amount") @db.Decimal(18, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  invoice    Invoice     @relation(fields: [businessId, invoiceId], references: [businessId, id])
+  product    Product     @relation(fields: [businessId, productId], references: [businessId, id])
+  serialUnit SerialUnit? @relation(fields: [businessId, serialUnitId], references: [businessId, id])
+
+  @@unique([invoiceId, lineNo])
+  @@map("invoice_line")
+}
+
+/// A customer payment (ADR 0026 section 1, ADR 0016 section 4), at the sale or later. Carries its journal
+/// (invariant 4); posted is permanent apart from posted → voided with the void columns.
+model SalesPayment {
+  id              String    @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  /// From INumberSeries.next('receipt', branchId) (ADR 0015).
+  receiptNumber   String    @map("receipt_number")
+  /// No foreign key until the party table (A11) exists: known gap 2.
+  partyId         String    @map("party_id") @db.Uuid
+  /// Null for an advance (B-02).
+  invoiceId       String?   @map("invoice_id") @db.Uuid
+  /// cash, bank, bkash or card, entered by hand (ADR 0016).
+  method          String
+  /// The bank, bKash or card transaction id; required for every method but cash.
+  externalRef     String?   @map("external_ref")
+  amount          Decimal   @db.Decimal(18, 2)
+  receivedAt      DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  status          String    @default("posted")
+  journalId       String    @unique @map("journal_id") @db.Uuid
+  voidedJournalId String?   @unique @map("voided_journal_id") @db.Uuid
+  voidReason      String?   @map("void_reason")
+  voidedBy        String?   @map("voided_by") @db.Uuid
+  voidedAt        DateTime? @map("voided_at") @db.Timestamptz(6)
+  note            String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy       String?   @map("created_by") @db.Uuid
+  version         Int       @default(1)
+
+  branch        Branch   @relation(fields: [businessId, branchId], references: [businessId, id])
+  invoice       Invoice? @relation(fields: [businessId, invoiceId], references: [businessId, id])
+  journal       Journal  @relation("PaymentJournal", fields: [businessId, journalId], references: [businessId, id])
+  voidedJournal Journal? @relation("PaymentVoidJournal", fields: [businessId, voidedJournalId], references: [businessId, id])
+
+  @@unique([businessId, receiptNumber])
+  /// The migration makes this index partial (WHERE external_ref IS NOT NULL AND status = 'posted'): one transaction
+  /// id once per method while posted (ADR 0026 section 1).
+  @@unique([businessId, method, externalRef], map: "sales_payment_one_external_ref")
+  @@map("sales_payment")
+}
