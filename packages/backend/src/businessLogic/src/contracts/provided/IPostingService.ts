@@ -4,7 +4,10 @@
  * transaction (ADR 0005) and never opens one.
  */
 
-/** Account roles, not account codes: Accounting maps each to an account per business (ADR 0013 account_role). */
+/**
+ * Account roles, not account codes: Accounting maps each to an account per business (ADR 0013 account_role). The
+ * 12 decided on 23 Nov: ADR 0012's eight plus what sale posting needs; the database CHECK holds the same list.
+ */
 export const ACCOUNT_ROLES = [
   'cash',
   'bank',
@@ -14,6 +17,10 @@ export const ACCOUNT_ROLES = [
   'customer_advance',
   'pass_through_payable',
   'sales_revenue',
+  'inventory',
+  'cost_of_goods_sold',
+  'vat_output_payable',
+  'service_revenue',
 ] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 
@@ -50,6 +57,10 @@ export interface IPostingService {
    * a source already posted (409 journal.already_posted).
    */
   post(draft: JournalDraft): Promise<PostedJournal>;
-  /** Posts the mirror of a posted journal, pointing at it; a second reversal is refused (invariant 2). */
+  /**
+   * Posts the mirror of a posted journal, pointing at it, dated today in Asia/Dhaka. Refuses: a journal not visible
+   * in the scope (404); a second reversal (409 journal.already_reversed); a reversal of a reversal
+   * (409 journal.reversal_of_reversal).
+   */
   reverse(journalId: string, reason: string): Promise<PostedJournal>;
 }
