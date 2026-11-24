@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createPartySchema,
   partyDetailSchema,
   partyListItemSchema,
   partyListQuerySchema,
   partyListResponseSchema,
   partySchema,
+  updatePartySchema,
 } from './party.schema.js';
 
 // Synthetic sample only: no real person, phone number or business.
@@ -112,6 +114,79 @@ describe('partyListResponseSchema', () => {
     expect(partyListResponseSchema.safeParse({ items: [item], nextCursor: null }).success).toBe(true);
     expect(partyListResponseSchema.safeParse({ items: [item], nextCursor: 'abc' }).success).toBe(true);
     expect(partyListResponseSchema.safeParse({ items: [{ id: 'x' }], nextCursor: null }).success).toBe(false);
+  });
+});
+
+// ADR 0056 section 3: the create and update payloads. Synthetic values only.
+const create = {
+  name: 'Sample Customer',
+  nameBn: null,
+  kind: 'person',
+  isCustomer: true,
+  isSupplier: false,
+  phone: '01700000001',
+  altPhone: null,
+  email: null,
+  address: null,
+  area: null,
+  creditLimit: null,
+  payTermDays: null,
+};
+
+describe('createPartySchema (ADR 0056 section 3)', () => {
+  it('accepts a customer, normalises the phone to E.164, and defaults confirmDuplicate to false', () => {
+    const parsed = createPartySchema.parse(create);
+    expect(parsed.phone).toBe('+8801700000001');
+    expect(parsed.confirmDuplicate).toBe(false);
+  });
+
+  it('normalises the alternative phone too, and refuses a number that is not a mobile', () => {
+    expect(createPartySchema.parse({ ...create, altPhone: '8801800000002' }).altPhone).toBe('+8801800000002');
+    expect(createPartySchema.safeParse({ ...create, phone: '0171234567' }).success).toBe(false);
+    expect(createPartySchema.safeParse({ ...create, phone: '01212345678' }).success).toBe(false);
+  });
+
+  it.each(['id', 'businessId', 'code', 'status', 'version', 'createdBy', 'createdAt'])(
+    'refuses %s in the body: it comes from the server',
+    (key) => {
+      expect(createPartySchema.safeParse({ ...create, [key]: 'x' }).success).toBe(false);
+    },
+  );
+
+  it('needs a customer, a supplier or both', () => {
+    expect(createPartySchema.safeParse({ ...create, isCustomer: false }).success).toBe(false);
+  });
+
+  it('takes a credit limit as a money string, zero or more, and pay terms of 0 to 365 days', () => {
+    expect(createPartySchema.safeParse({ ...create, creditLimit: '50000.00' }).success).toBe(true);
+    expect(createPartySchema.safeParse({ ...create, creditLimit: '0.00' }).success).toBe(true);
+    expect(createPartySchema.safeParse({ ...create, creditLimit: '-1.00' }).success).toBe(false);
+    expect(createPartySchema.safeParse({ ...create, creditLimit: 50000 }).success).toBe(false);
+    expect(createPartySchema.safeParse({ ...create, payTermDays: 366 }).success).toBe(false);
+  });
+
+  it('turns a blank Bangla name into null', () => {
+    expect(createPartySchema.parse({ ...create, nameBn: '  ' }).nameBn).toBeNull();
+  });
+});
+
+describe('updatePartySchema (ADR 0056 section 3)', () => {
+  it('needs the version read, and every other field is optional', () => {
+    expect(updatePartySchema.safeParse({ version: 3 }).success).toBe(true);
+    expect(updatePartySchema.safeParse({ name: 'Renamed Customer' }).success).toBe(false);
+  });
+
+  it('normalises a changed phone and refuses the fields that never change by edit', () => {
+    expect(updatePartySchema.parse({ version: 1, phone: '+8801700000003' }).phone).toBe('+8801700000003');
+    for (const key of ['id', 'businessId', 'code', 'status', 'createdBy']) {
+      expect(updatePartySchema.safeParse({ version: 1, [key]: 'x' }).success).toBe(false);
+    }
+  });
+
+  it('refuses an edit that leaves the party neither a customer nor a supplier', () => {
+    expect(updatePartySchema.safeParse({ version: 1, isCustomer: false, isSupplier: false }).success).toBe(
+      false,
+    );
   });
 });
 
