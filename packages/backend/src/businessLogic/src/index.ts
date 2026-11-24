@@ -242,7 +242,7 @@ export function createManagers(config: ManagerConfig): {
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery()),
-    party: new PartyManager(new PartyQuery()),
+    party: new PartyManager(new PartyQuery(), numberSeries),
     sales: new SalesManager(new SalesQuery(), {
       stock,
       posting,
