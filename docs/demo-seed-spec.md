@@ -44,8 +44,10 @@ names one. Decided by Munif on 23 and 24 Nov 2026; built by Farhan as **one seed
 2. Chart of accounts with all 12 roles mapped (section 4).
 3. Catalogue: parts, bike models, the registration-fee product.
 4. Opening stock: parts by quantity, then chassis units, each through `IStockService.move` (kind `opening`).
-5. Customers and the walk-in party.
-6. Sales and their payments, through the invoice and payment Managers, dated across the last weeks by the server's
+5. **The opening journal, one per branch, right after its opening stock** (section 4a). Stock movements post no
+   journal, so without it the books would show no inventory at all.
+6. Customers and the walk-in party.
+7. Sales and their payments, through the invoice and payment Managers, dated across the last weeks by the server's
    clock rules (no back-dating into a locked period once A17 exists).
 
 ## 4. The chart: all 12 roles mapped
@@ -59,6 +61,23 @@ seed must map every role for every demo business, or nothing posts.
 | `customer_advance`, `pass_through_payable`, `vat_output_payable`           | liability (the database refuses any other type for the first two, invariant 8) |
 | `sales_revenue`, `service_revenue`                                         | income                                                                         |
 | `cost_of_goods_sold`                                                       | expense                                                                        |
+
+The chart also holds one account mapped to no role: **Opening balance equity** (type `equity`), the credit side of
+the opening journal (section 4a).
+
+## 4a. The opening journal (Munif, 24 Nov)
+
+- **One balanced journal per branch:** Dr `inventory` / Cr **Opening balance equity**. The amount is the opening
+  stock's value: the sum of on hand × the branch's average cost over counted products, plus each serial unit's own
+  cost (invariant 7).
+- **Opening balance equity is an ordinary account** of type `equity`, in the chart but not mapped to any of the 12
+  roles.
+- `source_type = 'opening_stock'`, dated the seed's opening day, numbered from the branch's `journal` series.
+- **The seed posts it as the migration owner**, inside the guard: `PostingService` posts by role only, and there is
+  no equity role. The database still checks it: balanced at commit, permanent, `numeric(18,2)`.
+- **The books then agree with the stock:** the ledger's inventory balance (the dashboard's stock value) equals the
+  stock side, per business, and stays equal through sales (`StockValue.int.test.ts`, #202). An average that rounds
+  to paisa can leave a paisa between them, by design (ADR 0021 §2).
 
 ## 5. Logins and their system roles
 
@@ -89,6 +108,8 @@ Technician, Office Assistant and Admin are staff rows without a login.
 - Every account role resolves for every demo business.
 - The trial balance balances, and every sale and payment has its journal.
 - For every product and branch, `stock_balance` equals the sum of its movements.
+- **Every branch's opening journal balances**, and the ledger's inventory balance equals on hand × average cost plus
+  the serial units' own cost, per business, after the opening and after the sales.
 - Each customer's due from the ledger equals the sum of their open invoices' dues (ADR 0026 section 3).
 - No seeded value matches a pattern from the real-data audit (no real names, phones or brands).
 
