@@ -6,6 +6,7 @@ import type {
   IHealthManager,
   IIdempotency,
   IProductManager,
+  IReportManager,
   ISalesManager,
   ITenantScopeRunner,
 } from '../controllers/contracts/index.js';
@@ -50,6 +51,9 @@ export const unusedIdempotency: IIdempotency = {
   complete: () => unexpected('idempotent')(),
 };
 
+/** A Report Manager for tests that never read a report: using it fails loudly. */
+export const unusedReport: IReportManager = { ownerDashboard: unexpected('report') };
+
 /** A Sales Manager for tests that never post a sale: using it fails loudly. */
 export const unusedSales: ISalesManager = { postInvoice: unexpected('sales') };
 
@@ -63,7 +67,7 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
     inventory: {},
     accounting: {},
     vehicle: {},
-    report: {},
+    report: unusedReport,
     party: {},
     sales: unusedSales,
     purchase: {},

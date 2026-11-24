@@ -32,7 +32,7 @@ export function buildRoutes(
     inventoryRoutes(c.inventory),
     accountingRoutes(c.accounting),
     vehicleRoutes(c.vehicle),
-    reportRoutes(c.report),
+    reportRoutes(c.report, wrap),
     partyRoutes(c.party),
     salesRoutes(c.sales, wrap),
     purchaseRoutes(c.purchase),
