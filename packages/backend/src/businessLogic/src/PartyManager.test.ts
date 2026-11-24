@@ -370,3 +370,16 @@ describe('get and list (ADR 0056 section 4)', () => {
     ]);
   });
 });
+
+describe('get answers the profile shape (task 4, partyDetailSchema #47)', () => {
+  it('carries the credit limit, pay terms and walk-in flag; no credit hold and no NID until those exist', async () => {
+    const { manager } = setup([record({ creditLimit: '50000.00', payTermDays: 30 })]);
+    expect(await manager.get(ID)).toMatchObject({
+      creditLimit: '50000.00',
+      payTermDays: 30,
+      isWalkIn: false,
+      onCreditHold: false,
+      nidLast4: null,
+    });
+  });
+});

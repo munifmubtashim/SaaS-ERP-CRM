@@ -5,6 +5,7 @@ import {
   partyListQuerySchema,
   updatePartySchema,
   type Party,
+  type PartyDetail,
   type PartyListResponse,
 } from '@erp/shared';
 import type { Request } from 'express';
@@ -24,7 +25,7 @@ export class PartyController extends BaseController {
     return this.json(200, await this.manager.list(this.parse(partyListQuerySchema, req.query)));
   }
 
-  async get(req: Request): Promise<HttpResult<Party>> {
+  async get(req: Request): Promise<HttpResult<PartyDetail>> {
     return this.json(200, await this.manager.get(String(req.params.id)));
   }
 

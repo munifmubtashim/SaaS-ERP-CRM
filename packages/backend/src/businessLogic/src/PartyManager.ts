@@ -3,6 +3,7 @@ import {
   hasPermission,
   toE164,
   type Party,
+  type PartyDetail,
   type PartyListItem,
   type PartyListQuery,
   type PartyListResponse,
@@ -202,9 +203,21 @@ export class PartyManager {
     return toParty(row);
   }
 
-  /** A customer of the scope's businesses. A supplier-only party is not found through the customer routes. */
-  async get(id: string): Promise<Party> {
-    return toParty(await this.findCustomer(id));
+  /**
+   * A customer of the scope's businesses, in the profile shape (partyDetailSchema, #47). A supplier-only party is not
+   * found through the customer routes. No credit hold until credit_hold exists (ADR 0019 section 1), and no NID until
+   * party_identity exists.
+   */
+  async get(id: string): Promise<PartyDetail> {
+    const row = await this.findCustomer(id);
+    return {
+      ...toParty(row),
+      creditLimit: row.creditLimit,
+      payTermDays: row.payTermDays,
+      isWalkIn: row.isWalkIn,
+      onCreditHold: false,
+      nidLast4: null,
+    };
   }
 
   /** One page of customers, by name, with an opaque cursor (one extra row says whether another page exists). */
