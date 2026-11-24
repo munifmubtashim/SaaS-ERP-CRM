@@ -26,6 +26,7 @@ const PERMISSION_DESCRIPTIONS = {
   'product.cost.view': 'See cost price on products, stock and documents',
   'report.profit.view': 'See profit and margin figures in reports and screens',
   'accounting.salary.view': 'See salary entries and amounts',
+  'sales.invoice.post': 'Post a sale at the counter, with its payments',
 } as const satisfies Record<PermissionCode, string>;
 
 /** The global permission catalogue: every code in permissions.ts, once. No RLS on `permission`. */
