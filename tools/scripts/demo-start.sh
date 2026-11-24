@@ -6,4 +6,11 @@ set -eu
 cd "$(dirname "$0")/../.."
 sh tools/scripts/demo-reset.sh
 set -a; . ./.demo/demo4.conf; set +a
+# Its own ports, so it runs beside anything already on 3000 or 5173; the proxy and the CSRF origin follow them.
+API_PORT="${DEMO_API_PORT:-3004}"
+WEB_PORT="${DEMO_WEB_PORT:-5174}"
+API_PROXY_TARGET="http://127.0.0.1:$API_PORT"
+APP_ORIGIN="http://localhost:$WEB_PORT"
+export API_PORT WEB_PORT API_PROXY_TARGET APP_ORIGIN
+echo "Demo: web http://localhost:$WEB_PORT, api http://127.0.0.1:$API_PORT"
 exec npm run dev
