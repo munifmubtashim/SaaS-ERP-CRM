@@ -4,6 +4,7 @@ import {
   NumberSeriesQuery,
   IdempotencyQuery,
   StockQuery,
+  JournalQuery,
   HealthQuery,
   AuthQuery,
   OrganizationQuery,
@@ -37,7 +38,9 @@ import { SystemClock } from './SystemClock.js';
 import { NumberSeries } from './NumberSeries.js';
 import { IdempotencyGuard } from './IdempotencyGuard.js';
 import { StockService } from './StockService.js';
+import { PostingService } from './PostingService.js';
 import type { IStockService } from './contracts/provided/IStockService.js';
+import type { IPostingService } from './contracts/provided/IPostingService.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
 import { SessionTokens } from './SessionTokens.js';
 import type { SessionLifetimes } from './AuthManager.js';
@@ -174,8 +177,16 @@ export interface ManagerConfig {
  */
 export function createManagers(config: ManagerConfig): {
   managers: Managers;
-  /** Services one module publishes for others (ADR 0012): Accounting's gapless numbers (ADR 0015). */
-  provided: { numberSeries: INumberSeries; idempotency: IdempotencyGuard; stock: IStockService };
+  /**
+   * Services one module publishes for others (ADR 0012): Accounting's gapless numbers (ADR 0015) and posting
+   * (ADR 0013), Inventory's stock (ADR 0021).
+   */
+  provided: {
+    numberSeries: INumberSeries;
+    idempotency: IdempotencyGuard;
+    stock: IStockService;
+    posting: IPostingService;
+  };
   tenantScope: ITenantScope;
   close: () => Promise<void>;
 } {
@@ -213,12 +224,14 @@ export function createManagers(config: ManagerConfig): {
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
+  const numberSeries = new NumberSeries(new NumberSeriesQuery());
   return {
     managers,
     provided: {
-      numberSeries: new NumberSeries(new NumberSeriesQuery()),
+      numberSeries,
       idempotency: new IdempotencyGuard(new IdempotencyQuery()),
       stock: new StockService(new StockQuery()),
+      posting: new PostingService(new JournalQuery(), numberSeries),
     },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),

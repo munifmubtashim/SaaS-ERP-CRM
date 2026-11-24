@@ -28,6 +28,7 @@ export {
 } from './query/ProductQuery.js';
 export { SerialUnitQuery } from './query/SerialUnitQuery.js';
 export { StockQuery, type StockMovementInsert } from './query/StockQuery.js';
+export { JournalQuery, type JournalInsert, type JournalLineInsert } from './query/JournalQuery.js';
 export { InventoryDTO, SerialUnitDTO, type SerialUnitRow } from './dto/InventoryDTO.js';
 export { InventoryQuery } from './query/InventoryQuery.js';
 export { AccountingDTO } from './dto/AccountingDTO.js';

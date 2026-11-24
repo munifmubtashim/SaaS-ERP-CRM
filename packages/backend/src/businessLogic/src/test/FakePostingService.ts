@@ -40,8 +40,13 @@ export class FakePostingService implements IPostingService {
 
   async reverse(journalId: string, _reason: string): Promise<PostedJournal> {
     this.throwIfTold();
-    if (!this.journals.some((j) => j.journalId === journalId)) {
-      throw new AppError('NOT_FOUND', 'Journal not found.');
+    const original = this.journals.find((j) => j.journalId === journalId);
+    if (!original) throw new AppError('NOT_FOUND', 'Journal not found.');
+    if (original.reversalOf) {
+      throw conflict(
+        'journal.reversal_of_reversal',
+        'A reversal cannot be reversed; post a new journal instead.',
+      );
     }
     if (this.journals.some((j) => j.reversalOf === journalId)) {
       throw conflict('journal.already_reversed', 'This journal is already reversed.');
