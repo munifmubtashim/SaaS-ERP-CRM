@@ -474,10 +474,7 @@ describe('known gaps (Munif, 23 and 24 Nov), recorded so they show in every run'
     // Written when A17 adds the period table and the lock; until then no close-period action exists anywhere.
   });
 
-  it('GAP 2, decision 4: journal_line.party_id has no foreign key and nothing can check it yet, because the party table (A11) does not exist. When A11 lands this test fails: replace it with the composite FK (NOT VALID, then VALIDATE) and the PostingService party check', async () => {
-    const [row] = await owner.$queryRaw<
-      { exists: boolean }[]
-    >`SELECT to_regclass('public.party') IS NOT NULL AS exists`;
-    expect(row?.exists).toBe(false);
+  it.skip('GAP 2, decision 4: journal_line.party_id has no foreign key yet. The party table (A11) exists now; the composite FK (NOT VALID, then VALIDATE) and the PostingService party check come in party_keys (Munif)', () => {
+    // Was a tripwire on to_regclass('public.party'); A11 tripped it. Replaced by the FK test in party_keys (Munif).
   });
 });
