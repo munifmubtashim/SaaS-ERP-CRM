@@ -13,6 +13,13 @@ export async function addParty(
 ): Promise<string> {
   return owner.$transaction(async (tx) => {
     await setScope(tx, tree.organizationId, [tree.businessId], [tree.branchId]);
+    // ADR 0055: the business's trigger already made its one walk-in party; read it instead of adding a second.
+    if (options.walkIn) {
+      const [walkIn] = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id::text FROM party WHERE business_id = ${tree.businessId}::uuid AND is_walk_in`;
+      if (!walkIn) throw new Error('no walk-in party');
+      return walkIn.id;
+    }
     const [row] = await tx.$queryRaw<{ id: string }[]>`
       INSERT INTO party (business_id, code, name, kind, is_customer, is_supplier, phone_e164, is_walk_in, created_by)
       VALUES (${tree.businessId}::uuid, ${`CU-${randomBytes(4).toString('hex')}`},
