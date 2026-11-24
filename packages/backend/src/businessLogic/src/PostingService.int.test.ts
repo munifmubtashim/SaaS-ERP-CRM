@@ -243,6 +243,53 @@ describe('PostingService writes what the draft says', () => {
   });
 });
 
+/** A customer in the world's business, as the owner (ADR 0019); invented values. */
+async function addCustomer(world: World): Promise<string> {
+  return asOwner(world, async (tx) => {
+    const [row] = await tx.$queryRaw<{ id: string }[]>`
+      INSERT INTO party (business_id, code, name, kind, is_customer, is_supplier, phone_e164, created_by)
+      VALUES (${world.businessId}::uuid, ${`CU-${randomBytes(4).toString('hex')}`}, 'Sample Customer', 'person', true,
+              false, '+8801700000001', ${randomUUID()}::uuid)
+      RETURNING id::text`;
+    if (!row) throw new Error('no party');
+    return row.id;
+  });
+}
+
+describe('decision 4 (party_keys): every party on a line belongs to the business', () => {
+  const dueLines = (partyId: string) => [
+    { role: 'receivable' as const, debit: '1300.00', credit: '0.00', partyId },
+    { role: 'sales_revenue' as const, debit: '0.00', credit: '1300.00' },
+  ];
+
+  it("a receivable line naming this business's customer posts with the party on the line", async () => {
+    const world = await newWorld();
+    const customer = await addCustomer(world);
+    const posted = await inScope(world, () =>
+      provided.posting.post(sample(world, { lines: dueLines(customer) })),
+    );
+    const [line] = await asOwner(
+      world,
+      (tx) => tx.$queryRaw<{ party_id: string }[]>`
+        SELECT party_id::text FROM journal_line WHERE journal_id = ${posted.journalId}::uuid AND line_no = 1`,
+    );
+    expect(line?.party_id).toBe(customer);
+  });
+
+  it("another business's customer, or an unknown id, is refused with 409 journal.party_unknown, nothing written", async () => {
+    const [world, other] = [await newWorld(), await newWorld()];
+    const theirs = await addCustomer(other);
+    for (const partyId of [theirs, randomUUID()]) {
+      expect(
+        await refusal(
+          inScope(world, () => provided.posting.post(sample(world, { lines: dueLines(partyId) }))),
+        ),
+      ).toEqual({ code: 'CONFLICT', field: 'journal.party_unknown' });
+    }
+    expect(await journalCount(world)).toBe(0);
+  });
+});
+
 describe('PostingService reversals (invariant 2; answer 1)', () => {
   it('a reversal mirrors the original line for line, so the two net to zero', async () => {
     const world = await newWorld();

@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { addBranch, createTree, setScope, type Tree } from './support/orgTree.js';
+import { addParty } from './support/party.js';
 import {
   policies,
   rlsState,
@@ -32,6 +33,9 @@ let x: Tree;
 let y: Tree;
 let branchB: string;
 const accounts = new Map<string, { debit: string; credit: string }>();
+/** One customer per business, for invoices and payments (party_keys: party_id is a composite FK). */
+const customers = new Map<string, string>();
+const customerOf = (businessId: string) => customers.get(businessId) ?? randomUUID();
 let partX: string;
 let bikeX: string;
 let partY: string;
@@ -117,6 +121,7 @@ interface InvoiceFields {
   status?: string;
   number?: string;
   customerName?: string | null;
+  partyId?: string;
 }
 
 /** Inserts an invoice on `db` in `tree`'s scope (plus `branchIds`); a journal is made for it unless given. */
@@ -131,7 +136,8 @@ async function addInvoice(db: DbClient, tree: Tree, f: InvoiceFields = {}, branc
         INSERT INTO invoice (business_id, branch_id, number, party_id, customer_name, invoice_date, subtotal,
                              discount, total, status, journal_id, sold_by)
         VALUES (${f.businessId ?? tree.businessId}::uuid, ${branchId}::uuid,
-                ${f.number ?? `INV-${randomBytes(5).toString('hex')}`}, ${randomUUID()}::uuid,
+                ${f.number ?? `INV-${randomBytes(5).toString('hex')}`},
+                ${f.partyId ?? customerOf(f.businessId ?? tree.businessId)}::uuid,
                 ${f.customerName === undefined ? 'Rahim Uddin' : f.customerName}, CURRENT_DATE,
                 ${f.subtotal ?? '2300.00'}::numeric, ${f.discount ?? '0.00'}::numeric, ${f.total ?? '2300.00'}::numeric,
                 ${f.status ?? 'posted'}, ${journalId}::uuid, ${randomUUID()}::uuid)
@@ -174,6 +180,7 @@ interface PaymentFields {
   amount?: string;
   status?: string;
   journalId?: string | null;
+  partyId?: string;
 }
 
 async function addPayment(db: DbClient, tree: Tree, f: PaymentFields = {}) {
@@ -183,7 +190,7 @@ async function addPayment(db: DbClient, tree: Tree, f: PaymentFields = {}) {
       INSERT INTO sales_payment (business_id, branch_id, receipt_number, party_id, invoice_id, method, external_ref,
                                  amount, status, journal_id)
       VALUES (${tree.businessId}::uuid, ${tree.branchId}::uuid, ${`R-${randomBytes(5).toString('hex')}`},
-              ${randomUUID()}::uuid, ${f.invoiceId ?? null}::uuid, ${f.method ?? 'cash'},
+              ${f.partyId ?? customerOf(tree.businessId)}::uuid, ${f.invoiceId ?? null}::uuid, ${f.method ?? 'cash'},
               ${f.externalRef ?? null}, ${f.amount ?? '1000.00'}::numeric, ${f.status ?? 'posted'},
               ${journalId}::uuid)
       RETURNING id::text`;
@@ -196,6 +203,8 @@ beforeAll(async () => {
   [x, y] = await Promise.all([createTree(owner), createTree(owner)]);
   branchB = await addBranch(owner, x.organizationId, x.businessId, 'BRB');
   await Promise.all([addAccounts(x), addAccounts(y)]);
+  customers.set(x.businessId, await addParty(owner, x));
+  customers.set(y.businessId, await addParty(owner, y));
   [partX, bikeX, partY] = await Promise.all([
     addProduct(x, 'quantity'),
     addProduct(x, 'serial'),
@@ -500,10 +509,22 @@ describe('tenancy on every table (CLAUDE.md mandatory tests)', () => {
 });
 
 describe('known gaps (Munif, 24 Nov), recorded so they show in every run', () => {
-  it('GAP 2, decision 4: invoice.party_id and sales_payment.party_id have no foreign key yet, because the party table (A11) does not exist. When A11 lands this test fails: add the composite FKs (NOT VALID, then VALIDATE) on journal_line, invoice and sales_payment', async () => {
-    const [row] = await owner.$queryRaw<{ exists: boolean }[]>`
-      SELECT to_regclass('public.party') IS NOT NULL AS exists`;
-    expect(row?.exists).toBe(false);
+  it("decision 4, closed by party_keys (was GAP 2): an invoice or payment can't name another business's party or an unknown id", async () => {
+    const theirs = customerOf(y.businessId);
+    await expect(addInvoice(owner, x, { partyId: theirs })).rejects.toThrow(/foreign key/i);
+    await expect(addInvoice(owner, x, { partyId: randomUUID() })).rejects.toThrow(/foreign key/i);
+    await expect(addPayment(owner, x, { partyId: theirs })).rejects.toThrow(/foreign key/i);
+  });
+
+  it('both foreign keys exist and are validated (added NOT VALID, then VALIDATE)', async () => {
+    const rows = await owner.$queryRaw<{ name: string; validated: boolean }[]>`
+      SELECT conname AS name, convalidated AS validated FROM pg_constraint
+       WHERE conname IN ('invoice_business_id_party_id_fkey', 'sales_payment_business_id_party_id_fkey')
+       ORDER BY conname`;
+    expect(rows).toEqual([
+      { name: 'invoice_business_id_party_id_fkey', validated: true },
+      { name: 'sales_payment_business_id_party_id_fkey', validated: true },
+    ]);
   });
 
   it.skip('GAP 3, void and reissue (C14): a posted invoice is voided by a reversal journal and reissued as a new document. Not built and not shown in the demo; the table already allows only posted → voided', () => {

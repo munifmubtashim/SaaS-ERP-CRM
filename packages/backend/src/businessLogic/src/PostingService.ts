@@ -34,6 +34,7 @@ export class PostingService implements IPostingService {
       throw new AppError('INTERNAL_ERROR', message, [{ path: 'date', code: 'journal.bad_date', message }]);
     }
     const accounts = await this.accountsFor(draft.lines.map((line) => line.role));
+    await this.refuseUnknownParties(draft.lines.flatMap((line) => (line.partyId ? [line.partyId] : [])));
     const number = await this.numbers.next('journal', draft.branchId);
     const journalId = await this.journals.insertJournal({
       branchId: draft.branchId,
@@ -91,6 +92,19 @@ export class PostingService implements IPostingService {
       throw conflict('journal.role_unmapped', `No account is mapped to role ${missing.join(', ')}.`);
     }
     return found;
+  }
+
+  /**
+   * Every party named on a line is a party of this business (decision 4), checked before any write so the refusal
+   * is a clear 409, not the foreign key's error. The composite foreign key holds the same rule in the database.
+   */
+  private async refuseUnknownParties(partyIds: string[]): Promise<void> {
+    const wanted = [...new Set(partyIds)];
+    if (wanted.length === 0) return;
+    const known = new Set(await this.journals.knownParties(wanted));
+    if (wanted.some((id) => !known.has(id))) {
+      throw conflict('journal.party_unknown', 'A journal line names a party that is not in this business.');
+    }
   }
 
   /** ON CONFLICT DO NOTHING inserted nothing: the source is posted (409), or another key clashed (a bug, 500). */

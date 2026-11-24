@@ -30,6 +30,8 @@ export interface OriginalJournal {
 export interface IJournalQuery {
   /** The business's account for each role asked for, read FOR SHARE so a mapping can't change mid-post. */
   roleAccounts(roles: readonly string[]): Promise<{ role: string; accountId: string }[]>;
+  /** Of the given party ids, those that are parties of the caller's business (RLS-scoped; decision 4). */
+  knownParties(partyIds: readonly string[]): Promise<string[]>;
   /** Inserts the journal; null when a unique key already holds it (ON CONFLICT DO NOTHING, so never a 500 race). */
   insertJournal(row: JournalRecord): Promise<string | null>;
   /** Whether a journal for this source is visible in the scope (posts once, invariant 4). */

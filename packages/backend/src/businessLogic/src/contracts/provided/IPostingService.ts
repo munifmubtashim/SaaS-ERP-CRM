@@ -53,7 +53,8 @@ export interface PostedJournal {
 export interface IPostingService {
   /**
    * Posts one balanced journal. Refuses: unbalanced, a line with both or neither side, fewer than two lines
-   * (500 journal.unbalanced); an unmapped role (409 journal.role_unmapped); a locked period (409 period.locked);
+   * (500 journal.unbalanced); an unmapped role (409 journal.role_unmapped); a party
+   * not in this business (409 journal.party_unknown); a locked period (409 period.locked);
    * a source already posted (409 journal.already_posted).
    */
   post(draft: JournalDraft): Promise<PostedJournal>;
