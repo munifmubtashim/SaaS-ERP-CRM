@@ -105,6 +105,10 @@ const ITEMS: PosItem[] = [
 
 type Payment = InvoiceDetail['payments'][number];
 
+/** Invented system receipt numbers ("R-000201"); the real ones come from the number series (ADR 0015). */
+const FIRST_RECEIPT = 201;
+const receiptNo = (n: number) => `R-${String(n).padStart(6, '0')}`;
+
 /** A detail's paid, balance and status, from its total and payments. */
 function settle(invoice: Omit<InvoiceDetail, 'paid' | 'balance' | 'status'>): InvoiceDetail {
   const total = parseMoney(invoice.total);
@@ -135,7 +139,9 @@ function seedInvoices(today: string): InvoiceDetail[] {
     unitPrice,
     amount: formatMoney(multiplyByQuantity(parseMoney(unitPrice), quantity)),
   });
-  // Cash or bKash only, as the demo POS offers; a bKash payment carries its (invented) transaction id.
+  // Cash or bKash only, as the demo POS offers; a bKash payment carries its (invented) transaction id. Each payment
+  // takes the next system receipt number (ADR 0016 line 19), in the order the payments are listed here.
+  let receipt = FIRST_RECEIPT;
   const pay = (
     receivedAt: string,
     method: 'cash' | 'bkash',
@@ -143,6 +149,7 @@ function seedInvoices(today: string): InvoiceDetail[] {
     externalRef: string | null = null,
   ) => ({
     receivedAt,
+    receiptNumber: receiptNo(receipt++),
     method,
     amount,
     externalRef,
@@ -236,6 +243,8 @@ export class SampleSalesService implements ISalesService {
   private next = 124;
   private readonly answered = new Map<string, InvoiceSummary>();
   private readonly paymentsAnswered = new Map<string, InvoiceDetail>();
+  /** The next system receipt number: one past the highest the invented invoices used. */
+  private nextReceipt = 0;
   private details: InvoiceDetail[];
 
   constructor(
@@ -243,6 +252,8 @@ export class SampleSalesService implements ISalesService {
     today: string | null = null,
   ) {
     this.details = seedInvoices(today ?? todayBD(new Date().toISOString()));
+    const used = this.details.flatMap((d) => d.payments.map((p) => Number(p.receiptNumber.slice(2))));
+    this.nextReceipt = Math.max(FIRST_RECEIPT - 1, ...used) + 1;
   }
 
   private later<T>(value: T): Promise<T> {
@@ -271,7 +282,10 @@ export class SampleSalesService implements ISalesService {
       return Promise.reject(new Error('payment.over_balance'));
     const updated = settle({
       ...found,
-      payments: [...found.payments, { receivedAt: new Date().toISOString(), ...payment }],
+      payments: [
+        ...found.payments,
+        { receivedAt: new Date().toISOString(), receiptNumber: receiptNo(this.nextReceipt++), ...payment },
+      ],
     });
     this.details = this.details.map((d) => (d.number === number ? updated : d));
     this.paymentsAnswered.set(idempotencyKey, updated);
@@ -313,7 +327,9 @@ export class SampleSalesService implements ISalesService {
       lines,
       discount: draft.discount,
       total: formatMoney(total),
-      payments: draft.payment ? [{ receivedAt: now, ...draft.payment }] : [],
+      payments: draft.payment
+        ? [{ receivedAt: now, receiptNumber: receiptNo(this.nextReceipt++), ...draft.payment }]
+        : [],
     });
     this.next += 1;
     this.details = [detail, ...this.details];

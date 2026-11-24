@@ -31,7 +31,7 @@ describe('message catalogues', () => {
   });
 
   it('in Bangla, number params are written with Bangla digits', () => {
-    expect(createTranslator('bn')('dash.kpi.cashNote', { days: 6 })).toBe('প্রায় ৬ দিনের খরচ চলবে');
-    expect(createTranslator('en')('dash.kpi.cashNote', { days: 6 })).toBe('Covers about 6 days of spending');
+    expect(createTranslator('bn')('dash.fc.weeks', { count: 13 })).toBe('১৩ সপ্তাহ');
+    expect(createTranslator('en')('dash.fc.weeks', { count: 13 })).toBe('13 weeks');
   });
 });

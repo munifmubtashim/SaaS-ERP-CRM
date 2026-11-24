@@ -108,6 +108,9 @@ describe('CashCard', () => {
     expect(customers).toHaveTextContent('৳21,58,539 · 34%, overdue');
     const suppliers = within(article).getByRole('group', { name: 'You owe suppliers' });
     expect(suppliers).toHaveTextContent('৳5,99,726 · 15%, late to pay');
+    expect(article).toHaveTextContent(
+      'Dues by age are sample figures; how they are aged is still to be defined (ADR 0023).',
+    );
   });
 
   it('renders in Bangla', async () => {

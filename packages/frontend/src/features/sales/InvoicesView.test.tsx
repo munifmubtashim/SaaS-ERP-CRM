@@ -68,6 +68,7 @@ describe('Invoices view', () => {
     expect(details()).toHaveTextContent('Sample Customer One');
     expect(details()).toHaveTextContent('৳1,65,000'); // total after the ৳3,000 discount
     expect(details()).toHaveTextContent('৳65,000'); // balance due
+    expect(within(details()).getByText(/Receipt R-\d{6}/)).toBeInTheDocument(); // ADR 0016 line 19
   });
 
   it('collects a payment: refuses zero and more than the balance, then saves and moves the status', async () => {

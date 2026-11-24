@@ -268,6 +268,9 @@ function Details({
             <span>
               {formatDateTimeBD(p.receivedAt, loc)}, {t(`pos.method.${p.method}` as MessageKey)}
               {p.externalRef && ` · ${p.externalRef}`}
+              <span className="block text-xs text-muted">
+                {t('inv.receipt', { number: p.receiptNumber })}
+              </span>
             </span>
             <span className="num">{taka(p.amount)}</span>
           </div>
