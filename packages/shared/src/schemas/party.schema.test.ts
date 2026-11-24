@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createPartySchema,
+  partyDetailSchema,
   partyListItemSchema,
   partyListQuerySchema,
   partyListResponseSchema,
@@ -186,5 +187,78 @@ describe('updatePartySchema (ADR 0056 section 3)', () => {
     expect(updatePartySchema.safeParse({ version: 1, isCustomer: false, isSupplier: false }).success).toBe(
       false,
     );
+  });
+});
+
+describe('partyDetailSchema (customer profile, ADR 0006)', () => {
+  const detail = {
+    ...sample,
+    nidLast4: '1234',
+    creditLimit: '50000.00',
+    payTermDays: 30,
+    onCreditHold: false,
+    isWalkIn: false,
+  };
+
+  it('accepts a complete profile', () => {
+    expect(partyDetailSchema.safeParse(detail).success).toBe(true);
+  });
+
+  it('accepts no credit limit, no pay terms and no NID on file', () => {
+    const result = partyDetailSchema.safeParse({
+      ...detail,
+      nidLast4: null,
+      creditLimit: null,
+      payTermDays: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('strips a full national ID, so only the last four digits can reach the screen', () => {
+    const parsed = partyDetailSchema.parse({ ...detail, nid: '1990000000001' });
+    expect(parsed).not.toHaveProperty('nid');
+  });
+
+  it('drops a full NID under any key name: the 13 digits appear nowhere in the parsed profile', () => {
+    const fullNid = '1990000000001';
+    for (const key of ['nid', 'nationalId', 'national_id', 'nidEncrypted', 'nid_number']) {
+      const parsed = partyDetailSchema.parse({ ...detail, [key]: fullNid });
+      expect(JSON.stringify(parsed)).not.toContain(fullNid);
+    }
+  });
+
+  it('accepts exactly four digits as nidLast4', () => {
+    for (const nidLast4 of ['123', '12345', 'abcd']) {
+      expect(partyDetailSchema.safeParse({ ...detail, nidLast4 }).success).toBe(false);
+    }
+  });
+
+  it('takes the credit limit as a money string, never a number or a negative amount', () => {
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: 50000 }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '50000' }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '-1.00' }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, creditLimit: '0.00' }).success).toBe(true);
+  });
+
+  it('gives a negative credit limit the stable code credit.limit_invalid', () => {
+    const result = partyDetailSchema.safeParse({ ...detail, creditLimit: '-1.00' });
+    const codes = result.error?.issues.map((issue) => (issue as { params?: { code?: string } }).params?.code);
+    expect(codes).toContain('credit.limit_invalid');
+  });
+
+  it('says whether the party is the walk-in customer (ADR 0006: no advance, credit limit or dues)', () => {
+    expect(partyDetailSchema.parse({ ...detail, isWalkIn: true }).isWalkIn).toBe(true);
+    const { isWalkIn: _omitted, ...withoutFlag } = detail;
+    expect(partyDetailSchema.safeParse(withoutFlag).success).toBe(false);
+  });
+
+  it('rejects negative or fractional pay terms', () => {
+    expect(partyDetailSchema.safeParse({ ...detail, payTermDays: -1 }).success).toBe(false);
+    expect(partyDetailSchema.safeParse({ ...detail, payTermDays: 1.5 }).success).toBe(false);
+  });
+
+  it('keeps the rule that a party is a customer, a supplier or both', () => {
+    const result = partyDetailSchema.safeParse({ ...detail, isCustomer: false, isSupplier: false });
+    expect(result.success).toBe(false);
   });
 });
