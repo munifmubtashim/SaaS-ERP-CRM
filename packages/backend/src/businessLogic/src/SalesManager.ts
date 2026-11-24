@@ -10,6 +10,8 @@ import {
   sumMoney,
   ZERO,
   type Paisa,
+  type RecordPayment,
+  type SalesPayment,
   type PostedInvoice,
   type PostInvoiceInput,
 } from '@erp/shared';
@@ -205,6 +207,7 @@ export class SalesManager {
         amount: payment.amount,
         externalRef: payment.externalRef,
         receiptNumber: receiptNumbers[i] as string,
+        createdBy: where.userId,
       });
       recorded.push({
         id: done.paymentId,
@@ -321,6 +324,50 @@ export class SalesManager {
         isPassThrough: product.isPassThrough,
       };
     });
+  }
+
+  /**
+   * POST /v1/payments (ADR 0057 section 3): a customer's payment on one of their invoices, or an advance. The party
+   * must be a visible, active customer, and an advance can't name the walk-in customer. ADR 0016's recorder then checks
+   * the due with the invoice row locked, takes the branch's receipt number, posts the journal and inserts the payment,
+   * all in the request's one transaction.
+   */
+  async recordPayment(input: RecordPayment, where: SaleContext): Promise<SalesPayment> {
+    const party = await this.query.partyForSale(input.partyId);
+    if (!party || !party.isCustomer || party.status !== 'active') {
+      throw refuse('NOT_FOUND', 'partyId', 'payment.party_unknown', 'Customer not found.');
+    }
+    if (input.invoiceId === null && party.isWalkIn) {
+      throw refuse(
+        'CONFLICT',
+        'partyId',
+        'payment.walk_in_advance',
+        'An advance must name the customer, not the walk-in customer.',
+      );
+    }
+    const done = await this.services.payments.record({
+      branchId: where.branchId,
+      partyId: party.id,
+      invoiceId: input.invoiceId,
+      method: input.method,
+      amount: input.amount,
+      externalRef: input.externalRef,
+      note: input.note,
+      createdBy: where.userId,
+    });
+    return {
+      id: done.paymentId,
+      receiptNumber: done.receiptNumber,
+      partyId: party.id,
+      invoiceId: input.invoiceId,
+      branchId: where.branchId,
+      method: input.method,
+      externalRef: input.externalRef,
+      amount: input.amount,
+      status: 'posted',
+      receivedAt: done.receivedAt,
+      note: input.note,
+    };
   }
 
   private async checkParty(partyId: string): Promise<PartyForSale> {

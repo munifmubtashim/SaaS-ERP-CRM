@@ -8,7 +8,7 @@ import { accountingRoutes } from './AccountingRoutes.js';
 import { vehicleRoutes } from './VehicleRoutes.js';
 import { reportRoutes } from './ReportRoutes.js';
 import { partyRoutes } from './PartyRoutes.js';
-import { salesRoutes } from './SalesRoutes.js';
+import { salesPaymentRoutes, salesRoutes } from './SalesRoutes.js';
 import { purchaseRoutes } from './PurchaseRoutes.js';
 import { serviceRoutes } from './ServiceRoutes.js';
 import { crmRoutes } from './CrmRoutes.js';
@@ -35,6 +35,7 @@ export function buildRoutes(
     reportRoutes(c.report),
     partyRoutes(c.party, wrap),
     salesRoutes(c.sales, wrap),
+    salesPaymentRoutes(c.sales, wrap),
     purchaseRoutes(c.purchase),
     serviceRoutes(c.service),
     crmRoutes(c.crm),

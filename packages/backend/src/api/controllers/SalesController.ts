@@ -1,4 +1,10 @@
-import { AppError, postInvoiceSchema, type PostedInvoice } from '@erp/shared';
+import {
+  AppError,
+  postInvoiceSchema,
+  recordPaymentSchema,
+  type PostedInvoice,
+  type SalesPayment,
+} from '@erp/shared';
 import type { Request } from 'express';
 import { BaseController, type HttpResult } from './BaseController.js';
 import type { ISalesManager } from './contracts/ISalesManager.js';
@@ -32,5 +38,26 @@ export class SalesController extends BaseController {
       userId,
     });
     return { status: 201, body: invoice, headers: { Location: `/v1/invoices/${invoice.id}` } };
+  }
+
+  /**
+   * POST /v1/payments (ADR 0057). The branch that takes the money is X-Branch-Id and the cashier the signed-in user;
+   * neither comes from the body, and nor do the receipt number or the date.
+   */
+  async recordPayment(req: Request): Promise<HttpResult<SalesPayment>> {
+    const userId = req.auth?.userId;
+    if (!userId) throw new AppError('UNAUTHENTICATED', 'Sign in to continue.');
+    const branchId = req.tenant?.branchId;
+    if (!branchId) {
+      const message = 'Choose the branch that takes this payment.';
+      throw new AppError('VALIDATION_FAILED', message, [
+        { path: 'X-Branch-Id', code: 'payment.branch_required', message },
+      ]);
+    }
+    const payment = await this.manager.recordPayment(this.parse(recordPaymentSchema, req.body), {
+      branchId,
+      userId,
+    });
+    return { status: 201, body: payment };
   }
 }

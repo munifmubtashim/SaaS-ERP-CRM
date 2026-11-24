@@ -10,6 +10,11 @@ export interface NewSalesPayment {
   externalRef: string | null;
   receiptNumber: string;
   journalId: string;
+  /** The server's clock (ADR 0057): the same instant the journal's business date comes from. */
+  receivedAt: Date;
+  note: string | null;
+  /** The signed-in user who took the payment. */
+  createdBy: string | null;
 }
 
 /** What SalesPaymentRecorder needs from dal. A15 (ADR 0026, #64, Farhan) builds the table and the Query. */
