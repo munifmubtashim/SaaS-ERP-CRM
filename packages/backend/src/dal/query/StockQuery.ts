@@ -1,7 +1,31 @@
 import { AppError } from '@erp/shared';
+import { Prisma } from '../generated/prisma/client.js';
 import { BaseQuery } from './BaseQuery.js';
 
 /** One stock movement to record (ADR 0021 section 1). Quantities and money as strings; never a float. */
+/** A GET /v1/stock row (#34's stockRowSchema): one product at one branch. */
+export interface StockRowRecord {
+  productId: string;
+  productCode: string;
+  productName: string;
+  branchId: string;
+  branchName: string;
+  onHand: string;
+}
+
+/** A GET /v1/stock/pos-catalog item: what the counter can sell at one branch. */
+export interface PosCatalogItemRecord {
+  productId: string;
+  code: string;
+  name: string;
+  unit: string;
+  tracking: string;
+  sellPrice: string;
+  isPassThrough: boolean;
+  onHand: string;
+  units: { id: string; serialNo: string }[];
+}
+
 export interface StockMovementInsert {
   branchId: string;
   productId: string;
@@ -153,5 +177,62 @@ export class StockQuery extends BaseQuery {
       SELECT coalesce(sum(qty_delta), 0)::numeric(18,3)::text AS total FROM stock_movement
        WHERE branch_id = ${branchId}::uuid AND product_id = ${productId}::uuid`;
     return row?.total ?? '0.000';
+  }
+
+  /**
+   * GET /v1/stock's rows (#34): on hand per product per branch from the balance cache, under the caller's RLS (a branch
+   * scope sees its branches only). Search on code or name (strpos: a % is a character); optional branch filter; a
+   * (product, branch) cursor. No cost: the average cost is a hidden figure.
+   */
+  async stockRows(filter: {
+    search?: string | undefined;
+    branchId: string | null;
+    after: { productId: string; branchId: string } | null;
+    limit: number;
+  }): Promise<StockRowRecord[]> {
+    const where = [Prisma.sql`TRUE`];
+    if (filter.search) {
+      const term = filter.search.toLowerCase();
+      where.push(Prisma.sql`(strpos(lower(p.name), ${term}) > 0 OR strpos(lower(p.code), ${term}) > 0)`);
+    }
+    if (filter.branchId) where.push(Prisma.sql`sb.branch_id = ${filter.branchId}::uuid`);
+    if (filter.after) {
+      where.push(
+        Prisma.sql`(sb.product_id, sb.branch_id) > (${filter.after.productId}::uuid, ${filter.after.branchId}::uuid)`,
+      );
+    }
+    return this.db.$queryRaw<StockRowRecord[]>`
+      SELECT sb.product_id::text AS "productId", p.code AS "productCode", p.name AS "productName",
+             sb.branch_id::text AS "branchId", br.name AS "branchName",
+             sum(sb.on_hand)::numeric(18,3)::text AS "onHand"
+        FROM stock_balance sb
+        JOIN product p ON p.business_id = sb.business_id AND p.id = sb.product_id
+        JOIN branch br ON br.business_id = sb.business_id AND br.id = sb.branch_id
+       WHERE ${Prisma.join(where, ' AND ')}
+       GROUP BY sb.product_id, p.code, p.name, sb.branch_id, br.name
+       ORDER BY sb.product_id, sb.branch_id
+       LIMIT ${filter.limit}`;
+  }
+
+  /**
+   * GET /v1/stock/pos-catalog's items: every active product with its on hand at the branch (0.000 when none) and the
+   * serial units in stock there (status in_stock and one unit in the ledger at this branch). No cost.
+   */
+  async posCatalogItems(branchId: string): Promise<PosCatalogItemRecord[]> {
+    return this.db.$queryRaw<PosCatalogItemRecord[]>`
+      SELECT p.id::text AS "productId", p.code, p.name, p.unit, p.tracking, p.sell_price::text AS "sellPrice",
+             p.is_pass_through AS "isPassThrough",
+             coalesce((SELECT sum(sb.on_hand) FROM stock_balance sb
+                        WHERE sb.product_id = p.id AND sb.branch_id = ${branchId}::uuid), 0)::numeric(18,3)::text
+               AS "onHand",
+             coalesce((SELECT json_agg(json_build_object('id', u.id::text, 'serialNo', u.serial_no) ORDER BY u.serial_no)
+                         FROM serial_unit u
+                        WHERE u.product_id = p.id AND u.branch_id = ${branchId}::uuid AND u.status = 'in_stock'
+                          AND (SELECT coalesce(sum(m.qty_delta), 0) FROM stock_movement m
+                                WHERE m.serial_unit_id = u.id AND m.branch_id = ${branchId}::uuid) = 1),
+                      '[]'::json) AS units
+        FROM product p
+       WHERE p.status = 'active'
+       ORDER BY p.name, p.code`;
   }
 }

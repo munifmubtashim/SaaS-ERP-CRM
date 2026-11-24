@@ -29,7 +29,7 @@ export function buildRoutes(
     authRoutes(c.auth, wrap, loginRateLimit(loginRateLimiter)),
     organizationRoutes(c.organization),
     productRoutes(c.product, wrap),
-    inventoryRoutes(c.inventory),
+    inventoryRoutes(c.inventory, wrap),
     accountingRoutes(c.accounting),
     vehicleRoutes(c.vehicle),
     reportRoutes(c.report, wrap),

@@ -5,6 +5,7 @@ import type {
   IAuthManager,
   IHealthManager,
   IIdempotency,
+  IInventoryManager,
   IProductManager,
   IReportManager,
   ISalesManager,
@@ -51,6 +52,12 @@ export const unusedIdempotency: IIdempotency = {
   complete: () => unexpected('idempotent')(),
 };
 
+/** An Inventory Manager for tests that never read stock: using it fails loudly. */
+export const unusedInventory: IInventoryManager = {
+  list: unexpected('inventory'),
+  posCatalog: unexpected('inventory'),
+};
+
 /** A Report Manager for tests that never read a report: using it fails loudly. */
 export const unusedReport: IReportManager = { ownerDashboard: unexpected('report') };
 
@@ -64,7 +71,7 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
     auth: unusedAuth,
     organization: {},
     product: unusedProduct,
-    inventory: {},
+    inventory: unusedInventory,
     accounting: {},
     vehicle: {},
     report: unusedReport,
