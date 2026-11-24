@@ -6,6 +6,7 @@ set -eu
 cd "$(dirname "$0")/../.."
 sh tools/scripts/demo-reset.sh
 set -a; . ./.demo/demo4.conf; set +a
+node tools/scripts/demoGuardUrl.ts DATABASE_URL MIGRATION_DATABASE_URL PROVISIONING_DATABASE_URL
 # Its own ports, so it runs beside anything already on 3000 or 5173; the proxy and the CSRF origin follow them.
 API_PORT="${DEMO_API_PORT:-3004}"
 WEB_PORT="${DEMO_WEB_PORT:-5174}"

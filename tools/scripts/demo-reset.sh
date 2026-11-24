@@ -3,8 +3,8 @@
 # and run the demo seed (fictional data only, docs/demo-seed-spec.md). It never touches the everyday local database
 # (compose project "erp", erp_postgres-data): the guard below refuses any target but demo4 (container erp-pg-demo4,
 # port 55444, volume erp_demo4-data, database erp_demo4). Passwords are generated afresh on every reset and written
-# only to .demo/demo4.conf (mode 600, in .git/info/exclude). The seed keeps its own guard and reads
-# DEMO_OWNER_EMAIL and DEMO_OWNER_PASSWORD from the root settings file as always.
+# only to .demo/demo4.conf (mode 600, in .git/info/exclude). The seed (demo-seed.sh) reads the owner's two variables
+# from .demo/owner.conf only, which nothing here ever writes or prints.
 set -eu
 if [ "${NODE_ENV:-}" = "production" ]; then
   echo "demo:reset refuses to run with NODE_ENV=production." >&2
@@ -16,6 +16,7 @@ PORT="${DEMO_DB_PORT:-55444}"
 VOLUME="${DEMO_DB_VOLUME:-erp_demo4-data}"
 DB="${DEMO_DB_NAME:-erp_demo4}"
 node tools/scripts/demoGuard.ts "$CONTAINER" "$PORT" "$VOLUME" "$DB"
+node tools/scripts/demoOwnerCheck.ts .demo/owner.conf
 
 secret() { node -e "process.stdout.write(require('node:crypto').randomBytes(18).toString('base64url'))"; }
 OWNER_PW="$(secret)"; APP_PW="$(secret)"; PROV_PW="$(secret)"
@@ -43,5 +44,5 @@ CONF
 chmod 600 .demo/demo4.conf
 set -a; . ./.demo/demo4.conf; set +a
 npm run db:migrate:deploy
-npm run db:seed
+sh tools/scripts/demo-seed.sh
 echo "Demo database ready ($CONTAINER). Start everything with: npm run demo:start"

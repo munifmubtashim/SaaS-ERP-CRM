@@ -33,7 +33,8 @@
     "db:studio": "npm run db:studio -w @erp/dal",
     "db:seed": "npm run db:seed -w @erp/business-logic",
     "demo:reset": "sh tools/scripts/demo-reset.sh",
-    "demo:start": "sh tools/scripts/demo-start.sh"
+    "demo:start": "sh tools/scripts/demo-start.sh",
+    "demo:seed": "sh tools/scripts/demo-seed.sh"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -31,3 +31,40 @@ export function assertDemoTarget(target: DemoTarget): void {
     );
   }
 }
+
+/**
+ * The seed and demo:start may only reach the demo4 database (Munif, 25 Nov): host 127.0.0.1 or localhost, port 55444,
+ * database erp_demo4. Messages name the host, port and database only, never the user or password.
+ */
+export function demoUrlProblems(url: string): string[] {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return ['not a database URL'];
+  }
+  if (!parsed.protocol.startsWith('postgres')) return ['not a database URL'];
+  const problems: string[] = [];
+  if (!['127.0.0.1', 'localhost'].includes(parsed.hostname)) {
+    problems.push(`host is "${parsed.hostname}", not 127.0.0.1 or localhost`);
+  }
+  const port = parsed.port || '5432';
+  if (port !== DEMO4.port) problems.push(`port is "${port}", not "${DEMO4.port}"`);
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+  if (database !== DEMO4.database) problems.push(`database is "${database}", not "${DEMO4.database}"`);
+  return problems;
+}
+
+export const OWNER_VARIABLES = ['DEMO_OWNER_EMAIL', 'DEMO_OWNER_PASSWORD'] as const;
+
+/** The owner.conf names that are missing or empty; values are never returned. */
+export function ownerConfProblems(text: string): string[] {
+  const set = new Set(
+    text
+      .split('\n')
+      .map((line) => /^([A-Z_]+)=(.+)$/.exec(line.trim()))
+      .filter((m): m is RegExpExecArray => m !== null && (m[2] ?? '').trim() !== '')
+      .map((m) => m[1]),
+  );
+  return OWNER_VARIABLES.filter((name) => !set.has(name)).map((name) => `${name} is missing or empty`);
+}
