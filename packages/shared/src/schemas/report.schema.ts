@@ -183,3 +183,31 @@ export const kpiTrendsSchema = z.object({
   customerDues: trendSchema,
   supplierPayable: trendSchema,
 });
+
+/**
+ * Provisional, a view shape only: the cash forecast as ADR 0047 section 1 lists its lines. The opening by account
+ * role (cash, bank, mobile money); one bucket per week starting Saturday, for 4, 8 or 13 weeks, with expected
+ * collections (counted at 100 %, labelled "Expected"), supplier bills due, recurring expenses (rent included) and
+ * salaries; dues already overdue on their own Uncertain line, never added. There is no "expected new sales" line.
+ * Sample data until the report (GET /v1/reports/cash_forecast?weeks=) exists.
+ */
+export const forecastWeeksSchema = z.union([z.literal(4), z.literal(8), z.literal(13)]);
+const forecastBucketSchema = z.object({
+  weekStart: z.iso.date(),
+  expectedCollections: moneySchema,
+  supplierBills: moneySchema,
+  recurringExpenses: moneySchema,
+  salaries: moneySchema,
+});
+export const cashForecastSchema = z
+  .object({
+    asOf: z.iso.datetime(),
+    weeks: forecastWeeksSchema,
+    opening: z.object({ cash: moneySchema, bank: moneySchema, mobileMoney: moneySchema }),
+    buckets: z.array(forecastBucketSchema),
+    uncertain: moneySchema,
+  })
+  .refine((forecast) => forecast.buckets.length === forecast.weeks, {
+    message: 'One bucket per week',
+    path: ['buckets'],
+  });

@@ -16,6 +16,8 @@ import type {
   stockValueSchema,
   unitStockSchema,
   kpiTrendsSchema,
+  cashForecastSchema,
+  forecastWeeksSchema,
   vatReturnSchema,
 } from '../schemas/report.schema.js';
 
@@ -37,3 +39,5 @@ export type NeedsAction = z.infer<typeof needsActionSchema>;
 export type DayCloseStatus = z.infer<typeof dayCloseStatusSchema>;
 export type UnitStock = z.infer<typeof unitStockSchema>;
 export type KpiTrends = z.infer<typeof kpiTrendsSchema>;
+export type CashForecast = z.infer<typeof cashForecastSchema>;
+export type ForecastWeeks = z.infer<typeof forecastWeeksSchema>;

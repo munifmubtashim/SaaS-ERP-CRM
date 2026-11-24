@@ -4,6 +4,7 @@ import {
   bankFeedSchema,
   branchResultsSchema,
   cashPositionSchema,
+  cashForecastSchema,
   customerInsightsSchema,
   dayCloseStatusSchema,
   kpiTrendsSchema,
@@ -219,5 +220,33 @@ describe('dashboard view shapes, second half (provisional)', () => {
     expect(kpiTrendsSchema.parse(trends)).toEqual(trends);
     expect(kpiTrendsSchema.safeParse({ ...trends, cash: ['1.00'] }).success).toBe(false);
     expect(kpiTrendsSchema.safeParse({ ...trends, cash: [1, 2] }).success).toBe(false);
+  });
+
+  it('cash forecast (ADR 0047): opening by account, 4, 8 or 13 weekly buckets of the plan’s lines, Uncertain apart', () => {
+    const bucket = (weekStart: string) => ({
+      weekStart,
+      expectedCollections: '2500000.00',
+      supplierBills: '1800000.00',
+      recurringExpenses: '350000.00',
+      salaries: '0.00',
+    });
+    const forecast = {
+      asOf: '2026-11-24T03:00:00.000Z',
+      weeks: 4,
+      opening: { cash: '1840095.00', bank: '4215000.00', mobileMoney: '525000.00' },
+      buckets: ['2026-11-21', '2026-11-28', '2026-12-05', '2026-12-12'].map(bucket),
+      uncertain: '2158539.00',
+    };
+    expect(cashForecastSchema.parse(forecast)).toEqual(forecast);
+    expect(cashForecastSchema.safeParse({ ...forecast, weeks: 6 }).success).toBe(false);
+    expect(cashForecastSchema.safeParse({ ...forecast, buckets: forecast.buckets.slice(1) }).success).toBe(
+      false,
+    );
+    expect(
+      cashForecastSchema.safeParse({
+        ...forecast,
+        buckets: forecast.buckets.map((b) => ({ ...b, newSales: '1.00' })),
+      }).data?.buckets[0],
+    ).not.toHaveProperty('newSales'); // no "expected new sales" line in the plan
   });
 });

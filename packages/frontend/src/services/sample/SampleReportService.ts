@@ -1,6 +1,10 @@
 import {
   addDaysISO,
+  weekStartBD,
+  type CashForecast,
+  type ForecastWeeks,
   formatMoney,
+  sumMoney,
   parseMoney,
   prorate,
   addMonthsISO,
@@ -42,6 +46,7 @@ export const REPORT_CALLS: readonly ReportCall[] = [
   'dayCloseStatus',
   'unitStock',
   'kpiTrends',
+  'cashForecast',
 ];
 
 /*
@@ -78,6 +83,45 @@ const action = (
 const crore = (amounts: string) => amounts.split(' ');
 const REVENUE = crore('31200000.00 29900000.00 34100000.00 35700000.00 37200000.00 38300000.00');
 const EXPENSES = crore('26100000.00 26000000.00 28500000.00 30100000.00 31900000.00 32000000.00');
+
+/*
+ * The invented cash forecast (ADR 0047 lines): opening by account (adding up to the Cash and bank key figure),
+ * weekly expected collections and supplier bills, rent on the 5th and utilities on the 10th as recurring expenses,
+ * salaries on the 1st, and overdue dues on the Uncertain line.
+ */
+const COLLECTIONS =
+  '2450000 1980000 2210000 1760000 2630000 2050000 1890000 2340000 2120000 1970000 2480000 2260000 1840000';
+const BILLS =
+  '1820000 2340000 1560000 1980000 2110000 1740000 2260000 1690000 2050000 1880000 2170000 1930000 1760000';
+const RECURRING = [
+  { day: '05', amount: '350000.00' }, // rent
+  { day: '10', amount: '45000.00' }, // utilities
+];
+const SALARIES = { day: '01', amount: '980000.00' };
+
+function sampleForecast(today: string, weeks: ForecastWeeks): CashForecast {
+  const start = weekStartBD(today);
+  const collections = COLLECTIONS.split(' ');
+  const bills = BILLS.split(' ');
+  return {
+    asOf: `${today}T03:00:00.000Z`,
+    weeks,
+    opening: { cash: '1840095.00', bank: '4215000.00', mobileMoney: '525000.00' },
+    buckets: Array.from({ length: weeks }, (_, i) => {
+      const weekStart = addDaysISO(start, 7 * i);
+      const days = Array.from({ length: 7 }, (_, d) => addDaysISO(weekStart, d).slice(8, 10));
+      const recurring = RECURRING.filter((r) => days.includes(r.day)).map((r) => parseMoney(r.amount));
+      return {
+        weekStart,
+        expectedCollections: `${collections[i] ?? '0'}.00`,
+        supplierBills: `${bills[i] ?? '0'}.00`,
+        recurringExpenses: formatMoney(sumMoney(recurring)),
+        salaries: days.includes(SALARIES.day) ? SALARIES.amount : '0.00',
+      };
+    }),
+    uncertain: '2158539.00',
+  };
+}
 
 type Answers = { [K in ReportCall]: Awaited<ReturnType<IReportService[K]>> };
 
@@ -250,6 +294,7 @@ function sampleFor(today: string): Answers {
       customerDues: crore('5569000.00 5791760.00 5680380.00 6125900.00 6014520.00 6460040.00 6348660.00'),
       supplierPayable: crore('3690720.00 3485680.00 3895760.00 3588200.00 3793240.00 3690720.00 3998280.00'),
     } satisfies KpiTrends,
+    cashForecast: sampleForecast(today, 4),
   };
 }
 
@@ -280,4 +325,11 @@ export class SampleReportService implements IReportService {
   dayCloseStatus = () => this.answer('dayCloseStatus');
   unitStock = () => this.answer('unitStock');
   kpiTrends = () => this.answer('kpiTrends');
+  cashForecast = (weeks: ForecastWeeks) =>
+    new Promise<CashForecast>((resolve) =>
+      setTimeout(
+        () => resolve(sampleForecast(this.today ?? todayBD(new Date().toISOString()), weeks)),
+        this.delayMs,
+      ),
+    );
 }
