@@ -11,6 +11,10 @@ export interface ProductForSale {
   status: string;
   /** Copied onto the line at sale time (P-07). */
   sellPrice: string;
+  /** A pass-through fee (item 3d): credited to pass_through_payable, never revenue; never stock. */
+  isPassThrough: boolean;
+  /** VAT on the fee (decision 6); off by default. */
+  vatOnFee: boolean;
 }
 
 export interface UnitForSale {
@@ -49,8 +53,10 @@ export interface NewInvoiceLine {
   qty: string;
   unitPrice: string;
   lineTotal: string;
-  /** The cost the stock service used: a hidden field, stored, never answered. */
+  /** The cost the stock service used: a hidden field, stored, never answered. 0.00 for a pass-through fee. */
   costAmount: string;
+  /** The product's pass-through setting, copied at posting. */
+  isPassThrough: boolean;
 }
 
 export interface ISalesQuery {
