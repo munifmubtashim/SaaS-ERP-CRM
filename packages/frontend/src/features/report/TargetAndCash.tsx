@@ -1,6 +1,18 @@
-import { formatLakhCrore, formatShare, formatTaka, ratioBasisPoints, type Paisa } from '@erp/shared';
+import {
+  formatDayMonthBD,
+  formatLakhCrore,
+  formatShare,
+  formatTaka,
+  ratioBasisPoints,
+  type ForecastWeeks,
+  type Paisa,
+} from '@erp/shared';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useServices } from '../../app/servicesContext';
 import { useI18n } from '../../i18n';
-import { agingBuckets, cashForecast, targetProgress, type AgedEntry, type Share } from './derive';
+import { agingBuckets, targetProgress, type AgedEntry, type Share } from './derive';
+import { forecastWeeks } from './forecast';
 import { ReportCard } from './ReportCard';
 import { useReport } from './useReport';
 
@@ -138,44 +150,124 @@ function AgedDuesGroup({
   );
 }
 
-/** The design's "Cash forecast and dues" card: the next 30 days, and dues by age on both sides. */
+const HORIZONS: ForecastWeeks[] = [4, 8, 13];
+const LINES = [
+  { key: 'expectedCollections', label: 'dash.fc.collections', sign: '+' },
+  { key: 'supplierBills', label: 'dash.fc.bills', sign: '−' },
+  { key: 'recurringExpenses', label: 'dash.fc.recurring', sign: '−' },
+  { key: 'salaries', label: 'dash.fc.salaries', sign: '−' },
+] as const;
+
+/**
+ * "Cash forecast and dues": the forecast exactly as ADR 0047 section 1 lists it (the plan wins over the design):
+ * opening, plus expected collections, less supplier bills, recurring expenses and salaries, closing per week, for 4,
+ * 8 or 13 weeks; dues already overdue on their own Uncertain line, not added. Then dues by age on both sides.
+ */
 export function CashCard() {
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
-  const taka = (amount: string) => `৳${formatTaka(amount, loc)}`;
-  const cash = useReport('cashPosition');
+  const taka = (amount: string) => `৳${formatTaka(amount.replace('-', ''), loc)}`;
+  const signed = (amount: string) => (amount.startsWith('-') ? `−${taka(amount)}` : taka(amount));
+  const { report } = useServices();
+  const [weeks, setWeeks] = useState<ForecastWeeks>(4);
+  const forecast = useQuery({
+    queryKey: ['report', 'cashForecast', weeks],
+    queryFn: () => report.cashForecast(weeks),
+    placeholderData: (previous) => previous,
+  });
   const customers = useReport('customerDues');
   const suppliers = useReport('supplierDues');
   return (
     <ReportCard
       title={t('dash.cash.title')}
-      calls={['cashPosition', 'customerDues', 'supplierDues']}
-      queries={[cash, customers, suppliers]}
+      calls={['cashForecast', 'customerDues', 'supplierDues']}
+      queries={[forecast, customers, suppliers]}
     >
       {() => {
-        if (!cash.data || !customers.data || !suppliers.data) return null;
-        const position = cash.data;
-        const c = cashForecast(position, customers.data.entries, suppliers.data.entries);
-        const figure = (label: string, amount: string, help: string) => (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] text-muted">{label}</span>
-            <span className="num text-xl font-bold">{amount}</span>
-            <span className="text-xs text-text2">{help}</span>
-          </div>
-        );
+        if (!forecast.data || !customers.data || !suppliers.data) return null;
+        const f = forecastWeeks(forecast.data);
         return (
           <div className="flex flex-col gap-[var(--card-gap-lg)]">
-            <p className="text-[13px] text-text2">{t('dash.cash.subtitle')}</p>
-            <div className="grid grid-cols-2 gap-[var(--card-gap)] lg:grid-cols-4">
-              {figure(
-                t('dash.cash.now'),
-                taka(position.cashNow),
-                t('dash.cash.nowHelp', { sales: `৳${formatLakhCrore(position.averageDailySales, loc)}` }),
-              )}
-              {figure(t('dash.cash.in'), `+${taka(c.comingIn)}`, t('dash.cash.inHelp'))}
-              {figure(t('dash.cash.out'), `−${taka(c.goingOut)}`, t('dash.cash.outHelp'))}
-              {figure(t('dash.cash.in30'), taka(c.cashIn30Days), t('dash.cash.in30Help'))}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] text-text2">{t('dash.fc.subtitle')}</p>
+              <div
+                role="group"
+                aria-label={t('dash.fc.weeksAria')}
+                className="flex gap-1 rounded-full bg-track p-1"
+              >
+                {HORIZONS.map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    aria-pressed={weeks === w}
+                    onClick={() => setWeeks(w)}
+                    className="min-h-9 rounded-full px-3 text-xs text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text"
+                  >
+                    {t('dash.fc.weeks', { count: w })}
+                  </button>
+                ))}
+              </div>
             </div>
+            <div className="overflow-x-auto">
+              <table aria-label={t('dash.fc.table')} className="w-full min-w-[480px] text-[13px]">
+                <thead>
+                  <tr className="text-xs text-muted">
+                    <th scope="col" className="py-1 text-left font-semibold">
+                      {t('dash.fc.line')}
+                    </th>
+                    {f.weeks.map((w) => (
+                      <th
+                        key={w.weekStart}
+                        scope="col"
+                        className="num py-1 text-right font-semibold whitespace-nowrap"
+                      >
+                        {formatDayMonthBD(w.weekStart, loc)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-row-border">
+                    <th scope="row" className="py-1.5 text-left font-normal text-text2">
+                      {t('dash.fc.opening')}
+                    </th>
+                    {f.weeks.map((w) => (
+                      <td key={w.weekStart} className="num py-1.5 text-right whitespace-nowrap">
+                        {signed(w.opening)}
+                      </td>
+                    ))}
+                  </tr>
+                  {LINES.map((line) => (
+                    <tr key={line.key} className="border-t border-row-border">
+                      <th scope="row" className="py-1.5 text-left font-normal text-text2">
+                        {t(line.label)}
+                      </th>
+                      {f.weeks.map((w) => (
+                        <td key={w.weekStart} className="num py-1.5 text-right whitespace-nowrap text-text2">
+                          {w[line.key] === '0.00' ? '—' : `${line.sign}${taka(w[line.key])}`}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="border-t border-row-border">
+                    <th scope="row" className="py-1.5 text-left font-semibold">
+                      {t('dash.fc.closing')}
+                    </th>
+                    {f.weeks.map((w) => (
+                      <td
+                        key={w.weekStart}
+                        className={`num py-1.5 text-right font-semibold whitespace-nowrap ${w.closing.startsWith('-') ? 'text-neg-text' : ''}`}
+                      >
+                        {signed(w.closing)}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="rounded-xl bg-warn-bg px-3 py-2 text-[13px] text-warn-text">
+              {t('dash.fc.uncertain', { amount: taka(f.uncertain) })}
+            </p>
             <div className="grid gap-[var(--card-gap-lg)] md:grid-cols-2">
               <AgedDuesGroup
                 label={t('dash.cash.customers')}

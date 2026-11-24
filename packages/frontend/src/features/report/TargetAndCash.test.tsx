@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
@@ -52,23 +52,68 @@ describe('TargetCard', () => {
 });
 
 describe('CashCard', () => {
-  it('cash now, coming in, going out and cash in 30 days, then dues by age for customers and suppliers', async () => {
+  const card = async () =>
+    (await screen.findByText('Cash forecast and dues')).closest('article') as HTMLElement;
+
+  it('the forecast as ADR 0047 lists it: opening, Expected collections, bills, recurring, salaries, closing, by week', async () => {
     renderCards();
-    const card = (await screen.findByText('Cash forecast and dues')).closest('article') as HTMLElement;
-    expect(await within(card).findByText('৳65,80,095')).toBeInTheDocument();
-    expect(card).toHaveTextContent('+৳41,90,106');
-    expect(card).toHaveTextContent('−৳33,98,449');
-    expect(card).toHaveTextContent('৳73,71,752');
-    const customers = within(card).getByRole('group', { name: 'Customers owe you' });
+    const table = await within(await card()).findByRole('table', { name: 'Cash forecast by week' });
+    const rows = within(table).getAllByRole('row');
+    expect(rows.map((r) => within(r).queryByRole('rowheader')?.textContent ?? 'head')).toEqual([
+      'head',
+      'Opening',
+      'Expected collections',
+      'Supplier bills due',
+      'Recurring expenses (rent and others)',
+      'Salaries',
+      'Closing',
+    ]);
+    expect(within(rows[0] as HTMLElement).getAllByRole('columnheader')).toHaveLength(5); // the label column + 4 weeks
+    expect(rows[0]).toHaveTextContent('7 Nov');
+    expect(rows[1]).toHaveTextContent('৳65,80,095');
+    expect(rows[2]).toHaveTextContent('+৳24,50,000');
+    expect(rows[4]).toHaveTextContent('−৳45,000'); // utilities on the 10th, in the week of 7 November
+    expect(rows[5]).toHaveTextContent('−৳9,80,000'); // salaries on 1 December, in the week of 28 November
+    expect(rows[6]).toHaveTextContent('৳71,65,095');
+    expect(rows[6]).toHaveTextContent('৳62,55,095');
+  });
+
+  it('8 and 13 weeks are a tap away', async () => {
+    renderCards();
+    const article = await card();
+    await within(article).findByRole('table', { name: 'Cash forecast by week' });
+    fireEvent.click(within(article).getByRole('button', { name: '8 weeks' }));
+    const table = await within(article).findByRole('table', { name: 'Cash forecast by week' });
+    await within(table).findByText('26 Dec');
+    expect(
+      within(within(table).getAllByRole('row')[0] as HTMLElement).getAllByRole('columnheader'),
+    ).toHaveLength(9);
+  });
+
+  it('dues already overdue stay on their own Uncertain line, not added; the old "not included" line is gone', async () => {
+    renderCards();
+    const article = await card();
+    expect(await within(article).findByText(/Uncertain/)).toHaveTextContent(
+      'Uncertain: ৳21,58,539 of customer dues are already overdue and are not counted above.',
+    );
+    expect(article).not.toHaveTextContent('not included');
+    expect(article).not.toHaveTextContent('Cash in 30 days');
+  });
+
+  it('keeps the dues by age for customers and suppliers', async () => {
+    renderCards();
+    const article = await card();
+    const customers = await within(article).findByRole('group', { name: 'Customers owe you' });
     expect(customers).toHaveTextContent('৳63,48,645');
-    expect(customers).toHaveTextContent('৳24,12,485 · 38%');
     expect(customers).toHaveTextContent('৳21,58,539 · 34%, overdue');
-    const suppliers = within(card).getByRole('group', { name: 'You owe suppliers' });
+    const suppliers = within(article).getByRole('group', { name: 'You owe suppliers' });
     expect(suppliers).toHaveTextContent('৳5,99,726 · 15%, late to pay');
   });
 
   it('renders in Bangla', async () => {
     renderCards(undefined, 'bn');
-    expect(await screen.findByText('৳৬৫,৮০,০৯৫')).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'সাপ্তাহিক নগদ পূর্বাভাস' })).toHaveTextContent(
+      '৳৬৫,৮০,০৯৫',
+    );
   });
 });

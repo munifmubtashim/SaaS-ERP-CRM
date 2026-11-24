@@ -6,6 +6,7 @@ import {
   daysUntilBD,
   formatDateBD,
   formatDateTimeBD,
+  formatDayMonthBD,
   formatLongDateBD,
   formatTimeBD,
   hourInDhaka,
@@ -83,5 +84,13 @@ describe('forecast weeks start on Saturday (ADR 0047, decision 0047-1)', () => {
     expect(weekStartBD('2026-11-21')).toBe('2026-11-21'); // Saturday itself
     expect(weekStartBD('2026-11-20')).toBe('2026-11-14'); // Friday
     expect(weekStartBD('2027-01-01')).toBe('2026-12-26'); // across the year
+  });
+});
+
+describe('short day and month, for column headings', () => {
+  it('a calendar date as "7 Nov", Bangla digits in Bangla', () => {
+    expect(formatDayMonthBD('2026-11-07')).toBe('7 Nov');
+    expect(formatDayMonthBD('2026-12-26')).toBe('26 Dec');
+    expect(formatDayMonthBD('2026-11-07', 'bn-BD')).toMatch(/^৭ /);
   });
 });
