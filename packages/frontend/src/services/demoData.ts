@@ -74,3 +74,15 @@ export function parseDemoData(
   }
   return new Set(names as DemoService[]);
 }
+
+/**
+ * The set the app uses (demo-local4, Munif 24 Nov): the chosen one while the api is up; every sample when it is down at
+ * start-up, so each screen still shows marked sample data; and never any in a production build.
+ */
+export function resolveDemoData(
+  chosen: ReadonlySet<DemoService>,
+  { production, apiUp }: { production: boolean; apiUp: boolean },
+): ReadonlySet<DemoService> {
+  if (production) return new Set();
+  return apiUp ? chosen : DEMO_CAPABLE;
+}
