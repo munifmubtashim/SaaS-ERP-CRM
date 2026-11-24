@@ -1,6 +1,7 @@
 import type {
   CreatePartyBody,
   Party,
+  PartyDetail,
   PartyListQuery,
   PartyListResponse,
   PermissionCode,
@@ -17,7 +18,7 @@ export interface PartyCaller {
 /** What PartyController needs (ADR 0056 section 4). Owned by api; businessLogic's PartyManager satisfies it. */
 export interface IPartyManager {
   list(query: PartyListQuery): Promise<PartyListResponse>;
-  get(id: string): Promise<Party>;
+  get(id: string): Promise<PartyDetail>;
   create(input: CreatePartyBody, caller: PartyCaller): Promise<Party>;
   edit(id: string, edit: UpdatePartyBody, caller: PartyCaller): Promise<Party>;
   deactivate(id: string, version: number): Promise<Party>;
