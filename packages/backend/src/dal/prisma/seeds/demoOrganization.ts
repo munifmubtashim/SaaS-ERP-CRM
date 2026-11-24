@@ -15,7 +15,7 @@ export interface DemoIds {
   organizationId: string;
   legalEntityId: string;
   businessId: string;
-  /** Two branches: North, then South. */
+  /** Two branches: the Showroom, then the Service centre (docs/demo-seed-spec.md section 2). */
   branchIds: [string, string];
   ownerUserId: string;
   ownerScopeId: string;
@@ -40,8 +40,8 @@ export interface DemoOwner {
 }
 
 const BRANCHES = [
-  { name: 'Demo Branch North', shortCode: 'DMN' },
-  { name: 'Demo Branch South', shortCode: 'DMS' },
+  { name: 'Showroom', shortCode: 'SHW' },
+  { name: 'Service centre', shortCode: 'SVC' },
 ] as const;
 
 export async function seedDemoOrganization(
@@ -56,15 +56,15 @@ export async function seedDemoOrganization(
              set_config('app.business_ids', ${ids.businessId}, true),
              set_config('app.branch_ids', ${ids.branchIds.join(',')}, true)`;
     await tx.$executeRaw`
-      INSERT INTO organization (id, name) VALUES (${ids.organizationId}::uuid, 'Demo Group')
+      INSERT INTO organization (id, name) VALUES (${ids.organizationId}::uuid, 'Sample Motor Group')
       ON CONFLICT (id) DO NOTHING`;
     await tx.$executeRaw`
       INSERT INTO legal_entity (id, organization_id, name)
-      VALUES (${ids.legalEntityId}::uuid, ${ids.organizationId}::uuid, 'Demo Motors Ltd.')
+      VALUES (${ids.legalEntityId}::uuid, ${ids.organizationId}::uuid, 'Sample Motors Ltd.')
       ON CONFLICT (id) DO NOTHING`;
     await tx.$executeRaw`
       INSERT INTO business (id, organization_id, legal_entity_id, name)
-      VALUES (${ids.businessId}::uuid, ${ids.organizationId}::uuid, ${ids.legalEntityId}::uuid, 'Demo Motors')
+      VALUES (${ids.businessId}::uuid, ${ids.organizationId}::uuid, ${ids.legalEntityId}::uuid, 'Sample Motors')
       ON CONFLICT (id) DO NOTHING`;
     for (const [index, branch] of BRANCHES.entries()) {
       await tx.$executeRaw`
@@ -88,4 +88,44 @@ export async function seedDemoOrganization(
       ON CONFLICT (id) DO NOTHING`;
   });
   return { organizationId: ids.organizationId, ownerUserId: ids.ownerUserId };
+}
+
+/** One demo login besides the owner, with its ids and scope already resolved (demoBusiness.ts, ADR 0058 S1). */
+export interface DemoLoginRow {
+  userId: string;
+  scopeId: string;
+  email: string;
+  displayName: string;
+  role: 'business_manager' | 'branch_manager' | 'accountant' | 'cashier';
+  /** Null for the whole business. */
+  branchId: string | null;
+}
+
+/**
+ * The four demo logins besides the owner (docs/demo-seed-spec.md section 5). Here, not in demoBusiness.ts, because
+ * this seed is the one exception to ADR 0008 test 15 that writes demo users. Same rules as the owner: one password
+ * hash for all four, ON CONFLICT (id) DO NOTHING, created_by NULL, each scoped to the demo business or one branch.
+ */
+export async function seedDemoLogins(
+  db: DbClient,
+  ids: DemoIds,
+  logins: readonly DemoLoginRow[],
+  passwordHash: string,
+): Promise<void> {
+  const roles = await seedSystemRoles(db, ids.organizationId);
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT set_config('app.organization_id', ${ids.organizationId}, true)`;
+    for (const login of logins) {
+      await tx.$executeRaw`
+        INSERT INTO app_user (id, organization_id, email, password_hash, display_name, created_by)
+        VALUES (${login.userId}::uuid, ${ids.organizationId}::uuid, ${login.email.trim().toLowerCase()},
+                ${passwordHash}, ${login.displayName}, NULL)
+        ON CONFLICT (id) DO NOTHING`;
+      await tx.$executeRaw`
+        INSERT INTO user_scope (id, user_id, role_id, business_id, branch_id)
+        VALUES (${login.scopeId}::uuid, ${login.userId}::uuid, ${roles[login.role]}::uuid, ${ids.businessId}::uuid,
+                ${login.branchId}::uuid)
+        ON CONFLICT (id) DO NOTHING`;
+    }
+  });
 }
