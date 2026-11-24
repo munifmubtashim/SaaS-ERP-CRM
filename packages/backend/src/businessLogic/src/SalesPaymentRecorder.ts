@@ -14,6 +14,11 @@ export interface RecordPaymentInput {
   /** Two-decimal money string, above zero. */
   amount: string;
   externalRef: string | null;
+  /**
+   * A receipt number the caller already took. A sale takes its invoice number, then every receipt number, before any
+   * journal number (ADR 0015 order, #60), so it passes them in; a payment on its own leaves this out.
+   */
+  receiptNumber?: string;
 }
 
 export interface RecordedPayment {
@@ -50,7 +55,7 @@ export class SalesPaymentRecorder {
     const { rule, amount } = this.validate(input);
     if (input.invoiceId !== null) await this.refuseAboveDue(input.invoiceId, input.partyId, amount);
     const externalRef = input.externalRef?.trim() || null;
-    const receiptNumber = await this.numbers.next('receipt', input.branchId);
+    const receiptNumber = input.receiptNumber ?? (await this.numbers.next('receipt', input.branchId));
     const paymentId = await this.query.newPaymentId();
     const { journalId } = await this.posting.post({
       branchId: input.branchId,

@@ -16,11 +16,12 @@ import {
 // the three codes this ADR defines. Each later module adds its own codes and mapping in its own PR.
 
 describe('permission codes', () => {
-  it('has the three codes ADR 0008 defines', () => {
+  it('has the three codes ADR 0008 defines, plus sales.invoice.post (ADR 0022, item 3b)', () => {
     expect([...PERMISSIONS].sort()).toEqual([
       'accounting.salary.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
     ]);
   });
 
@@ -68,6 +69,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'accounting.salary.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.accountant)).toEqual([
       'accounting.salary.view',
@@ -78,8 +80,8 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'product.cost.view',
       'report.profit.view',
     ]);
-    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).toEqual([]);
-    expect(DEFAULT_ROLE_PERMISSIONS.cashier).toEqual([]);
+    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).toEqual(['sales.invoice.post']);
+    expect(DEFAULT_ROLE_PERMISSIONS.cashier).toEqual(['sales.invoice.post']);
   });
 
   it('gives Branch Manager and Cashier none of cost, profit or salary', () => {

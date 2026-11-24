@@ -143,7 +143,7 @@ describe('AuthManager.resolveScope (ADR 0051)', () => {
         branchId: a.x.branch,
       },
       roles: ['cashier'],
-      permissions: [],
+      permissions: [...DEFAULT_ROLE_PERMISSIONS.cashier],
     });
   });
 
