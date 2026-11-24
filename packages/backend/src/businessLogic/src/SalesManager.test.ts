@@ -38,6 +38,8 @@ const PAD = '01937000-0000-7000-8000-0000000000f0';
 const OIL = '01937000-0000-7000-8000-0000000000f1';
 const BIKE = '01937000-0000-7000-8000-0000000000f2';
 const OLD = '01937000-0000-7000-8000-0000000000f3';
+const FEE = '01937000-0000-7000-8000-0000000000f4';
+const FEE_VAT = '01937000-0000-7000-8000-0000000000f5';
 const UNIT = '01937000-0000-7000-8000-0000000000a9';
 const OTHER_UNIT = '01937000-0000-7000-8000-0000000000a8';
 const INVOICE_ID = '01937000-0000-7000-8000-0000000000d9';
@@ -49,10 +51,55 @@ class FakeSalesQuery implements ISalesQuery {
   lines: NewInvoiceLine[] = [];
   sold: string[] = [];
   readonly products: ProductForSale[] = [
-    { id: PAD, tracking: 'quantity', status: 'active', sellPrice: '1000.00' },
-    { id: OIL, tracking: 'quantity', status: 'active', sellPrice: '450.00' },
-    { id: BIKE, tracking: 'serial', status: 'active', sellPrice: '185000.00' },
-    { id: OLD, tracking: 'quantity', status: 'archived', sellPrice: '10.00' },
+    {
+      id: PAD,
+      tracking: 'quantity',
+      status: 'active',
+      sellPrice: '1000.00',
+      isPassThrough: false,
+      vatOnFee: false,
+    },
+    {
+      id: OIL,
+      tracking: 'quantity',
+      status: 'active',
+      sellPrice: '450.00',
+      isPassThrough: false,
+      vatOnFee: false,
+    },
+    {
+      id: BIKE,
+      tracking: 'serial',
+      status: 'active',
+      sellPrice: '185000.00',
+      isPassThrough: false,
+      vatOnFee: false,
+    },
+    {
+      id: OLD,
+      tracking: 'quantity',
+      status: 'archived',
+      sellPrice: '10.00',
+      isPassThrough: false,
+      vatOnFee: false,
+    },
+    // A registration fee: pass-through money (invariant 8), VAT off by default (decision 6).
+    {
+      id: FEE,
+      tracking: 'quantity',
+      status: 'active',
+      sellPrice: '18500.00',
+      isPassThrough: true,
+      vatOnFee: false,
+    },
+    {
+      id: FEE_VAT,
+      tracking: 'quantity',
+      status: 'active',
+      sellPrice: '500.00',
+      isPassThrough: true,
+      vatOnFee: true,
+    },
   ];
   readonly units: UnitForSale[] = [
     { id: UNIT, productId: BIKE, branchId: BRANCH, status: 'in_stock' },
@@ -387,5 +434,72 @@ describe('ADR 0022 test 3: a failed step leaves no invoice', () => {
     ]);
     expect((await refusal(manager.postInvoice(sale(), where))).field).toBe('journal.role_unmapped');
     expect(sales.invoices).toEqual([]);
+  });
+});
+
+describe('item 3d: a pass-through fee (ledger packet 4.4 and test 9; invariant 8; decision 6)', () => {
+  it('a bike sold with its registration fee: the fee is credited to pass_through_payable, never revenue; no stock move and no cost for the fee; no VAT line', async () => {
+    const { manager, posting, stock, sales } = setup();
+    const posted = await manager.postInvoice(
+      sale({
+        lines: [
+          { productId: BIKE, serialUnitId: UNIT, qty: '1' },
+          { productId: FEE, serialUnitId: null, qty: '1' },
+        ],
+        payments: [{ method: 'cash', amount: '203500.00', externalRef: null }],
+      }),
+      where,
+    );
+    expect(posted).toMatchObject({ subtotal: '203500.00', total: '203500.00', due: '0.00' });
+    expect(stock.drafts.map((d) => d.productId)).toEqual([BIKE]);
+    expect(posting.journals[0]?.draft?.lines).toEqual([
+      { role: 'receivable', debit: '203500.00', credit: '0.00', partyId: CUSTOMER },
+      { role: 'sales_revenue', debit: '0.00', credit: '185000.00' },
+      { role: 'pass_through_payable', debit: '0.00', credit: '18500.00' },
+      { role: 'cost_of_goods_sold', debit: '150000.00', credit: '0.00' },
+      { role: 'inventory', debit: '0.00', credit: '150000.00' },
+    ]);
+    expect(posting.journals[0]?.draft?.lines.map((l) => l.role)).not.toContain('vat_output_payable');
+    expect(sales.lines.map((l) => [l.productId, l.isPassThrough, l.costAmount])).toEqual([
+      [BIKE, false, '150000.00'],
+      [FEE, true, '0.00'],
+    ]);
+  });
+
+  it('a fee-only sale has no revenue line at all', async () => {
+    const { manager, posting } = setup();
+    await manager.postInvoice(
+      sale({
+        lines: [{ productId: FEE, serialUnitId: null, qty: '1' }],
+        payments: [{ method: 'cash', amount: '18500.00', externalRef: null }],
+      }),
+      where,
+    );
+    expect(posting.journals[0]?.draft?.lines).toEqual([
+      { role: 'receivable', debit: '18500.00', credit: '0.00', partyId: CUSTOMER },
+      { role: 'pass_through_payable', debit: '0.00', credit: '18500.00' },
+    ]);
+  });
+
+  it('a discount comes off the goods only, never the fee: a discount above the goods is refused', async () => {
+    const { manager, numbers } = setup();
+    const lines = [
+      { productId: PAD, serialUnitId: null, qty: '1' },
+      { productId: FEE, serialUnitId: null, qty: '1' },
+    ];
+    expect(
+      (await refusal(manager.postInvoice(sale({ lines, discount: '1000.01', payments: [] }), where))).field,
+    ).toBe('invoice.discount_above_subtotal');
+    expect(numbers.taken).toEqual([]);
+  });
+
+  it('VAT on fee switched on is refused until VAT is set up (no rate is hard-coded): 409, nothing written', async () => {
+    const { manager, numbers, stock, posting } = setup();
+    const lines = [{ productId: FEE_VAT, serialUnitId: null, qty: '1' }];
+    expect(await refusal(manager.postInvoice(sale({ lines, payments: [] }), where))).toEqual({
+      code: 'CONFLICT',
+      field: 'invoice.vat_not_set_up',
+    });
+    expect([numbers.taken, stock.drafts, posting.journals]).toEqual([[], [], []]);
   });
 });

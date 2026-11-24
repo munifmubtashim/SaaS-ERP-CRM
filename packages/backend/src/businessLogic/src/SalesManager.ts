@@ -40,6 +40,8 @@ interface CheckedLine {
   qty: string;
   unitPrice: Paisa;
   lineTotal: Paisa;
+  /** A pass-through fee (item 3d): no stock, no cost, credited to pass_through_payable. */
+  isPassThrough: boolean;
 }
 
 /** A quantity string with exactly 3 decimals, as the stock ledger stores it ("2" → "2.000"). */
@@ -74,15 +76,19 @@ export class SalesManager {
   async postInvoice(input: PostInvoiceInput, where: SaleContext): Promise<PostedInvoice> {
     const lines = await this.checkLines(input, where.branchId);
     const subtotal = sumMoney(lines.map((line) => line.lineTotal));
+    // A discount comes off the goods only: pass-through money is owed in full to someone else (invariant 8).
+    const goods = sumMoney(lines.filter((line) => !line.isPassThrough).map((line) => line.lineTotal));
+    const fees = subtractMoney(subtotal, goods);
     const discount = parseMoney(input.discount);
-    if (compareMoney(discount, subtotal) > 0) {
+    if (compareMoney(discount, goods) > 0) {
       throw refuse(
         'VALIDATION_FAILED',
         'discount',
         'invoice.discount_above_subtotal',
-        'The discount is more than the subtotal.',
+        'The discount is more than the goods on this sale.',
       );
     }
+    const revenue = subtractMoney(goods, discount);
     const total = subtractMoney(subtotal, discount);
     if (isZero(total))
       throw refuse('VALIDATION_FAILED', 'discount', 'invoice.total_zero', 'The invoice total is zero.');
@@ -113,23 +119,37 @@ export class SalesManager {
     const invoiceId = await this.query.newInvoiceId();
 
     const source = { type: 'sales_invoice', id: invoiceId };
-    const { costs } = await stock.move(
-      lines.map((line) => ({
-        productId: line.productId,
-        branchId: where.branchId,
-        qtyDelta: `-${line.qty}`,
-        ...(line.serialUnitId ? { unitId: line.serialUnitId } : {}),
-        kind: 'sale' as const,
-        source,
-      })),
+    // Only goods move stock; a pass-through fee never does and carries no cost.
+    const stocked = lines.filter((line) => !line.isPassThrough);
+    const { costs } =
+      stocked.length > 0
+        ? await stock.move(
+            stocked.map((line) => ({
+              productId: line.productId,
+              branchId: where.branchId,
+              qtyDelta: `-${line.qty}`,
+              ...(line.serialUnitId ? { unitId: line.serialUnitId } : {}),
+              kind: 'sale' as const,
+              source,
+            })),
+          )
+        : { costs: [] };
+    let next = 0;
+    const lineCosts = lines.map((line) =>
+      line.isPassThrough ? ZERO : multiplyByQuantity(parseMoney(costs[next++] ?? '0.00'), line.qty),
     );
-    const lineCosts = lines.map((line, i) => multiplyByQuantity(parseMoney(costs[i] ?? '0.00'), line.qty));
     const cost = sumMoney(lineCosts);
 
     const journalLines: JournalLineDraft[] = [
       { role: 'receivable', debit: formatMoney(total), credit: '0.00', partyId: party.id },
-      { role: 'sales_revenue', debit: '0.00', credit: formatMoney(total) },
     ];
+    if (compareMoney(revenue, ZERO) > 0) {
+      journalLines.push({ role: 'sales_revenue', debit: '0.00', credit: formatMoney(revenue) });
+    }
+    if (compareMoney(fees, ZERO) > 0) {
+      // Invariant 8 (ledger packet 4.4): pass-through money is a liability, never revenue.
+      journalLines.push({ role: 'pass_through_payable', debit: '0.00', credit: formatMoney(fees) });
+    }
     if (compareMoney(cost, ZERO) > 0) {
       journalLines.push(
         { role: 'cost_of_goods_sold', debit: formatMoney(cost), credit: '0.00' },
@@ -167,6 +187,7 @@ export class SalesManager {
         unitPrice: formatMoney(line.unitPrice),
         lineTotal: formatMoney(line.lineTotal),
         costAmount: formatMoney(lineCosts[i] ?? ZERO),
+        isPassThrough: line.isPassThrough,
       })),
     );
     const units = lines.flatMap((line) => (line.serialUnitId ? [line.serialUnitId] : []));
@@ -247,6 +268,16 @@ export class SalesManager {
           'This product can no longer be sold.',
         );
       }
+      if (product.vatOnFee) {
+        // Decision 6: VAT on a fee is a setting, off by default. No rate is hard-coded, and the tax-rate setup (plan
+        // Q15) doesn't exist yet, so a fee with VAT switched on can't be posted.
+        throw refuse(
+          'CONFLICT',
+          `${path}.productId`,
+          'invoice.vat_not_set_up',
+          'VAT on this fee is switched on, but VAT is not set up yet.',
+        );
+      }
       if (product.tracking === 'serial' && !line.serialUnitId) {
         throw refuse(
           'VALIDATION_FAILED',
@@ -287,6 +318,7 @@ export class SalesManager {
         qty,
         unitPrice,
         lineTotal: multiplyByQuantity(unitPrice, qty),
+        isPassThrough: product.isPassThrough,
       };
     });
   }

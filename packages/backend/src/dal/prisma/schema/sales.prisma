@@ -54,6 +54,8 @@ model InvoiceLine {
   lineTotal    Decimal  @map("line_total") @db.Decimal(18, 2)
   /// The cost the stock service used. A hidden field: never in an API response without product.cost.view.
   costAmount   Decimal  @map("cost_amount") @db.Decimal(18, 2)
+  /// The product's pass-through setting, copied at posting (item 3d): the line went to pass_through_payable.
+  isPassThrough Boolean @default(false) @map("is_pass_through")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy    String?  @map("created_by") @db.Uuid
 

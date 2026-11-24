@@ -23,6 +23,7 @@ export interface InvoiceLineInsert {
   unitPrice: string;
   lineTotal: string;
   costAmount: string;
+  isPassThrough: boolean;
 }
 
 /**
@@ -31,11 +32,19 @@ export interface InvoiceLineInsert {
  * RLS; the tables' triggers keep a posted invoice permanent (sql/rls/sales_invoice.sql).
  */
 export class SalesQuery extends BaseQuery {
-  async productsForSale(
-    productIds: readonly string[],
-  ): Promise<{ id: string; tracking: string; status: string; sellPrice: string }[]> {
+  async productsForSale(productIds: readonly string[]): Promise<
+    {
+      id: string;
+      tracking: string;
+      status: string;
+      sellPrice: string;
+      isPassThrough: boolean;
+      vatOnFee: boolean;
+    }[]
+  > {
     return this.db.$queryRaw`
-      SELECT id::text, tracking, status, sell_price::text AS "sellPrice" FROM product
+      SELECT id::text, tracking, status, sell_price::text AS "sellPrice", is_pass_through AS "isPassThrough",
+             vat_on_fee AS "vatOnFee" FROM product
        WHERE id = ANY (${[...productIds]}::uuid[])`;
   }
 
@@ -80,10 +89,10 @@ export class SalesQuery extends BaseQuery {
     for (const line of lines) {
       await this.db.$executeRaw`
         INSERT INTO invoice_line (business_id, invoice_id, line_no, product_id, serial_unit_id, qty, unit_price,
-                                  line_total, cost_amount)
+                                  line_total, cost_amount, is_pass_through)
         VALUES ((SELECT app_business_ids())[1], ${line.invoiceId}::uuid, ${line.lineNo}, ${line.productId}::uuid,
                 ${line.serialUnitId}::uuid, ${line.qty}::numeric(18,3), ${line.unitPrice}::numeric(18,2),
-                ${line.lineTotal}::numeric(18,2), ${line.costAmount}::numeric(18,2))`;
+                ${line.lineTotal}::numeric(18,2), ${line.costAmount}::numeric(18,2), ${line.isPassThrough})`;
     }
   }
 
