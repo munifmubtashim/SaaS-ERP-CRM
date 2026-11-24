@@ -14,6 +14,8 @@ export const PERMISSIONS = [
   'accounting.salary.view',
   // Posting a sale at the counter (ADR 0022, item 3b).
   'sales.invoice.post',
+  // Recording a customer payment, POST /v1/payments (ADR 0026 section 4, ADR 0057).
+  'sales.payment.create',
   // Party, release 1 (ADR 0006 section 8, ADR 0056 section 2). Merge, import, NID, credit and the supplier
   // edit and deactivate codes come with their features.
   'party.customer.view',
@@ -65,16 +67,23 @@ const PARTY_ALL = [
 
 export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly PermissionCode[]>> = {
   owner: [
+    'sales.payment.create',
     'product.cost.view',
     'report.profit.view',
     'accounting.salary.view',
     'sales.invoice.post',
     ...PARTY_ALL,
   ],
-  business_manager: ['product.cost.view', 'report.profit.view', ...PARTY_ALL],
-  branch_manager: ['sales.invoice.post', ...PARTY_VIEW_CREATE, 'party.customer.edit'],
-  accountant: ['product.cost.view', 'report.profit.view', 'accounting.salary.view', ...PARTY_ALL],
-  cashier: ['sales.invoice.post', ...PARTY_VIEW_CREATE],
+  business_manager: ['sales.payment.create', 'product.cost.view', 'report.profit.view', ...PARTY_ALL],
+  branch_manager: ['sales.payment.create', 'sales.invoice.post', ...PARTY_VIEW_CREATE, 'party.customer.edit'],
+  accountant: [
+    'sales.payment.create',
+    'product.cost.view',
+    'report.profit.view',
+    'accounting.salary.view',
+    ...PARTY_ALL,
+  ],
+  cashier: ['sales.payment.create', 'sales.invoice.post', ...PARTY_VIEW_CREATE],
 };
 
 /** True when the granted codes include `code` (ADR 0051 section 2). The api refuses with it; the UI hides with it. */
