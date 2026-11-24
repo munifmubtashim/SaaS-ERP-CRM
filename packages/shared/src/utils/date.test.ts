@@ -12,6 +12,7 @@ import {
   hourInDhaka,
   todayBD,
   weekStartBD,
+  businessDateInDhaka,
 } from './date.js';
 
 describe('dates in Asia/Dhaka', () => {
@@ -92,5 +93,21 @@ describe('short day and month, for column headings', () => {
     expect(formatDayMonthBD('2026-11-07')).toBe('7 Nov');
     expect(formatDayMonthBD('2026-12-26')).toBe('26 Dec');
     expect(formatDayMonthBD('2026-11-07', 'bn-BD')).toMatch(/^৭ /);
+  });
+});
+
+describe('businessDateInDhaka (the business day, ADR 0016 and 0023)', () => {
+  it.each([
+    ['2026-11-21T17:59:59Z', '2026-11-21'],
+    ['2026-11-21T18:00:00Z', '2026-11-22'],
+    ['2026-11-21T19:30:00Z', '2026-11-22'],
+    ['2026-12-31T18:00:00Z', '2027-01-01'],
+    ['2026-03-01T00:00:00Z', '2026-03-01'],
+  ])('%s is %s in Dhaka', (instant, expected) => {
+    expect(businessDateInDhaka(new Date(instant))).toBe(expected);
+  });
+
+  it('refuses an invalid date instead of printing "Invalid Date"', () => {
+    expect(() => businessDateInDhaka(new Date('nope'))).toThrow();
   });
 });

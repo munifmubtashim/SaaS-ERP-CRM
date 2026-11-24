@@ -12,6 +12,8 @@ export const PERMISSIONS = [
   'product.cost.view',
   'report.profit.view',
   'accounting.salary.view',
+  // Posting a sale at the counter (ADR 0022, item 3b).
+  'sales.invoice.post',
 ] as const satisfies readonly `${string}.${string}.${string}`[];
 
 export const permissionCodeSchema = z.enum(PERMISSIONS);
@@ -41,9 +43,19 @@ export const ROLE_NAMES = {
  * role chosen at run time, which does not compile when each role has its own literal tuple type.
  */
 export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly PermissionCode[]>> = {
-  owner: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
+  owner: ['product.cost.view', 'report.profit.view', 'accounting.salary.view', 'sales.invoice.post'],
   business_manager: ['product.cost.view', 'report.profit.view'],
-  branch_manager: [],
+  branch_manager: ['sales.invoice.post'],
   accountant: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
-  cashier: [],
+  cashier: ['sales.invoice.post'],
 };
+
+/** True when the granted codes include `code` (ADR 0051 section 2). The api refuses with it; the UI hides with it. */
+export function hasPermission(granted: readonly PermissionCode[], code: PermissionCode): boolean {
+  return granted.includes(code);
+}
+
+/** True when the caller holds one of the allowed system role codes. A custom role's code matches none of them. */
+export function hasAnyRole(held: readonly string[], allowed: readonly RoleCode[]): boolean {
+  return held.some((role) => (allowed as readonly string[]).includes(role));
+}

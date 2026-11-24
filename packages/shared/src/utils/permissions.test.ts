@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  hasAnyRole,
+  hasPermission,
   PERMISSIONS,
   permissionCodeSchema,
   ROLE_CODES,
@@ -14,11 +16,12 @@ import {
 // the three codes this ADR defines. Each later module adds its own codes and mapping in its own PR.
 
 describe('permission codes', () => {
-  it('has the three codes ADR 0008 defines', () => {
+  it('has the three codes ADR 0008 defines, plus sales.invoice.post (ADR 0022, item 3b)', () => {
     expect([...PERMISSIONS].sort()).toEqual([
       'accounting.salary.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
     ]);
   });
 
@@ -66,6 +69,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'accounting.salary.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.accountant)).toEqual([
       'accounting.salary.view',
@@ -76,8 +80,8 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'product.cost.view',
       'report.profit.view',
     ]);
-    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).toEqual([]);
-    expect(DEFAULT_ROLE_PERMISSIONS.cashier).toEqual([]);
+    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).toEqual(['sales.invoice.post']);
+    expect(DEFAULT_ROLE_PERMISSIONS.cashier).toEqual(['sales.invoice.post']);
   });
 
   it('gives Branch Manager and Cashier none of cost, profit or salary', () => {
@@ -112,5 +116,20 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
 
   it('maps Owner explicitly to every code in PERMISSIONS (no wildcard)', () => {
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.owner)).toEqual(sorted(PERMISSIONS));
+  });
+});
+
+describe('the access checks the api uses (ADR 0051 section 2)', () => {
+  it('hasPermission: only a granted code passes', () => {
+    expect(hasPermission(['report.profit.view'], 'report.profit.view')).toBe(true);
+    expect(hasPermission(['product.cost.view'], 'report.profit.view')).toBe(false);
+    expect(hasPermission([], 'accounting.salary.view')).toBe(false);
+  });
+
+  it('hasAnyRole: one of the allowed role codes passes; an unknown or empty role list does not', () => {
+    expect(hasAnyRole(['cashier', 'business_manager'], ['owner', 'business_manager'])).toBe(true);
+    expect(hasAnyRole(['branch_manager', 'cashier'], ['owner', 'business_manager'])).toBe(false);
+    expect(hasAnyRole(['custom_role'], ['owner'])).toBe(false);
+    expect(hasAnyRole([], ['owner'])).toBe(false);
   });
 });

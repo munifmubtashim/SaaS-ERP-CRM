@@ -3,7 +3,7 @@ import { healthResponseSchema } from '@erp/shared';
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
-import { silentLogger } from '../helpers.js';
+import { silentLogger, unusedIdempotency } from '../helpers.js';
 
 // Full slice against a real PostgreSQL: HealthRoutes -> HealthController -> HealthManager -> HealthQuery.
 const databaseUrl = process.env.DATABASE_URL;
@@ -23,7 +23,9 @@ afterAll(async () => {
 
 describe('health through every layer', () => {
   it('reports the database as ok', async () => {
-    const res = await request(createApp({ logger: silentLogger, managers, tenantScope })).get('/health');
+    const res = await request(
+      createApp({ logger: silentLogger, managers, tenantScope, idempotency: unusedIdempotency }),
+    ).get('/health');
     expect(res.status).toBe(200);
     expect(healthResponseSchema.parse(res.body).checks.database).toBe('ok');
   });

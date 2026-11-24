@@ -20,7 +20,16 @@ export default defineConfig({
           fileParallelism: false,
         },
       },
-      { test: { name: 'isolation', include: ['test/isolation/**/*.test.ts'] } },
+      {
+        test: {
+          name: 'isolation',
+          include: ['test/isolation/**/*.test.ts'],
+          // Seeds two organizations and their sessions as the migration owner; the api never reaches the database.
+          globalSetup: ['../dal/test/support/isolationWorld.ts'],
+          testTimeout: 20_000,
+          fileParallelism: false,
+        },
+      },
     ],
   },
 });

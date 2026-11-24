@@ -77,13 +77,13 @@ describe('seedSystemRoles: ADR 0008 tests 8 and 18', () => {
     );
   });
 
-  it('18. maps the permissions as permissions.ts says: Owner 3, Business Manager 2, Accountant 3, the others 0', async () => {
+  it('18. maps the permissions as permissions.ts says, one row per role and code', async () => {
     const { mapping } = await rolesOf(owner, x);
     expect(mapping).toEqual(expectedMapping);
-    expect(mapping).toHaveLength(8);
+    expect(mapping).toHaveLength(expectedMapping.length);
   });
 
-  it('8. a second run leaves exactly five roles and eight mappings, the same rows: nothing added, nothing deleted', async () => {
+  it('8. a second run leaves exactly five roles and the same mappings: nothing added, nothing deleted', async () => {
     const before = await rolesOf(owner, x);
     const ids = await seedSystemRoles(owner, x.organizationId);
     const after = await rolesOf(owner, x);

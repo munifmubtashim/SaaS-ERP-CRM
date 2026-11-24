@@ -5,8 +5,10 @@ export { BaseDTO, type BaseRow } from './dto/BaseDTO.js';
 export { HealthDTO } from './dto/HealthDTO.js';
 export { BaseQuery } from './query/BaseQuery.js';
 export { HealthQuery } from './query/HealthQuery.js';
-export { AuthDTO, LoginUserDTO, SessionDTO } from './dto/AuthDTO.js';
+export { AuthDTO, LoginUserDTO, ScopeDTO, SessionDTO } from './dto/AuthDTO.js';
 export { AuthQuery, type CreateUserInput, type NewSessionInput } from './query/AuthQuery.js';
+export { NumberSeriesQuery, type TakenNumberRow } from './query/NumberSeriesQuery.js';
+export { IdempotencyQuery, type ClaimKeyInput, type StoredKeyRow } from './query/IdempotencyQuery.js';
 export { OrganizationDTO } from './dto/OrganizationDTO.js';
 export { OrganizationQuery } from './query/OrganizationQuery.js';
 // The provisioner (ADR 0010): the factory and the types only. The client stays inside dal.
@@ -17,9 +19,17 @@ export {
   type CreateBusinessInput,
   type CreateBranchInput,
 } from './query/ProvisioningQuery.js';
-export { ProductDTO } from './dto/ProductDTO.js';
-export { ProductQuery } from './query/ProductQuery.js';
-export { InventoryDTO } from './dto/InventoryDTO.js';
+export { ProductDTO, type ProductRow } from './dto/ProductDTO.js';
+export {
+  ProductQuery,
+  type NewProduct,
+  type ProductChanges,
+  type ProductFilter,
+} from './query/ProductQuery.js';
+export { SerialUnitQuery } from './query/SerialUnitQuery.js';
+export { StockQuery, type StockMovementInsert } from './query/StockQuery.js';
+export { JournalQuery, type JournalInsert, type JournalLineInsert } from './query/JournalQuery.js';
+export { InventoryDTO, SerialUnitDTO, type SerialUnitRow } from './dto/InventoryDTO.js';
 export { InventoryQuery } from './query/InventoryQuery.js';
 export { AccountingDTO } from './dto/AccountingDTO.js';
 export { AccountingQuery } from './query/AccountingQuery.js';
@@ -30,7 +40,9 @@ export { ReportQuery } from './query/ReportQuery.js';
 export { PartyDTO } from './dto/PartyDTO.js';
 export { PartyQuery } from './query/PartyQuery.js';
 export { SalesDTO } from './dto/SalesDTO.js';
-export { SalesQuery } from './query/SalesQuery.js';
+export { SalesQuery, type InvoiceInsert, type InvoiceLineInsert } from './query/SalesQuery.js';
+export { SalesPaymentQuery, type SalesPaymentInsert } from './query/SalesPaymentQuery.js';
+export { LedgerQuery } from './query/LedgerQuery.js';
 export { PurchaseDTO } from './dto/PurchaseDTO.js';
 export { PurchaseQuery } from './query/PurchaseQuery.js';
 export { ServiceDTO } from './dto/ServiceDTO.js';

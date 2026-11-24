@@ -21,6 +21,11 @@ model Product {
   sellPrice  Decimal  @map("sell_price") @db.Decimal(18, 2)
   /// active or archived (CHECK). An archived product can't be sold (C2).
   status     String   @default("active")
+  /// Pass-through fee (item 3d, ledger packet 4.4): money held for someone else, e.g. a registration fee. A sale
+  /// credits it to pass_through_payable, never revenue (invariant 8), and it never moves stock. Off by default.
+  isPassThrough Boolean @default(false) @map("is_pass_through")
+  /// VAT on the fee (decision 6): only for a pass-through fee (CHECK), off by default.
+  vatOnFee      Boolean @default(false) @map("vat_on_fee")
   /// Raised by the edit's Query (UPDATE … WHERE version = $read).
   version    Int      @default(1)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -28,6 +33,12 @@ model Product {
   createdBy  String?  @map("created_by") @db.Uuid
 
   business    Business     @relation(fields: [businessId], references: [id])
+  /// Stock rows of this product (ADR 0021, 0054). Back-relations Prisma requires.
+  stockMovements StockMovement[]
+  stockBalances  StockBalance[]
+  stockCosts     StockCost[]
+  /// Invoice lines selling this product (ADR 0022). Back-relation Prisma requires.
+  invoiceLines   InvoiceLine[]
   serialUnits SerialUnit[]
 
   /// For serial_unit (business_id, product_id): a unit can't name another business's product.

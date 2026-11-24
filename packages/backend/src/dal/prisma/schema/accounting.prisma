@@ -27,3 +27,107 @@ model NumberSeries {
   @@unique([businessId, branchId, kind])
   @@map("number_series")
 }
+
+/// The chart of accounts, per business (ADR 0013). An account's type is fixed once a journal line or a role uses
+/// it (trigger, decision 2 of 23 Nov). Lines post only to postable, active accounts (trigger).
+model Account {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  code       String
+  name       String
+  nameBn     String?  @map("name_bn")
+  /// asset, liability, equity, income or expense (CHECK).
+  type       String
+  parentId   String?  @map("parent_id") @db.Uuid
+  isPostable Boolean  @default(true) @map("is_postable")
+  /// active or archived (CHECK).
+  status     String   @default("active")
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  business Business      @relation(fields: [businessId], references: [id])
+  parent   Account?      @relation("AccountTree", fields: [businessId, parentId], references: [businessId, id])
+  children Account[]     @relation("AccountTree")
+  roles    AccountRole[]
+  lines    JournalLine[]
+
+  @@unique([businessId, id])
+  @@unique([businessId, code])
+  @@map("account")
+}
+
+/// Which account a role posts to, per business (ADR 0012, 0013): modules post by role, never by account code. The 12
+/// roles are a CHECK; pass_through_payable and customer_advance map to liabilities only (trigger, invariant 8).
+model AccountRole {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  role       String
+  accountId  String   @map("account_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  account Account @relation(fields: [businessId, accountId], references: [businessId, id])
+
+  @@unique([businessId, role])
+  @@map("account_role")
+}
+
+/// A posted journal (invariant 1, 2, 4): balanced at commit, never updated or deleted, at most one per source
+/// document. A reversal is its own journal: source_type 'reversal', source_id and reversal_of = the original
+/// (Munif, 24 Nov), so one unique key gives both "posts once" and "reversed once".
+model Journal {
+  id          String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId  String   @map("business_id") @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  number      String
+  journalDate DateTime @map("journal_date") @db.Date
+  sourceType  String   @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  memo        String
+  reversalOf  String?  @unique @map("reversal_of") @db.Uuid
+  postedAt    DateTime @default(now()) @map("posted_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  branch    Branch        @relation(fields: [businessId, branchId], references: [businessId, id])
+  original  Journal?      @relation("JournalReversal", fields: [businessId, reversalOf], references: [businessId, id])
+  reversals Journal[]     @relation("JournalReversal")
+  lines     JournalLine[]
+  /// The invoice this journal posted (ADR 0022). Back-relation Prisma requires.
+  invoices  Invoice[]     @relation("InvoiceJournal")
+  /// Payments this journal posted, and payments it voided (ADR 0026). Back-relations Prisma requires.
+  salesPayments       SalesPayment[] @relation("PaymentJournal")
+  voidedSalesPayments SalesPayment[] @relation("PaymentVoidJournal")
+
+  @@unique([businessId, id])
+  @@unique([businessId, number])
+  /// Posts once (invariant 4; REVIEW 2, decided 24 Nov): a plain unique key, reversals included.
+  @@unique([businessId, sourceType, sourceId])
+  @@map("journal")
+}
+
+/// One side of a journal: exactly one of debit or credit, never negative (CHECK), numeric(18,2). The account and the
+/// journal are composite keys with business_id, so a line can't name another business's account or journal.
+/// party_id is a composite key with business_id too (party_keys, decision 4): a line names a party of its business.
+model JournalLine {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  journalId  String   @map("journal_id") @db.Uuid
+  lineNo     Int      @map("line_no")
+  accountId  String   @map("account_id") @db.Uuid
+  debit      Decimal  @default(0) @db.Decimal(18, 2)
+  credit     Decimal  @default(0) @db.Decimal(18, 2)
+  partyId    String?  @map("party_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  journal Journal @relation(fields: [businessId, journalId], references: [businessId, id])
+  account Account @relation(fields: [businessId, accountId], references: [businessId, id])
+  party   Party?  @relation(fields: [businessId, partyId], references: [businessId, id])
+
+  @@unique([journalId, lineNo])
+  @@map("journal_line")
+}

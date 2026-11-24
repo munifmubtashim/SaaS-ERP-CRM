@@ -8,4 +8,44 @@ export interface IsolationCase {
   attempts: string[];
 }
 
-export const ISOLATION_CASES: Record<string, IsolationCase> = {};
+export const ISOLATION_CASES: Record<string, IsolationCase> = {
+  // Run by products.isolation.test.ts against real Postgres.
+  'GET /v1/products': {
+    attempts: [
+      "list in business Y and find X's product: none",
+      "name another organization's business, a business without a scope or a guessed id: the same 404",
+    ],
+  },
+  'GET /v1/products/:id': {
+    attempts: ["read X's product from Y: 404, the same as a guessed id"],
+  },
+  'POST /v1/products': {
+    attempts: ['send businessId of Y in the body: 400; the row lands only in the scope business'],
+  },
+  'PATCH /v1/products/:id': {
+    attempts: ["edit X's product from Y: 404, and X's product is unchanged"],
+  },
+  // Run by stock.isolation.test.ts against real Postgres (Munif, 24 Nov).
+  'GET /v1/stock': {
+    attempts: ["search X's product from Y: no rows", 'name X from B: 404'],
+  },
+  'GET /v1/stock/pos-catalog': {
+    attempts: ["Y's catalog never lists X's product or X's walk-in party"],
+  },
+  // Run by reports.isolation.test.ts against real Postgres (M6, ADR 0023).
+  'GET /v1/reports/owner-dashboard': {
+    attempts: [
+      "organization B's Owner reads the dashboard naming X: 404, the same as a guessed business",
+      "B's own dashboard lists only Y",
+      'Accountant, Branch Manager and Cashier: 403',
+    ],
+  },
+  // Run by invoices.isolation.test.ts against real Postgres (item 3b).
+  'POST /v1/invoices': {
+    attempts: [
+      "sell X's product from Y: 409 product unavailable, and X's stock is unchanged",
+      "name X's customer on a sale in Y: 404 customer not found",
+      'a cashier of X1 posts to another branch: refused by tenantMiddleware',
+    ],
+  },
+};
