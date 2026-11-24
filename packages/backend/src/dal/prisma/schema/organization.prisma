@@ -93,6 +93,11 @@ model Branch {
   numberSeries NumberSeries[]
   serialUnits  SerialUnit[]
   staff        Staff[]
+  /// Stock (ADR 0021, 0054): the branch's one location and its stock rows. Back-relations Prisma requires.
+  locations      Location[]
+  stockMovements StockMovement[]
+  stockBalances  StockBalance[]
+  stockCosts     StockCost[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])

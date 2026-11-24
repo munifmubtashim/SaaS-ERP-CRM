@@ -31,9 +31,114 @@ model SerialUnit {
   /// Back-relation Prisma requires for the Vehicle pack's vehicle_unit; a list because the pair isn't declared
   /// unique there (serial_unit_id alone is its primary key). The core reads no pack column through it.
   vehicleUnits VehicleUnit[]
+  /// The unit's stock movements (ADR 0021): one in, one out. Back-relation Prisma requires.
+  stockMovements StockMovement[]
 
   /// For vehicle_unit (business_id, serial_unit_id): a vehicle row can't name another business's unit.
   @@unique([businessId, id])
   @@unique([businessId, serialNo])
   @@map("serial_unit")
+}
+
+/// A stock location (ADR 0054 option B): exactly one per branch for now, kind sales_floor, the default for sales.
+/// Created with its branch by a trigger; the API never shows or accepts it. Storage, damaged and In transit
+/// locations come later by adding rows and relaxing the kind CHECK (ADR 0054 section 6).
+model Location {
+  id            String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId    String   @map("business_id") @db.Uuid
+  branchId      String   @map("branch_id") @db.Uuid
+  /// sales_floor only for now (CHECK).
+  kind          String   @default("sales_floor")
+  isDefaultSale Boolean  @default(true) @map("is_default_sale")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy     String?  @map("created_by") @db.Uuid
+
+  branch    Branch          @relation(fields: [businessId, branchId], references: [businessId, id])
+  movements StockMovement[]
+  balances  StockBalance[]
+
+  @@unique([businessId, id])
+  /// For the composite keys (branch_id, location_id) on movements and balances: a row can't use another branch's location.
+  @@unique([branchId, id])
+  /// One location of each kind per branch; with the kind CHECK, one location per branch.
+  @@unique([branchId, kind])
+  @@map("location")
+}
+
+/// The stock ledger (ADR 0021 section 1, ADR 0054): append-only, one row per movement in or out. On hand is the
+/// sum of qty_delta (invariant 3). Corrections are new adjustment movements, never edits (invariant 2).
+model StockMovement {
+  id           String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId   String   @map("business_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  locationId   String   @map("location_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  /// Set for serial-tracked products; then qty_delta is 1 or -1 (CHECK).
+  serialUnitId String?  @map("serial_unit_id") @db.Uuid
+  /// Positive in, negative out, never zero (CHECK).
+  qtyDelta     Decimal  @map("qty_delta") @db.Decimal(18, 3)
+  /// The receipt cost in, the cost used out. A hidden field (plan 2.5).
+  unitCost     Decimal  @map("unit_cost") @db.Decimal(18, 2)
+  /// opening, receipt, sale or adjustment (CHECK; ADR 0054: no transfer, relocation or return kinds).
+  kind         String
+  /// Why an adjustment was made, e.g. "Returned by customer" (ADR 0054 decision 2).
+  reason       String?
+  /// The document that made it; unique per source line with product and unit (raw SQL index).
+  sourceType   String   @map("source_type")
+  sourceId     String   @map("source_id") @db.Uuid
+  /// The business date in Asia/Dhaka.
+  movementDate DateTime @map("movement_date") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  branch     Branch      @relation(fields: [businessId, branchId], references: [businessId, id])
+  location   Location    @relation(fields: [branchId, locationId], references: [branchId, id])
+  product    Product     @relation(fields: [businessId, productId], references: [businessId, id])
+  serialUnit SerialUnit? @relation(fields: [businessId, serialUnitId], references: [businessId, id])
+
+  /// One movement per source line. Created in raw SQL as NULLS NOT DISTINCT (a unit-less line can't repeat either);
+  /// declared here under the same name so the schema and the database agree.
+  @@unique([businessId, sourceType, sourceId, productId, serialUnitId], map: "stock_movement_one_per_source_line")
+  @@index([businessId, branchId, productId])
+  @@map("stock_movement")
+}
+
+/// The stock cache (ADR 0021 section 3): one row per product per branch, through its one location. Equals the sum
+/// of the movements at all times and can be rebuilt (rebuild_stock_balance()). Never below zero (CHECK, F-08).
+model StockBalance {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  branchId   String   @map("branch_id") @db.Uuid
+  locationId String   @map("location_id") @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  onHand     Decimal  @default(0) @map("on_hand") @db.Decimal(18, 3)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  branch   Branch   @relation(fields: [businessId, branchId], references: [businessId, id])
+  location Location @relation(fields: [branchId, locationId], references: [branchId, id])
+  product  Product  @relation(fields: [businessId, productId], references: [businessId, id])
+
+  @@unique([businessId, branchId, productId, locationId])
+  @@map("stock_balance")
+}
+
+/// The branch's weighted average cost per product (invariant 7), kept apart from the balance so locations added
+/// later never move the cost (ADR 0054 section 4). A hidden field.
+model StockCost {
+  id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  branchId   String   @map("branch_id") @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  avgCost    Decimal  @default(0) @map("avg_cost") @db.Decimal(18, 2)
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  branch  Branch  @relation(fields: [businessId, branchId], references: [businessId, id])
+  product Product @relation(fields: [businessId, productId], references: [businessId, id])
+
+  @@unique([businessId, branchId, productId])
+  @@map("stock_cost")
 }
