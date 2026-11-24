@@ -33,6 +33,8 @@ model SerialUnit {
   vehicleUnits VehicleUnit[]
   /// The unit's stock movements (ADR 0021): one in, one out. Back-relation Prisma requires.
   stockMovements StockMovement[]
+  /// The invoice line that sold the unit (ADR 0022). Back-relation Prisma requires.
+  invoiceLines   InvoiceLine[]
 
   /// For vehicle_unit (business_id, serial_unit_id): a vehicle row can't name another business's unit.
   @@unique([businessId, id])
