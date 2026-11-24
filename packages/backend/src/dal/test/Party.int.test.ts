@@ -202,7 +202,8 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
       const seen = await inScope(
         db.client,
         tree,
-        (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM party`,
+        // The business's walk-in party (ADR 0055 trigger) is in scope too; this test is about the other rows.
+        (tx) => tx.$queryRaw<{ id: string }[]>`SELECT id::text FROM party WHERE NOT is_walk_in`,
       );
       expect(seen).toEqual([{ id: mine }]);
       await expect(
@@ -267,8 +268,8 @@ describe('ADR 0019 test 6: one walk-in party per business; created_by is require
     });
 
   it('a second walk-in party in one business is refused', async () => {
+    // The business's trigger already made its walk-in party (ADR 0055), so one more insert is the second.
     const tree = await createTree(owner);
-    await addParty(owner, tree, { isWalkIn: true, createdBy: null });
     await expect(addParty(owner, tree, { isWalkIn: true })).rejects.toThrow(/party_one_walk_in_per_business/);
   });
 
@@ -281,10 +282,15 @@ describe('ADR 0019 test 6: one walk-in party per business; created_by is require
 
   it('a party that is not the walk-in party needs created_by; a seeded walk-in party may have none', async () => {
     await expect(addParty(owner, x, { createdBy: null })).rejects.toThrow(/party_created_by_required/);
+    // The walk-in party the business's trigger made (ADR 0055) has no created_by, and the CHECK allows it.
     const tree = await createTree(owner);
-    await expect(addParty(owner, tree, { isWalkIn: true, createdBy: null })).resolves.toMatch(
-      /^[0-9a-f-]{36}$/,
+    const walkIns = await inScope(
+      owner,
+      tree,
+      (tx) => tx.$queryRaw<{ created_by: string | null }[]>`
+        SELECT created_by::text FROM party WHERE business_id = ${tree.businessId}::uuid AND is_walk_in`,
     );
+    expect(walkIns).toEqual([{ created_by: null }]);
   });
 });
 

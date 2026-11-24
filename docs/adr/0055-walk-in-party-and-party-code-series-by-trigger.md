@@ -72,10 +72,10 @@ insert a walk-in party or a series row. So a business created any other way has 
 
 ### 4. Order of work
 
-| Part | Branch                | Contents                                                     | Base                    |
-| ---- | --------------------- | ------------------------------------------------------------ | ----------------------- |
-| 1    | `feat/party-walk-in`  | this ADR, migration `party_provisioning`, tests 1–8, worlds  | `feat/party-ledger`     |
-| 2    | `feat/party-routes`   | ADR 0019 part 4: the five party routes, isolation cases      | part 1 + #194 merged in |
+| Part | Branch               | Contents                                                    | Base                    |
+| ---- | -------------------- | ----------------------------------------------------------- | ----------------------- |
+| 1    | `feat/party-walk-in` | this ADR, migration `party_provisioning`, tests 1–8, worlds | `feat/party-ledger`     |
+| 2    | `feat/party-routes`  | ADR 0019 part 4: the five party routes, isolation cases     | part 1 + #194 merged in |
 
 ## Consequences
 
