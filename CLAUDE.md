@@ -13,6 +13,12 @@ wins**; known conflicts are in `docs/adr/0001-spec-vs-roadmap-conflicts.md`.
 **Exception: the repository layout.** The tree below **replaces the roadmap's section 8.5 layout**
 (`docs/adr/0003-repository-layout.md`).
 
+**The plan wins over the design.** Before building or changing a screen, `git fetch origin` and read the ADRs for
+its area (until they merge, most are on `feat/adr-*` branches; the decisions sheet is
+`docs/decisions-2026-11-21.md` on `feat/review-guide`). The PR names the ADR lines it follows. When the approved
+design (`design/owner-dashboard/`) and an ADR differ, the ADR wins: say so in the PR, change only what the plan
+says, and list any other design-vs-ADR conflict for the developer to decide instead of choosing.
+
 ## The lifecycle (every task, no exceptions)
 
 1. **Plan.** State what changes, which files and layers, which invariants are touched, and how it will be tested.
