@@ -1,5 +1,5 @@
 import { AppError, loginRequestSchema } from '@erp/shared';
-import { createDbClient, seedDemoOrganization, DEMO_IDS, type DemoIds } from '@erp/dal';
+import { createDbClient, seedDemoBusiness, seedDemoOrganization, DEMO_IDS, type DemoIds } from '@erp/dal';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
 
 /** What the demo seed needs, read from the environment by scripts/seedDemo.ts. */
@@ -10,6 +10,13 @@ export interface DemoSeedInput {
   ownerEmail: string;
   /** DEMO_OWNER_PASSWORD. Hashed here; never stored, logged or put in an error. */
   ownerPassword: string;
+  /**
+   * DEMO_USERS_PASSWORD: the four other logins share it (docs/demo-seed-spec.md section 5). Hashed here; never
+   * stored, logged or put in an error. Without it the series, chart and staff are seeded, but no other login.
+   */
+  usersPassword?: string;
+  /** The four logins' email domain; default sample-motors.invalid. Tests pass their own. */
+  usersEmailDomain?: string;
   /** NODE_ENV: the demo seed refuses to run in production. */
   nodeEnv: string | undefined;
 }
@@ -22,7 +29,8 @@ const loginSchema = loginRequestSchema.shape.login;
 const passwordSchema = loginRequestSchema.shape.password;
 
 /**
- * Seeds the demo organization and its owner (dal's seedDemoOrganization) after hashing the owner's password with
+ * Seeds the demo organization and its owner (dal's seedDemoOrganization), then its series, chart, staff and the four
+ * other logins (dal's seedDemoBusiness, ADR 0058 S1), after hashing the owner's password with
  * the given hasher (Argon2PasswordHasher in the script). Validates both values first, so nothing is written for a
  * bad email or a password the login form would refuse. Idempotent: a second run writes nothing.
  */
@@ -44,10 +52,20 @@ export async function runDemoSeed(
   if (!passwordSchema.safeParse(input.ownerPassword).success) {
     throw new AppError('VALIDATION_FAILED', 'DEMO_OWNER_PASSWORD must be 8 to 128 characters.');
   }
+  if (input.usersPassword !== undefined && !passwordSchema.safeParse(input.usersPassword).success) {
+    throw new AppError('VALIDATION_FAILED', 'DEMO_USERS_PASSWORD must be 8 to 128 characters.');
+  }
   const passwordHash = await hasher.hash(input.ownerPassword);
+  const usersHash = input.usersPassword === undefined ? null : await hasher.hash(input.usersPassword);
   const db = createDbClient(input.migrationDatabaseUrl, { poolMax: 1, txTimeoutMs: 30_000 });
   try {
-    return await seedDemoOrganization(db, { email, displayName: 'Demo Owner', passwordHash }, ids);
+    const seeded = await seedDemoOrganization(db, { email, displayName: 'Demo Owner', passwordHash }, ids);
+    await seedDemoBusiness(
+      db,
+      ids,
+      usersHash === null ? null : { passwordHash: usersHash, emailDomain: input.usersEmailDomain },
+    );
+    return seeded;
   } finally {
     await db.$disconnect();
   }
