@@ -126,6 +126,7 @@ describe('GET /v1/stock/pos-catalog (the POS)', () => {
       code,
       name: 'Engine oil, 1 litre',
       unit: 'bottle',
+      category: null,
       tracking: 'quantity',
       sellPrice: '450.00',
       isPassThrough: false,

@@ -19,6 +19,7 @@ export interface PosCatalogItemRecord {
   code: string;
   name: string;
   unit: string;
+  category: string | null;
   tracking: string;
   sellPrice: string;
   isPassThrough: boolean;
@@ -220,7 +221,7 @@ export class StockQuery extends BaseQuery {
    */
   async posCatalogItems(branchId: string): Promise<PosCatalogItemRecord[]> {
     return this.db.$queryRaw<PosCatalogItemRecord[]>`
-      SELECT p.id::text AS "productId", p.code, p.name, p.unit, p.tracking, p.sell_price::text AS "sellPrice",
+      SELECT p.id::text AS "productId", p.code, p.name, p.unit, p.category, p.tracking, p.sell_price::text AS "sellPrice",
              p.is_pass_through AS "isPassThrough",
              coalesce((SELECT sum(sb.on_hand) FROM stock_balance sb
                         WHERE sb.product_id = p.id AND sb.branch_id = ${branchId}::uuid), 0)::numeric(18,3)::text

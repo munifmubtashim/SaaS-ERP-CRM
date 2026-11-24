@@ -13,6 +13,7 @@ export interface PosCatalogItemRead {
   code: string;
   name: string;
   unit: string;
+  category: string | null;
   tracking: string;
   sellPrice: string;
   isPassThrough: boolean;

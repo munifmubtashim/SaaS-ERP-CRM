@@ -40,9 +40,9 @@ async function addProduct(fields: { tracking?: string; status?: string; code?: s
   return owner.$transaction(async (tx) => {
     await setScope(tx, x.organizationId, [x.businessId], [x.branchId]);
     const [row] = await tx.$queryRaw<{ id: string }[]>`
-      INSERT INTO product (business_id, code, name, unit, tracking, sell_price, status)
+      INSERT INTO product (business_id, code, name, unit, tracking, sell_price, status, category)
       VALUES (${x.businessId}::uuid, ${fields.code ?? `P-${randomBytes(5).toString('hex')}`}, 'Brake pad set', 'pcs',
-              ${fields.tracking ?? 'quantity'}, 1000.00, ${fields.status ?? 'active'})
+              ${fields.tracking ?? 'quantity'}, 1000.00, ${fields.status ?? 'active'}, 'Parts')
       RETURNING id::text`;
     if (!row) throw new Error('no product');
     return row.id;
@@ -158,6 +158,7 @@ describe('StockQuery.posCatalogItems (GET /v1/stock/pos-catalog)', () => {
       tracking: 'quantity',
       sellPrice: '1000.00',
       units: [],
+      category: 'Parts',
     });
     expect(byId.get(none)?.onHand).toBe('0.000');
     expect(byId.has(archived)).toBe(false);
