@@ -168,7 +168,9 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
       await tx.$executeRawUnsafe('TRUNCATE party');
       throw new Error('TRUNCATE ran: the trigger is missing (rolled back)');
     });
-    await expect(attempt).rejects.toThrow(/TRUNCATE is refused on party/);
+    // Once other tables reference party (party_keys), PostgreSQL refuses a plain TRUNCATE before the trigger runs;
+    // truncateRefusers above proves the trigger is there either way.
+    await expect(attempt).rejects.toThrow(/TRUNCATE is refused on party|referenced in a foreign key/);
   });
 
   describe('an owner that is neither superuser nor BYPASSRLS (ADR 0009 test case 6)', () => {
@@ -208,7 +210,7 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
       expect(result.deleted).toBe(0);
       expect(result.left).toBeGreaterThan(0);
       await expect(db.client.$executeRawUnsafe('TRUNCATE party')).rejects.toThrow(
-        /TRUNCATE is refused on party/,
+        /TRUNCATE is refused on party|referenced in a foreign key/,
       );
     });
   });
