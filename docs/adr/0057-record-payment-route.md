@@ -1,10 +1,10 @@
 # 0057: POST /v1/payments, recording a customer payment (F3)
 
-| Field               | Value                                                                    |
-| ------------------- | ------------------------------------------------------------------------ |
-| Status              | Proposed                                                                 |
-| Date                | 2026-11-25                                                               |
-| Deciders            | Farhan (owner), Munif (reviews the posting and the shared part)          |
+| Field               | Value                                                                     |
+| ------------------- | ------------------------------------------------------------------------- |
+| Status              | Proposed                                                                  |
+| Date                | 2026-11-25                                                                |
+| Deciders            | Farhan (owner), Munif (reviews the posting and the shared part)           |
 | Spec / roadmap refs | spec S-03, S-04, B-02; invariants 1, 4, 5, 6, 8; ADR 0011, 0016, 0026; F3 |
 
 ## Context
@@ -23,11 +23,11 @@ ADR 0026 section 2 plans `POST /v1/payments`. On the backend tip (#195) most of 
 
 ### 1. Two backend PRs now, the screens after
 
-| PR | Branch                  | Contents                                                                                   |
-| -- | ----------------------- | ------------------------------------------------------------------------------------------ |
-| P1 | `feat/payment-contract` | this ADR; #47's branch merged in; `sales.payment.create` with its defaults and seed text    |
-| P2 | `feat/payment-route`    | `SalesManager.recordPayment`, `POST /v1/payments`, isolation cases, ADR 0026 tests          |
-| P3 | later                   | the frontend service and switch; screens stay on marked sample until invoice reads exist     |
+| PR  | Branch                  | Contents                                                                                 |
+| --- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| P1  | `feat/payment-contract` | this ADR; #47's branch merged in; `sales.payment.create` with its defaults and seed text |
+| P2  | `feat/payment-route`    | `SalesManager.recordPayment`, `POST /v1/payments`, isolation cases, ADR 0026 tests       |
+| P3  | later                   | the frontend service and switch; screens stay on marked sample until invoice reads exist |
 
 P1 stacks on #209, P2 on P1.
 

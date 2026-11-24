@@ -16,7 +16,7 @@ import {
 // the three codes this ADR defines. Each later module adds its own codes and mapping in its own PR.
 
 describe('permission codes', () => {
-  it('has the three codes ADR 0008 defines, sales.invoice.post (ADR 0022) and the release 1 party codes (ADR 0056)', () => {
+  it('has the three codes ADR 0008 defines, sales.invoice.post (ADR 0022), the release 1 party codes (ADR 0056) and sales.payment.create (ADR 0057)', () => {
     expect([...PERMISSIONS].sort()).toEqual([
       'accounting.salary.view',
       'party.customer.create',
@@ -28,6 +28,7 @@ describe('permission codes', () => {
       'product.cost.view',
       'report.profit.view',
       'sales.invoice.post',
+      'sales.payment.create',
     ]);
   });
 
@@ -82,6 +83,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'product.cost.view',
       'report.profit.view',
       'sales.invoice.post',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.accountant)).toEqual([
       'accounting.salary.view',
@@ -93,6 +95,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.business_manager)).toEqual([
       'party.customer.create',
@@ -103,6 +106,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.branch_manager)).toEqual([
       'party.customer.create',
@@ -111,6 +115,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.create',
       'party.supplier.view',
       'sales.invoice.post',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.cashier)).toEqual([
       'party.customer.create',
@@ -118,7 +123,12 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.create',
       'party.supplier.view',
       'sales.invoice.post',
+      'sales.payment.create',
     ]);
+  });
+
+  it('lets all five roles record a customer payment (ADR 0026 section 4, ADR 0057)', () => {
+    for (const role of ROLE_CODES) expect(DEFAULT_ROLE_PERMISSIONS[role]).toContain('sales.payment.create');
   });
 
   it('gives the Cashier no party edit or deactivate, and the Branch Manager no deactivate (ADR 0006 section 8)', () => {
