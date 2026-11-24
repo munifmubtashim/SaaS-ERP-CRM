@@ -28,6 +28,10 @@ model Product {
   createdBy  String?  @map("created_by") @db.Uuid
 
   business    Business     @relation(fields: [businessId], references: [id])
+  /// Stock rows of this product (ADR 0021, 0054). Back-relations Prisma requires.
+  stockMovements StockMovement[]
+  stockBalances  StockBalance[]
+  stockCosts     StockCost[]
   serialUnits SerialUnit[]
 
   /// For serial_unit (business_id, product_id): a unit can't name another business's product.
