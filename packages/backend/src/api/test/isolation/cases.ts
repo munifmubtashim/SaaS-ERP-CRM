@@ -25,4 +25,12 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
   'PATCH /v1/products/:id': {
     attempts: ["edit X's product from Y: 404, and X's product is unchanged"],
   },
+  // Run by invoices.isolation.test.ts against real Postgres (item 3b).
+  'POST /v1/invoices': {
+    attempts: [
+      "sell X's product from Y: 409 product unavailable, and X's stock is unchanged",
+      "name X's customer on a sale in Y: 404 customer not found",
+      'a cashier of X1 posts to another branch: refused by tenantMiddleware',
+    ],
+  },
 };

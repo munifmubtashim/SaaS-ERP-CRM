@@ -3,7 +3,13 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import type { IAuthManager, LoginOutcome } from '../../controllers/contracts/index.js';
-import { fakeManagers, FakeHealthManager, noTenantScope, silentLogger } from '../helpers.js';
+import {
+  fakeManagers,
+  FakeHealthManager,
+  noTenantScope,
+  silentLogger,
+  unusedIdempotency,
+} from '../helpers.js';
 
 /**
  * ADR 0018 sections 2 and 4, the HTTP half: POST /v1/auth/login answers the session body and sends the session
@@ -34,6 +40,7 @@ function appWith(auth: FakeAuthManager, secure = true) {
     logger: silentLogger,
     managers,
     tenantScope: noTenantScope,
+    idempotency: unusedIdempotency,
     sessionCookie: { secure },
   });
 }

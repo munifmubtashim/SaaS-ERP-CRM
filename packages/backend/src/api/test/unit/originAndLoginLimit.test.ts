@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import type { IAuthManager, LoginOutcome } from '../../controllers/contracts/index.js';
 import { LoginRateLimiter } from '../../middleware/loginRateLimit.js';
-import { fakeManagers, FakeHealthManager, noTenantScope, silentLogger } from '../helpers.js';
+import {
+  fakeManagers,
+  FakeHealthManager,
+  noTenantScope,
+  silentLogger,
+  unusedIdempotency,
+} from '../helpers.js';
 
 /**
  * ADR 0018 section 2 (CSRF: every non-GET request carries the app's Origin, else 403) and section 4 step 7 (at most
@@ -26,6 +32,7 @@ function appWith(clock = { now: 0 }) {
     logger: silentLogger,
     managers: { ...fakeManagers(new FakeHealthManager(true)), auth: refuseAll },
     tenantScope: noTenantScope,
+    idempotency: unusedIdempotency,
     appOrigin: ORIGIN,
     loginRateLimiter: new LoginRateLimiter(() => clock.now),
   });

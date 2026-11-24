@@ -13,10 +13,16 @@ import { seedPermissions, seedSystemRoles } from '../../prisma/seeds/systemRoles
  * - organization B: business Y (branch Y1) and its Owner.
  *
  * Every token is random per run; sessions are inserted with SHA-256 of the token, as SessionTokens hashes them.
+ *
+ * For the sales routes (item 3b), business X also gets a chart with all 12 account roles mapped, the invoice,
+ * receipt and journal series of branch X1, a customer and the walk-in party; business Y gets a customer. Every value
+ * is invented.
  */
 export interface IsolationWorld {
   a: { organizationId: string; x: string; x1: string; x2: string; x2a: string };
   b: { organizationId: string; y: string; y1: string };
+  /** The parties a sale names (item 3b). */
+  sales: { customerX: string; walkInX: string; customerY: string };
   /** Session cookie values by user. */
   tokens: Record<'ownerA' | 'managerX' | 'branchManagerX1' | 'accountantX1' | 'cashierX1' | 'ownerB', string>;
 }
@@ -90,6 +96,58 @@ export default async function setup({
     return token;
   }
 
+  const ROLE_TYPES = {
+    cash: 'asset',
+    bank: 'asset',
+    mobile_money: 'asset',
+    card_clearing: 'asset',
+    receivable: 'asset',
+    inventory: 'asset',
+    customer_advance: 'liability',
+    pass_through_payable: 'liability',
+    vat_output_payable: 'liability',
+    sales_revenue: 'income',
+    service_revenue: 'income',
+    cost_of_goods_sold: 'expense',
+  } as const;
+
+  /** A customer, or the business's walk-in party (ADR 0019); invented values. */
+  async function party(org: string, business: string, branch: string, walkIn = false): Promise<string> {
+    return inOrg(org, [business], [branch], async (tx) => {
+      const [row] = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO party (business_id, code, name, kind, is_customer, is_supplier, phone_e164, is_walk_in, created_by)
+        VALUES (${business}::uuid, ${`CU-${randomBytes(4).toString('hex')}`},
+                ${walkIn ? 'Walk-in customer' : 'Isolation Customer'}, 'person', true, false, '+8801700000001',
+                ${walkIn}, ${walkIn ? null : randomUUID()}::uuid)
+        RETURNING id::text`;
+      if (!row) throw new Error('no party');
+      return row.id;
+    });
+  }
+
+  /** What a sale at `branch` needs: all 12 roles mapped, and the invoice, receipt and journal series. */
+  async function salesSetup(org: string, business: string, branch: string): Promise<void> {
+    await inOrg(org, [business], [branch], async (tx) => {
+      for (const [role, type] of Object.entries(ROLE_TYPES)) {
+        const [account] = await tx.$queryRaw<{ id: string }[]>`
+          INSERT INTO account (business_id, code, name, type)
+          VALUES (${business}::uuid, ${`A-${role}`}, ${`Isolation ${role}`}, ${type})
+          RETURNING id::text`;
+        await tx.$executeRaw`
+          INSERT INTO account_role (business_id, role, account_id) VALUES (${business}::uuid, ${role}, ${account?.id}::uuid)`;
+      }
+      for (const [kind, prefix] of [
+        ['invoice', 'INV-ISO-'],
+        ['receipt', 'RC-ISO-'],
+        ['journal', 'JV-ISO-'],
+      ] as const) {
+        await tx.$executeRaw`
+          INSERT INTO number_series (business_id, branch_id, kind, prefix)
+          VALUES (${business}::uuid, ${branch}::uuid, ${kind}, ${prefix})`;
+      }
+    });
+  }
+
   await seedPermissions(owner);
   const x = { id: randomUUID(), branch: randomUUID() };
   const x2 = { id: randomUUID(), branch: randomUUID() };
@@ -97,7 +155,14 @@ export default async function setup({
   const orgA = await organization([x, x2]);
   const orgB = await organization([y]);
   const atX1 = { business: x.id, branch: x.branch };
+  await salesSetup(orgA.org, x.id, x.branch);
+  const sales = {
+    customerX: await party(orgA.org, x.id, x.branch),
+    walkInX: await party(orgA.org, x.id, x.branch, true),
+    customerY: await party(orgB.org, y.id, y.branch),
+  };
   provide('isolation', {
+    sales,
     a: { organizationId: orgA.org, x: x.id, x1: x.branch, x2: x2.id, x2a: x2.branch },
     b: { organizationId: orgB.org, y: y.id, y1: y.branch },
     tokens: {

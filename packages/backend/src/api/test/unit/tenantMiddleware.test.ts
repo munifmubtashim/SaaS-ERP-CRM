@@ -7,7 +7,7 @@ import type { IAuthManager, ITenantScopeRunner } from '../../controllers/contrac
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
 import { createTenantMiddleware } from '../../middleware/tenantMiddleware.js';
 import { createRouteWrappers } from '../../routes/tenantRoute.js';
-import { managersWithDatabase, noTenantScope, silentLogger } from '../helpers.js';
+import { managersWithDatabase, noTenantScope, silentLogger, unusedIdempotency } from '../helpers.js';
 
 /**
  * ADR 0051 tests 6 and 7, and the route kinds (Munif, 23 Nov): tenantMiddleware runs on tenant routers only,
@@ -110,7 +110,12 @@ describe('route kinds: only tenant routers need the headers', () => {
   const app = () => {
     const managers = managersWithDatabase(true);
     managers.auth = new FakeAuth(true);
-    return createApp({ logger: silentLogger, managers, tenantScope: noTenantScope });
+    return createApp({
+      logger: silentLogger,
+      managers,
+      tenantScope: noTenantScope,
+      idempotency: unusedIdempotency,
+    });
   };
 
   it('/health and /v1/auth/logout answer without X-Business-Id or X-Branch-Id', async () => {

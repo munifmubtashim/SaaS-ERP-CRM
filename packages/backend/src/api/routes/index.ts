@@ -34,7 +34,7 @@ export function buildRoutes(
     vehicleRoutes(c.vehicle),
     reportRoutes(c.report),
     partyRoutes(c.party),
-    salesRoutes(c.sales),
+    salesRoutes(c.sales, wrap),
     purchaseRoutes(c.purchase),
     serviceRoutes(c.service),
     crmRoutes(c.crm),
