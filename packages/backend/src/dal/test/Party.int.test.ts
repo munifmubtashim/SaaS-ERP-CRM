@@ -162,13 +162,24 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
     await expect(app.$executeRawUnsafe('TRUNCATE party')).rejects.toThrow(/permission denied/);
   });
 
-  it('a BEFORE TRUNCATE trigger refuses TRUNCATE for every role, the superuser owner included', async () => {
+  it('the BEFORE TRUNCATE trigger exists on party', async () => {
     expect(await truncateRefusers(owner, 'party')).toEqual(['party_no_truncate']);
+  });
+
+  it('TRUNCATE party is refused for the superuser owner too, by any mechanism, and every row remains', async () => {
+    // Since party_keys, other tables reference party, so PostgreSQL may refuse before the trigger runs; either way the
+    // TRUNCATE must fail and nothing may be removed. The test above proves the trigger is there regardless.
+    const count = async () =>
+      (await owner.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM party`)[0]?.n;
+    const before = await count();
+    expect(before).toBeGreaterThan(0);
     const attempt = owner.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('TRUNCATE party');
-      throw new Error('TRUNCATE ran: the trigger is missing (rolled back)');
+      throw new Error('TRUNCATE ran (rolled back)');
     });
-    await expect(attempt).rejects.toThrow(/TRUNCATE is refused on party/);
+    await expect(attempt).rejects.toThrow();
+    await expect(attempt).rejects.not.toThrow(/TRUNCATE ran/);
+    expect(await count()).toBe(before);
   });
 
   describe('an owner that is neither superuser nor BYPASSRLS (ADR 0009 test case 6)', () => {
@@ -199,7 +210,7 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
       ).rejects.toThrow(/row-level security/);
     });
 
-    it('a DELETE removes 0 rows and the rows remain; a TRUNCATE is refused by the trigger', async () => {
+    it('a DELETE removes 0 rows and the rows remain; a TRUNCATE is refused (any mechanism) and they still remain', async () => {
       await addParty(db.client, tree);
       const result = await inScope(db.client, tree, async (tx) => ({
         deleted: await tx.$executeRawUnsafe('DELETE FROM party'),
@@ -207,9 +218,13 @@ describe('ADR 0019 test 3: no DELETE or TRUNCATE; erp_app writes only the editab
       }));
       expect(result.deleted).toBe(0);
       expect(result.left).toBeGreaterThan(0);
-      await expect(db.client.$executeRawUnsafe('TRUNCATE party')).rejects.toThrow(
-        /TRUNCATE is refused on party/,
+      await expect(db.client.$executeRawUnsafe('TRUNCATE party')).rejects.toThrow();
+      const after = await inScope(
+        db.client,
+        tree,
+        (tx) => tx.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM party`,
       );
+      expect(after[0]?.n).toBe(result.left);
     });
   });
 });

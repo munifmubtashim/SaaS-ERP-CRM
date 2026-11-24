@@ -96,6 +96,11 @@ model Journal {
   original  Journal?      @relation("JournalReversal", fields: [businessId, reversalOf], references: [businessId, id])
   reversals Journal[]     @relation("JournalReversal")
   lines     JournalLine[]
+  /// The invoice this journal posted (ADR 0022). Back-relation Prisma requires.
+  invoices  Invoice[]     @relation("InvoiceJournal")
+  /// Payments this journal posted, and payments it voided (ADR 0026). Back-relations Prisma requires.
+  salesPayments       SalesPayment[] @relation("PaymentJournal")
+  voidedSalesPayments SalesPayment[] @relation("PaymentVoidJournal")
 
   @@unique([businessId, id])
   @@unique([businessId, number])
@@ -106,7 +111,7 @@ model Journal {
 
 /// One side of a journal: exactly one of debit or credit, never negative (CHECK), numeric(18,2). The account and the
 /// journal are composite keys with business_id, so a line can't name another business's account or journal.
-/// party_id has no foreign key yet: known gap 2 (the party table, A11, doesn't exist).
+/// party_id is a composite key with business_id too (party_keys, decision 4): a line names a party of its business.
 model JournalLine {
   id         String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
   businessId String   @map("business_id") @db.Uuid
@@ -121,6 +126,7 @@ model JournalLine {
 
   journal Journal @relation(fields: [businessId, journalId], references: [businessId, id])
   account Account @relation(fields: [businessId, accountId], references: [businessId, id])
+  party   Party?  @relation(fields: [businessId, partyId], references: [businessId, id])
 
   @@unique([journalId, lineNo])
   @@map("journal_line")

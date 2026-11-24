@@ -31,6 +31,12 @@ export class JournalQuery extends BaseQuery {
        WHERE role = ANY (${[...roles]}::text[]) ORDER BY role FOR SHARE`;
   }
 
+  async knownParties(partyIds: readonly string[]): Promise<string[]> {
+    const rows = await this.db.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM party WHERE id = ANY (${[...partyIds]}::uuid[])`;
+    return rows.map((row) => row.id);
+  }
+
   async insertJournal(row: JournalInsert): Promise<string | null> {
     await this.requireOneBusiness('A journal');
     const [inserted] = await this.db.$queryRaw<{ id: string }[]>`

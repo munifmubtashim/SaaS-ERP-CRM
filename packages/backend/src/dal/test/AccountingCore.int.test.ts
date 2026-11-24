@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { addBranch, createTree, setScope, type Tree } from './support/orgTree.js';
+import { addParty } from './support/party.js';
 import {
   policies,
   rlsState,
@@ -473,11 +474,23 @@ describe('known gaps (Munif, 23 and 24 Nov), recorded so they show in every run'
   it.skip('GAP 1, invariant 9: a journal dated into a closed period is refused. Known gap: period lock comes with day close (A17)', () => {
     // Written when A17 adds the period table and the lock; until then no close-period action exists anywhere.
   });
+});
 
-  it('GAP 2, decision 4: journal_line.party_id has no foreign key and nothing can check it yet, because the party table (A11) does not exist. When A11 lands this test fails: replace it with the composite FK (NOT VALID, then VALIDATE) and the PostingService party check', async () => {
-    const [row] = await owner.$queryRaw<
-      { exists: boolean }[]
-    >`SELECT to_regclass('public.party') IS NOT NULL AS exists`;
-    expect(row?.exists).toBe(false);
+describe('decision 4, closed by party_keys (was GAP 2): a line names a party of its own business', () => {
+  it("a line naming this business's party commits; another business's party or an unknown id is refused (composite FK)", async () => {
+    const [mine, theirs] = [await addParty(owner, x), await addParty(owner, y)];
+    const withParty = (partyId: string): Line[] => [
+      { account: acc.cash ?? '', debit: '50.00', partyId },
+      { account: acc.revenue ?? '', credit: '50.00' },
+    ];
+    await expect(post(owner, x, withParty(mine))).resolves.toMatch(/^[0-9a-f-]{36}$/);
+    await expect(post(owner, x, withParty(theirs))).rejects.toThrow(/foreign key/i);
+    await expect(post(owner, x, withParty(randomUUID()))).rejects.toThrow(/foreign key/i);
+  });
+
+  it('the foreign key exists and is validated (added NOT VALID, then VALIDATE)', async () => {
+    const rows = await owner.$queryRaw<{ validated: boolean }[]>`
+      SELECT convalidated AS validated FROM pg_constraint WHERE conname = 'journal_line_business_id_party_id_fkey'`;
+    expect(rows).toEqual([{ validated: true }]);
   });
 });

@@ -40,6 +40,10 @@ model Party {
 
   business      Business @relation(fields: [businessId], references: [id])
   createdBranch Branch?  @relation(fields: [businessId, createdBranchId], references: [businessId, id])
+  /// Back-relations Prisma requires for the composite keys to party (party_keys, Munif): ledger lines, invoices, payments.
+  journalLines  JournalLine[]
+  invoices      Invoice[]
+  salesPayments SalesPayment[]
 
   /// The target of every composite foreign key from other modules (ADR 0006 section 2).
   @@unique([businessId, id])
