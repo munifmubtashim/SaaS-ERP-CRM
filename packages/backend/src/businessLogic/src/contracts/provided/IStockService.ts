@@ -17,6 +17,13 @@ export interface StockMovementDraft {
   /** Required on receipts; a hidden field (plan 2.5). */
   unitCost?: MoneyString;
   source: { type: string; id: string };
+  /**
+   * ADR 0012 amendment (Munif, 24 Nov; ADR 0054 kinds): opening, receipt, sale or adjustment. Defaults to receipt
+   * for a positive quantity and sale for a negative one.
+   */
+  kind?: 'opening' | 'receipt' | 'sale' | 'adjustment';
+  /** Why, for an adjustment (e.g. "Returned by customer", ADR 0054 decision 2). */
+  reason?: string;
 }
 
 export interface IStockService {
@@ -31,5 +38,11 @@ export interface IStockService {
    * - a serial unit received while in stock: 409 unit.already_in_stock; sent out while not in stock:
    *   409 unit.not_available (ADR 0020).
    */
-  move(movements: StockMovementDraft[]): Promise<{ movementIds: string[] }>;
+  /**
+   * **ADR 0012 amendment (Munif, 24 Nov):** also returns `costs[i]`, the unit cost `movements[i]` used, as a money
+   * string: the receipt's own cost in, the branch's weighted average (or a serial unit's own cost) out. The sale
+   * posting needs it for the cost-of-goods line (ADR 0021 section 2, ADR 0022). A hidden figure: it never goes into
+   * an API response.
+   */
+  move(movements: StockMovementDraft[]): Promise<{ movementIds: string[]; costs: MoneyString[] }>;
 }

@@ -32,7 +32,7 @@ export class FakeStockService implements IStockService {
   /** Serial units currently in stock. */
   private readonly unitsInStock = new Set<string>();
 
-  async move(movements: StockMovementDraft[]): Promise<{ movementIds: string[] }> {
+  async move(movements: StockMovementDraft[]): Promise<{ movementIds: string[]; costs: string[] }> {
     const order = movements
       .map((m, index) => ({ m, index }))
       .sort((a, b) => `${a.m.productId}|${a.m.branchId}`.localeCompare(`${b.m.productId}|${b.m.branchId}`));
@@ -57,7 +57,8 @@ export class FakeStockService implements IStockService {
     for (const unit of units) this.unitsInStock.add(unit);
     const recorded = movements.map((m) => ({ ...m, id: randomUUID() }));
     this.movements.push(...order.map(({ index }) => recorded[index] as StockMovementDraft & { id: string }));
-    return { movementIds: recorded.map((m) => m.id) };
+    // A receipt's own cost; the fake keeps no average, so a movement out reports 0.00.
+    return { movementIds: recorded.map((m) => m.id), costs: movements.map((m) => m.unitCost ?? '0.00') };
   }
 
   onHand(productId: string, branchId: string): string {

@@ -53,6 +53,14 @@ export function stockContract(name: string, make: () => Promise<StockHarness>): 
       expect(await onHand(PRODUCT, BRANCH)).toBe('3.500');
     });
 
+    it('returns the cost used for each movement, as money strings, in the order given (ADR 0012 amendment)', async () => {
+      const { service } = await make();
+      const { movementIds, costs } = await service.move([movement('2.000'), movement('-1.000')]);
+      expect(costs).toHaveLength(movementIds.length);
+      for (const cost of costs) expect(cost).toMatch(/^\d+\.\d{2}$/);
+      expect(costs[0]).toBe('1000.00'); // a receipt: its own unit cost
+    });
+
     it('returns movement ids in the order the movements were given, whatever order they are applied in', async () => {
       const { service, movementOf } = await make();
       const given = [movement('2.000', OTHER), movement('3.000', PRODUCT), movement('1.000', OTHER)];

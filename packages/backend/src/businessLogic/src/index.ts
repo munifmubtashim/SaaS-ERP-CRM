@@ -3,6 +3,7 @@ import {
   createDbClient,
   NumberSeriesQuery,
   IdempotencyQuery,
+  StockQuery,
   HealthQuery,
   AuthQuery,
   OrganizationQuery,
@@ -35,6 +36,8 @@ import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
 import { NumberSeries } from './NumberSeries.js';
 import { IdempotencyGuard } from './IdempotencyGuard.js';
+import { StockService } from './StockService.js';
+import type { IStockService } from './contracts/provided/IStockService.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
 import { SessionTokens } from './SessionTokens.js';
 import type { SessionLifetimes } from './AuthManager.js';
@@ -172,7 +175,7 @@ export interface ManagerConfig {
 export function createManagers(config: ManagerConfig): {
   managers: Managers;
   /** Services one module publishes for others (ADR 0012): Accounting's gapless numbers (ADR 0015). */
-  provided: { numberSeries: INumberSeries; idempotency: IdempotencyGuard };
+  provided: { numberSeries: INumberSeries; idempotency: IdempotencyGuard; stock: IStockService };
   tenantScope: ITenantScope;
   close: () => Promise<void>;
 } {
@@ -215,6 +218,7 @@ export function createManagers(config: ManagerConfig): {
     provided: {
       numberSeries: new NumberSeries(new NumberSeriesQuery()),
       idempotency: new IdempotencyGuard(new IdempotencyQuery()),
+      stock: new StockService(new StockQuery()),
     },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),

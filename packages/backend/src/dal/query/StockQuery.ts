@@ -15,8 +15,8 @@ export interface StockMovementInsert {
   reason: string | null;
   sourceType: string;
   sourceId: string;
-  /** The business date, YYYY-MM-DD in Asia/Dhaka. */
-  movementDate: string;
+  /** The business date, YYYY-MM-DD; defaults to today in Asia/Dhaka by the database clock. */
+  movementDate?: string;
 }
 
 /**
@@ -64,20 +64,37 @@ export class StockQuery extends BaseQuery {
     return { locationId, onHand: balance.on_hand, avgCost: cost.avg_cost };
   }
 
-  /** Stock in, under the locks lockForIn took: the location's on hand rises; the branch's average cost is set. */
-  async applyIn(
-    branchId: string,
-    productId: string,
-    locationId: string,
-    qty: string,
-    avgCost: string,
-  ): Promise<void> {
+  /**
+   * Stock in, under the locks lockForIn took: the location's on hand rises. Returns the branch's new on hand, summed
+   * exactly by the database (numeric), for the weighted average.
+   */
+  async addIn(branchId: string, productId: string, locationId: string, qty: string): Promise<string> {
     await this.db.$executeRaw`
       UPDATE stock_balance SET on_hand = on_hand + ${qty}::numeric, version = version + 1, updated_at = now()
        WHERE branch_id = ${branchId}::uuid AND product_id = ${productId}::uuid AND location_id = ${locationId}::uuid`;
+    return this.onHand(branchId, productId);
+  }
+
+  /** Sets the branch's average cost, under the lock lockForIn took on the cost row. */
+  async setCost(branchId: string, productId: string, avgCost: string): Promise<void> {
     await this.db.$executeRaw`
       UPDATE stock_cost SET avg_cost = ${avgCost}::numeric, version = version + 1, updated_at = now()
        WHERE branch_id = ${branchId}::uuid AND product_id = ${productId}::uuid`;
+  }
+
+  /**
+   * A serial unit at the branch, locked FOR UPDATE so two documents can't move it at once (F-02): its own cost
+   * (invariant 7) and its ledger total there (1.000 = in stock). Null if no such unit at this branch in scope.
+   */
+  async lockUnit(unitId: string, branchId: string): Promise<{ unitCost: string; inLedger: string } | null> {
+    const [unit] = await this.db.$queryRaw<{ unit_cost: string }[]>`
+      SELECT unit_cost::text FROM serial_unit
+       WHERE id = ${unitId}::uuid AND branch_id = ${branchId}::uuid FOR UPDATE`;
+    if (!unit) return null;
+    const [ledger] = await this.db.$queryRaw<{ total: string }[]>`
+      SELECT coalesce(sum(qty_delta), 0)::numeric(18,3)::text AS total FROM stock_movement
+       WHERE serial_unit_id = ${unitId}::uuid AND branch_id = ${branchId}::uuid`;
+    return { unitCost: unit.unit_cost, inLedger: ledger?.total ?? '0.000' };
   }
 
   /** The branch's average cost for stock going out, held FOR SHARE so a receipt can't change it mid-sale; null if none. */
@@ -115,7 +132,8 @@ export class StockQuery extends BaseQuery {
       VALUES ((SELECT app_business_ids())[1], ${row.branchId}::uuid,
               (SELECT id FROM location WHERE branch_id = ${row.branchId}::uuid AND is_default_sale),
               ${row.productId}::uuid, ${row.serialUnitId}::uuid, ${row.qtyDelta}::numeric, ${row.unitCost}::numeric,
-              ${row.kind}, ${row.reason}, ${row.sourceType}, ${row.sourceId}::uuid, ${row.movementDate}::date)
+              ${row.kind}, ${row.reason}, ${row.sourceType}, ${row.sourceId}::uuid,
+              coalesce(${row.movementDate ?? null}::date, (now() AT TIME ZONE 'Asia/Dhaka')::date))
       RETURNING id::text`;
     if (!inserted) throw new AppError('INTERNAL_ERROR', 'The stock movement was not recorded.');
     return inserted.id;
