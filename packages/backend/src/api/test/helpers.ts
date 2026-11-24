@@ -5,6 +5,7 @@ import type {
   IAuthManager,
   IHealthManager,
   IIdempotency,
+  IPartyManager,
   IProductManager,
   ISalesManager,
   ITenantScopeRunner,
@@ -44,6 +45,15 @@ export const unusedProduct: IProductManager = {
   edit: unexpected('product'),
 };
 
+/** A Party Manager for tests that never call a party route: using it fails loudly. */
+export const unusedParty: IPartyManager = {
+  list: unexpected('party'),
+  get: unexpected('party'),
+  create: unexpected('party'),
+  edit: unexpected('party'),
+  deactivate: unexpected('party'),
+};
+
 /** An idempotency guard for apps whose tests never call an idempotent route: using it fails loudly. */
 export const unusedIdempotency: IIdempotency = {
   claim: () => unexpected('idempotent')(),
@@ -64,7 +74,7 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
     accounting: {},
     vehicle: {},
     report: {},
-    party: {},
+    party: unusedParty,
     sales: unusedSales,
     purchase: {},
     service: {},

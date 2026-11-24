@@ -137,3 +137,6 @@ export const updatePartySchema = partyInputFields
     message: 'A party must be a customer, a supplier or both.',
     path: ['isCustomer'],
   });
+
+/** POST /v1/parties/:id/deactivate: the version read (ADR 0056 section 4). */
+export const deactivatePartySchema = z.object({ version: z.number().int().min(1) }).strict();
