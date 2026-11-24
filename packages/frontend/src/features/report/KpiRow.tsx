@@ -76,13 +76,14 @@ export function KpiRow() {
     <section aria-label={t('dash.kpi.aria')} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <ReportCard
         title={t('dash.kpi.revenue')}
-        calls={['salesToday']}
-        queries={[sales]}
+        calls={['ownerDashboard', 'salesToday']}
+        queries={[owner, sales]}
         kpi={{ tone: 'accent', icon: 'trend' }}
       >
         {() => (
           <>
-            <span className={value}>{taka(sales.data?.monthToDate ?? '0.00')}</span>
+            {/* From the ledger (M6, ADR 0023 amended 24 Nov); today's figure and count are still salesToday's. */}
+            <span className={value}>{taka(owner.data?.totals.revenueMonth ?? '0.00')}</span>
             <span className={note}>
               {t('dash.kpi.revenueNote', {
                 today: formatLakhCrore(sales.data?.today ?? '0.00', loc),
