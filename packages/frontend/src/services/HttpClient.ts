@@ -1,4 +1,4 @@
-import { apiErrorSchema, type ApiError } from '@erp/shared';
+import { apiErrorSchema, type ApiError, type ActiveScope } from '@erp/shared';
 import type { z } from 'zod';
 
 /** Thrown for any non-2xx response. Carries the API's {code, message, fields[], requestId} when present. */
@@ -37,7 +37,20 @@ export interface IHttpClient {
  * stored or sent by this code; there is no Authorization header.
  */
 export class HttpClient implements IHttpClient {
-  constructor(private readonly baseUrl = '/api') {}
+  /**
+   * `scope` is the tab's active business and branch (activeScopeStore, ADR 0007): tenantMiddleware reads them from
+   * X-Business-Id and X-Branch-Id. Null before one is chosen (the login and the business switcher), and then neither
+   * header is sent.
+   */
+  constructor(
+    private readonly baseUrl = '/api',
+    private readonly scope: () => ActiveScope | null = () => null,
+  ) {}
+
+  private scopeHeaders(): Record<string, string> {
+    const active = this.scope();
+    return active ? { 'X-Business-Id': active.businessId, 'X-Branch-Id': active.branchId } : {};
+  }
 
   async getJson<T extends z.ZodType>(
     path: string,
@@ -46,7 +59,7 @@ export class HttpClient implements IHttpClient {
   ): Promise<z.infer<T>> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...this.scopeHeaders() },
     });
     const json: unknown = await res.json().catch(() => null);
     if (!res.ok && !options?.allowStatuses?.includes(res.status)) throw toError(res.status, json);
@@ -76,6 +89,7 @@ export class HttpClient implements IHttpClient {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...this.scopeHeaders(),
     };
     if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     return fetch(`${this.baseUrl}${path}`, {

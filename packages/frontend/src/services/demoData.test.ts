@@ -22,6 +22,10 @@ describe('parseDemoData', () => {
     // POST /v1/payments exists (ADR 0057), but the screens pay sample invoices until invoice reads exist.
     expect(DEMO_CAPABLE.has('sales.payments')).toBe(true);
     expect(DEMO_DEFAULT.has('sales.payments')).toBe(true);
+    // The party routes exist (#209, #216): customers are real by default; dues wait for F5.
+    expect(DEMO_CAPABLE.has('party')).toBe(true);
+    expect(DEMO_DEFAULT.has('party')).toBe(false);
+    expect(DEMO_DEFAULT.has('party.dues')).toBe(true);
   });
 
   it('a comma list picks services; "all" is every service that has a sample; "none" is real everywhere', () => {

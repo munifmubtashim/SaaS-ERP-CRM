@@ -12,6 +12,16 @@ describe('message catalogues', () => {
     }
   });
 
+  it('fills named placeholders, in both languages, and leaves a string without them alone', () => {
+    expect(createTranslator('en')('customers.noMatch', { search: 'karim' })).toBe(
+      'No customer matches “karim”.',
+    );
+    expect(createTranslator('bn')('customers.noMatch', { search: 'karim' })).toContain('“karim”');
+    expect(createTranslator('en')('customers.noMatchStatus', { search: 'x' })).toBe(
+      'No customers with this status.',
+    );
+  });
+
   it('translates into Bangla', () => {
     expect(createTranslator('bn')('shell.nav.home')).toBe('হোম');
   });
