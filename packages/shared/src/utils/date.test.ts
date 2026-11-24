@@ -10,6 +10,7 @@ import {
   formatTimeBD,
   hourInDhaka,
   todayBD,
+  weekStartBD,
 } from './date.js';
 
 describe('dates in Asia/Dhaka', () => {
@@ -73,5 +74,14 @@ describe('calendar dates for relative sample data, in Asia/Dhaka', () => {
     expect(daysInMonthISO('2026-12')).toBe(31);
     expect(daysInMonthISO('2027-02')).toBe(28);
     expect(daysInMonthISO('2028-02')).toBe(29);
+  });
+});
+
+describe('forecast weeks start on Saturday (ADR 0047, decision 0047-1)', () => {
+  it('a date maps to the Saturday on or before it', () => {
+    expect(weekStartBD('2026-11-24')).toBe('2026-11-21'); // Tuesday
+    expect(weekStartBD('2026-11-21')).toBe('2026-11-21'); // Saturday itself
+    expect(weekStartBD('2026-11-20')).toBe('2026-11-14'); // Friday
+    expect(weekStartBD('2027-01-01')).toBe('2026-12-26'); // across the year
   });
 });

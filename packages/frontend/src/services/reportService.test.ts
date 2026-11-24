@@ -1,9 +1,12 @@
 import {
+  addDaysISO,
   formatMoney,
   parseMoney,
+  sumMoney,
   prorate,
   agedDuesSchema,
   bankFeedSchema,
+  cashForecastSchema,
   branchResultsSchema,
   cashPositionSchema,
   customerInsightsSchema,
@@ -23,6 +26,7 @@ import type { DemoService } from './demoData';
 import type { IHttpClient } from './HttpClient';
 import { createServices } from './index';
 import { targetProgress } from '../features/report/derive';
+import { ReportService } from './reportService';
 import { REPORT_CALLS, SampleReportService } from './sample/SampleReportService';
 
 /** The sample's own day (12 November 2026), so these tests never move with the calendar. */
@@ -52,7 +56,9 @@ describe('report service: one switch per figure group', () => {
   it('every call has its own key, and the real service asks its own path', async () => {
     const http = new RecordingHttp();
     const { report } = createServices(http, { demo: new Set() });
-    for (const call of REPORT_CALLS) await report[call]().catch(() => undefined);
+    // The forecast takes its number of weeks; the other calls take nothing and ignore it.
+    for (const call of REPORT_CALLS)
+      await (report[call] as (weeks: 4) => Promise<unknown>)(4).catch(() => undefined);
     expect(http.paths).toHaveLength(REPORT_CALLS.length);
     expect(new Set(http.paths).size).toBe(REPORT_CALLS.length);
     expect(http.paths).toContain('/v1/reports/owner-dashboard');
@@ -172,5 +178,54 @@ describe('sample sales keep the design’s pace story on any day', () => {
 
   it('collections are one day’s figure, so they don’t grow with the month', async () => {
     expect((await story('2026-11-23').ownerDashboard()).totals.collectionsToday).toBe('1150000.00');
+  });
+});
+
+describe('cash forecast (ADR 0047): the report call and its sample', () => {
+  it('reads GET /v1/reports/cash_forecast with the number of weeks (ADR 0047 section 2)', async () => {
+    const paths: string[] = [];
+    const http = {
+      getJson: (path: string) => {
+        paths.push(path);
+        return Promise.reject(new Error('no API in this test'));
+      },
+      postJson: () => Promise.reject(new Error('unused')),
+      post: () => Promise.reject(new Error('unused')),
+    };
+    await new ReportService(http).cashForecast(8).catch(() => undefined);
+    expect(paths).toEqual(['/v1/reports/cash_forecast?weeks=8']);
+  });
+
+  it('gives 4, 8 or 13 weekly buckets starting on this week’s Saturday, in the shared shape', async () => {
+    const sample = new SampleReportService(0, '2026-11-24');
+    for (const weeks of [4, 8, 13] as const) {
+      const forecast = await sample.cashForecast(weeks);
+      expect(cashForecastSchema.parse(forecast)).toEqual(forecast);
+      expect(forecast.buckets).toHaveLength(weeks);
+      expect(forecast.buckets[0]?.weekStart).toBe('2026-11-21');
+      expect(forecast.buckets[1]?.weekStart).toBe('2026-11-28');
+    }
+  });
+
+  it('rent falls once a month, in the week holding the 5th; salaries in the week holding the 1st', async () => {
+    const forecast = await new SampleReportService(0, '2026-11-24').cashForecast(13);
+    const holds = (day: string) => (b: { weekStart: string }) =>
+      b.weekStart <= day && day < addDaysISO(b.weekStart, 7);
+    for (const month of ['2026-12', '2027-01', '2027-02']) {
+      const rentWeek = forecast.buckets.find(holds(`${month}-05`));
+      const salaryWeek = forecast.buckets.find(holds(`${month}-01`));
+      expect(rentWeek?.recurringExpenses).not.toBe('0.00');
+      expect(salaryWeek?.salaries).not.toBe('0.00');
+    }
+    const withSalaries = forecast.buckets.filter((b) => b.salaries !== '0.00');
+    expect(withSalaries).toHaveLength(3); // December, January and February in 13 weeks from 21 November
+  });
+
+  it('opens at the same cash and bank as the key figure, and keeps overdue dues apart', async () => {
+    const forecast = await new SampleReportService(0, '2026-11-24').cashForecast(4);
+    const cash = await new SampleReportService(0, '2026-11-24').cashPosition();
+    const { cash: c, bank, mobileMoney } = forecast.opening;
+    expect(formatMoney(sumMoney([c, bank, mobileMoney].map(parseMoney)))).toBe(cash.cashNow);
+    expect(forecast.uncertain).not.toBe('0.00');
   });
 });

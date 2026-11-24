@@ -1,6 +1,7 @@
 import {
   agedDuesSchema,
   bankFeedSchema,
+  cashForecastSchema,
   branchResultsSchema,
   cashPositionSchema,
   customerInsightsSchema,
@@ -16,6 +17,8 @@ import {
   vatReturnSchema,
   type AgedDues,
   type BankFeed,
+  type CashForecast,
+  type ForecastWeeks,
   type BranchResults,
   type CashPosition,
   type CustomerInsights,
@@ -56,6 +59,8 @@ export interface IReportService {
   dayCloseStatus(): Promise<DayCloseStatus>;
   unitStock(): Promise<UnitStock>;
   kpiTrends(): Promise<KpiTrends>;
+  /** The cash forecast for 4, 8 or 13 weeks (ADR 0047); sample until the report exists. */
+  cashForecast(weeks: ForecastWeeks): Promise<CashForecast>;
 }
 
 export type ReportCall = keyof IReportService;
@@ -82,6 +87,8 @@ export class ReportService implements IReportService {
   dayCloseStatus = () => this.http.getJson('/v1/reports/day-close-status', dayCloseStatusSchema);
   unitStock = () => this.http.getJson('/v1/reports/unit-stock', unitStockSchema);
   kpiTrends = () => this.http.getJson('/v1/reports/kpi-trends', kpiTrendsSchema);
+  cashForecast = (weeks: ForecastWeeks) =>
+    this.http.getJson(`/v1/reports/cash_forecast?weeks=${weeks}`, cashForecastSchema);
 }
 
 /** Sends each call to the sample or the real service, by its own key. Built only in createServices. */
@@ -110,4 +117,5 @@ export class ReportServiceSwitch implements IReportService {
   dayCloseStatus = () => this.pick('dayCloseStatus').dayCloseStatus();
   unitStock = () => this.pick('unitStock').unitStock();
   kpiTrends = () => this.pick('kpiTrends').kpiTrends();
+  cashForecast = (weeks: ForecastWeeks) => this.pick('cashForecast').cashForecast(weeks);
 }

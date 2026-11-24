@@ -92,3 +92,9 @@ export function addMonthsISO(month: string, months: number): string {
 export function daysInMonthISO(month: string): number {
   return new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
 }
+
+/** The Saturday on or before a calendar date ("YYYY-MM-DD"): forecast weeks start on Saturday (ADR 0047, 0047-1). */
+export function weekStartBD(date: string): string {
+  const weekday = new Date(utcDay(date)).getUTCDay(); // 0 Sunday … 6 Saturday
+  return addDaysISO(date, -((weekday + 1) % 7));
+}

@@ -26,6 +26,7 @@ const REPORT_KEYS = [
   'report.dayCloseStatus',
   'report.unitStock',
   'report.kpiTrends',
+  'report.cashForecast',
 ] as const;
 
 export type DemoService =
