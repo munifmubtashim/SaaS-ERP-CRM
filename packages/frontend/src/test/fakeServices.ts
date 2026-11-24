@@ -7,6 +7,7 @@ import type {
   IVehicleService,
   IOrganizationService,
   IReportService,
+  ISalesPaymentService,
   ISalesService,
   Services,
 } from '../services';
@@ -79,6 +80,10 @@ export const unusedVehicle: IVehicleService = {
   unit: () => Promise.reject(new Error('This test opened a unit without injecting a service.')),
 };
 
+export const unusedSalesPayments: ISalesPaymentService = {
+  recordPayment: () => Promise.reject(new Error('This test recorded a payment without injecting a service.')),
+};
+
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
 export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
@@ -92,6 +97,7 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     report: unusedReport,
     party: {},
     sales: unusedSales,
+    salesPayments: unusedSalesPayments,
     purchase: {},
     service: {},
     crm: {},
