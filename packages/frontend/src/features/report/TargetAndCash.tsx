@@ -280,6 +280,7 @@ export function CashCard() {
                 lateKey="dash.cash.lateToPay"
               />
             </div>
+            <p className="text-xs text-muted">{t('dash.cash.agingPending')}</p>
           </div>
         );
       }}

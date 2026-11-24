@@ -169,4 +169,27 @@ describe('SampleSalesService invoices', () => {
     ).rejects.toThrow('payment.over_balance');
     await expect(service.invoice('C-999999')).rejects.toThrow('invoice.not_found');
   });
+
+  it('every payment has a system receipt number, unique, and a new payment takes the next one (ADR 0016 line 19)', async () => {
+    const service = sample();
+    const receipts = async () => {
+      const all: string[] = [];
+      for (const invoice of await service.invoices())
+        for (const p of (await service.invoice(invoice.number)).payments) all.push(p.receiptNumber);
+      return all;
+    };
+    const before = await receipts();
+    expect(before.every((r) => /^R-\d{6}$/.test(r))).toBe(true);
+    expect(new Set(before).size).toBe(before.length);
+    const sold = await service.completeSale(draft('VL3-000101', '100000.00'), 'key-1');
+    const paid = await service.recordPayment(
+      sold.number,
+      { method: 'cash', amount: '1000.00', externalRef: null },
+      'p1',
+    );
+    const [atSale, later] = paid.payments.map((p) => p.receiptNumber);
+    const last = before.map((r) => Number(r.slice(2))).sort((a, b) => b - a)[0] ?? 0;
+    expect(atSale).toBe(`R-${String(last + 1).padStart(6, '0')}`);
+    expect(later).toBe(`R-${String(last + 2).padStart(6, '0')}`);
+  });
 });

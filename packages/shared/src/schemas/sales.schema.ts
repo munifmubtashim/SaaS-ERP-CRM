@@ -83,6 +83,8 @@ export const invoiceDetailSchema = invoiceSummarySchema.extend({
   payments: z.array(
     z.object({
       receivedAt: z.iso.datetime(),
+      /** The system receipt number every payment gets (ADR 0016 line 19; ADR 0015 numbers it per branch). */
+      receiptNumber: z.string().min(1),
       method: paymentMethodSchema,
       amount: moneySchema,
       externalRef: z.string().min(1).nullable(),

@@ -3,7 +3,7 @@ import { useId } from 'react';
 import { useServices } from '../../app/servicesContext';
 import { useI18n } from '../../i18n';
 import type { ReportCall } from '../../services';
-import { agingBuckets, cashForecast, margin } from './derive';
+import { agingBuckets, margin } from './derive';
 import { ReportCard } from './ReportCard';
 import { sparkline } from './sparkline';
 import { useReport } from './useReport';
@@ -124,11 +124,9 @@ export function KpiRow() {
         kpi={{ tone: 'accent', icon: 'wallet' }}
       >
         {() => {
-          const cover = cash.data ? cashForecast(cash.data, [], []).coverDays : null;
           return (
             <>
               <span className={value}>{taka(cash.data?.cashNow ?? '0.00')}</span>
-              {cover !== null && <span className={note}>{t('dash.kpi.cashNote', { days: cover })}</span>}
               {trend.cash}
             </>
           );

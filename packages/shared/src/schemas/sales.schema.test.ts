@@ -75,6 +75,7 @@ describe('Sales / POS view shapes (provisional)', () => {
       payments: [
         {
           receivedAt: '2026-11-13T06:42:00.000Z',
+          receiptNumber: 'R-000201',
           method: 'bkash',
           amount: '100000.00',
           externalRef: 'BK7X2Q9',
@@ -83,6 +84,9 @@ describe('Sales / POS view shapes (provisional)', () => {
       balance: '154000.00',
     };
     expect(invoiceDetailSchema.parse(detail)).toEqual(detail);
+    // Every payment has a system receipt number (ADR 0016 line 19).
+    const noReceipt = { ...detail, payments: detail.payments.map(({ receiptNumber: _r, ...p }) => p) };
+    expect(invoiceDetailSchema.safeParse(noReceipt).success).toBe(false);
   });
 
   it('payment methods are the plan’s four, all entered by hand (ADR 0016 lines 18 and 64)', () => {

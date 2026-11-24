@@ -64,6 +64,7 @@ describe('DashboardPage summary', () => {
     expect(within(figures).getByText('৳63,48,645')).toBeInTheDocument(); // customer dues
     expect(within(figures).getByText('৳39,98,175')).toBeInTheDocument(); // supplier payable
     expect(within(figures).getByText(/Margin 16\.4%/)).toBeInTheDocument();
+    expect(figures).not.toHaveTextContent('Covers about'); // dropped: no plan defines it (Munif, 24 Nov)
   });
 
   it('marks Demo data only on cards whose figures are sample', async () => {
