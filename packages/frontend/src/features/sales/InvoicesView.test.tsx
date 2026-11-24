@@ -15,7 +15,7 @@ function renderInvoices(
 ) {
   const services = fakeServices(new FakeHealthService(new Error('unused')), {
     sales,
-    demo: new Set<DemoService>(['sales']),
+    demo: new Set<DemoService>(['sales.invoices']),
   });
   render(
     <ServicesContext.Provider value={services}>

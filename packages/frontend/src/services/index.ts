@@ -12,7 +12,7 @@ import { SampleInventoryService } from './sample/SampleInventoryService';
 import { SampleProductService } from './sample/SampleProductService';
 import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
-import { SalesService, type ISalesService } from './salesService';
+import { SalesService, SalesServiceSwitch, type ISalesService } from './salesService';
 import { SampleSalesService } from './sample/SampleSalesService';
 import { SampleVehicleService } from './sample/SampleVehicleService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
@@ -81,7 +81,10 @@ export function createServices(
     ),
     party: new PartyService(http),
     // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
-    sales: demo.has('sales') ? new SampleSalesService() : new SalesService(http),
+    // The POS (sales.pos) and the invoices view (sales.invoices) are real or sample on their own keys.
+    sales: new SalesServiceSwitch(new SalesService(http), new SampleSalesService(), (call) =>
+      demo.has(call === 'posItems' || call === 'completeSale' ? 'sales.pos' : 'sales.invoices'),
+    ),
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
     crm: new CrmService(http),
