@@ -26,7 +26,7 @@ names one. Decided by Munif on 23 and 24 Nov 2026; built by Farhan as **one seed
 | Part                   | Count          | Detail                                                                                                                                                                                                                                                                                             |
 | ---------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Organization, business | 1 + 1          | "Sample Motor Group", business "Sample Motors". One owner.                                                                                                                                                                                                                                         |
-| Branches               | 2              | **Showroom** (bikes and parts), invoice series `C-` → `C-000001`. **Service centre**, invoice series `MSC-2026-` → `MSC-2026-000001` (decision 1). Each branch also gets `receipt` and `journal` series.                                                                                           |
+| Branches               | 2              | **Showroom** (bikes and parts), invoice series `INV-` → `INV-000001`. **Service centre**, invoice series `SVC-2026-` → `SVC-2026-000001` (decision 1). Each branch also gets `receipt` and `journal` series.                                                                                       |
 | Chart of accounts      | 1 per business | All 12 account roles mapped (section 4).                                                                                                                                                                                                                                                           |
 | Parts                  | ~40            | Quantity-tracked products. Codes in a three-five-two character format (`5VX-F5805-10`, invented), SKUs like `PRT-BRK-0214`, names like "Brake pad set, front, 150 cc", prices ৳180.00 to ৳9,500.00; categories Parts, Oil, Tyres, Accessories. Brand field "Sample Bikes"; no real brand anywhere. |
 | Bike models            | 8              | Serial-tracked products: "Velo 150 V3", "Ridge 125 S", …, prices ৳1,45,000.00 to ৳4,10,000.00.                                                                                                                                                                                                     |
@@ -74,7 +74,7 @@ Technician, Office Assistant and Admin are staff rows without a login.
 
 ## 6. Decisions (Munif, 23 Nov)
 
-1. **`MSC-<year>-`: a new series row per year.** Each new year adds a `number_series` row with the new prefix and
+1. **`SVC-<year>-`: a new series row per year.** Each new year adds a `number_series` row with the new prefix and
    `next_value` 1; the step belongs in the year-end checklist. No `{year}` token.
 2. **Admin is a designation, separate from the owner login.**
 3. **Phone numbers** use the repo's obviously fake sequential pattern (`+8801700000001`, …).
