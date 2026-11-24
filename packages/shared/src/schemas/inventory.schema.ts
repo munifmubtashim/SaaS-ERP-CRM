@@ -7,11 +7,8 @@ import { moneySchema } from '../utils/money.js';
  */
 export const inventorySchema = z.object({});
 
-/** A stock quantity: numeric(18,3) as a string, never a number. */
-export const stockQuantitySchema = z.string().regex(/^-?\d{1,15}\.\d{3}$/, 'A quantity with 3 decimals');
-
-/** One product at the request's branch (GET /v1/stock). No cost: the average cost is a hidden figure (plan 2.5). */
-export const stockItemSchema = z
+/** One product at the request's branch (GET /v1/stock/pos-catalog). No cost: the average cost is a hidden figure (plan 2.5). */
+export const posCatalogItemSchema = z
   .object({
     productId: z.uuid(),
     code: z.string().min(1),
@@ -21,19 +18,21 @@ export const stockItemSchema = z
     sellPrice: moneySchema,
     /** A pass-through fee (item 3d): sold without stock. */
     isPassThrough: z.boolean(),
-    onHand: stockQuantitySchema,
+    /** numeric(18,3) as a string, never a number. */
+    onHand: z.string().regex(/^-?\d{1,15}\.\d{3}$/, 'A quantity with 3 decimals'),
     /** Serial units in stock at the branch, for the POS to choose from; empty for counted products. */
     units: z.array(z.object({ id: z.uuid(), serialNo: z.string().min(1) }).strict()),
   })
   .strict();
 
 /**
- * GET /v1/stock (Munif, 24 Nov): every active product of the business with its stock at the request's branch, and
- * the business's walk-in party (null until one exists), for the POS and the inventory page.
+ * GET /v1/stock/pos-catalog (Munif, 24 Nov): what the counter can sell. Every active product of the business with
+ * its stock at the request's branch and the serial units in stock, and the business's walk-in party (null until one
+ * exists). The inventory page reads GET /v1/stock (#34's stockRowSchema) instead.
  */
-export const stockListSchema = z
+export const posCatalogSchema = z
   .object({
     walkInPartyId: z.uuid().nullable(),
-    items: z.array(stockItemSchema),
+    items: z.array(posCatalogItemSchema),
   })
   .strict();

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { stockListSchema } from './inventory.schema.js';
+import { posCatalogSchema } from './inventory.schema.js';
 
 /**
- * GET /v1/stock (Munif, 24 Nov): stock on hand at the request's branch, per product, with the serial units in stock
- * and the business's walk-in party, for the POS and the inventory page. Quantities and money are strings; no cost.
+ * GET /v1/stock/pos-catalog (Munif, 24 Nov): stock on hand at the request's branch, per product, with the serial units in stock
+ * and the business's walk-in party, for the POS. Quantities and money are strings; no cost.
  */
 const item = {
   productId: '0196f000-0000-7000-8000-0000000000f0',
@@ -31,13 +31,13 @@ const bike = {
 };
 const list = { walkInPartyId: '0196f000-0000-7000-8000-0000000000c0', items: [item, bike] };
 
-describe('stockListSchema', () => {
+describe('posCatalogSchema', () => {
   it('accepts parts by quantity and bikes with their units in stock', () => {
-    expect(stockListSchema.safeParse(list).success).toBe(true);
+    expect(posCatalogSchema.safeParse(list).success).toBe(true);
   });
 
   it('allows no walk-in party yet (null) and an empty list', () => {
-    expect(stockListSchema.safeParse({ walkInPartyId: null, items: [] }).success).toBe(true);
+    expect(posCatalogSchema.safeParse({ walkInPartyId: null, items: [] }).success).toBe(true);
   });
 
   it.each([
@@ -46,6 +46,6 @@ describe('stockListSchema', () => {
     ['an unknown tracking', { tracking: 'batch' }],
     ['a cost on the item (hidden, plan 2.5)', { avgCost: '700.00' }],
   ])('refuses %s', (_case, change) => {
-    expect(stockListSchema.safeParse({ ...list, items: [{ ...item, ...change }] }).success).toBe(false);
+    expect(posCatalogSchema.safeParse({ ...list, items: [{ ...item, ...change }] }).success).toBe(false);
   });
 });
