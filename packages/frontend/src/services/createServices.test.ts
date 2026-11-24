@@ -3,6 +3,8 @@ import { AuthService } from './authService';
 import { createServices } from './index';
 import { MockOrganizationService } from './mock/MockOrganizationService';
 import { OrganizationService } from './organizationService';
+import { SalesPaymentService } from './salesPaymentService';
+import { SampleSalesPaymentService } from './sample/SampleSalesPaymentService';
 
 /** Login is real in every build (its route exists); a service is sample only when it is in `demo` (VITE_DEMO_DATA). */
 describe('createServices', () => {
@@ -23,5 +25,14 @@ describe('createServices', () => {
       'organization',
     ]);
     expect(createServices(undefined, { demo: new Set() }).demo.size).toBe(0);
+  });
+});
+
+describe('createServices: customer payments (ADR 0057)', () => {
+  it('uses the sample while sales.payments is named, the API otherwise', () => {
+    expect(createServices(undefined, { demo: new Set(['sales.payments']) }).salesPayments).toBeInstanceOf(
+      SampleSalesPaymentService,
+    );
+    expect(createServices(undefined, { demo: new Set() }).salesPayments).toBeInstanceOf(SalesPaymentService);
   });
 });

@@ -19,6 +19,9 @@ describe('parseDemoData', () => {
     // GET /v1/reports/owner-dashboard exists (M6, #197): real by default, sample only when named.
     expect(DEMO_DEFAULT.has('report.ownerDashboard')).toBe(false);
     expect(DEMO_CAPABLE.has('report.ownerDashboard')).toBe(true);
+    // POST /v1/payments exists (ADR 0057), but the screens pay sample invoices until invoice reads exist.
+    expect(DEMO_CAPABLE.has('sales.payments')).toBe(true);
+    expect(DEMO_DEFAULT.has('sales.payments')).toBe(true);
   });
 
   it('a comma list picks services; "all" is every service that has a sample; "none" is real everywhere', () => {

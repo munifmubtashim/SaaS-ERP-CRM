@@ -30,12 +30,19 @@ const REPORT_KEYS = [
 ] as const;
 
 export type DemoService =
-  'organization' | 'sales' | 'inventory' | 'product' | 'vehicle' | (typeof REPORT_KEYS)[number];
+  | 'organization'
+  | 'sales'
+  | 'sales.payments'
+  | 'inventory'
+  | 'product'
+  | 'vehicle'
+  | (typeof REPORT_KEYS)[number];
 
 /** Services that have a sample implementation. A later screen PR adds its service here with its sample. */
 export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
   'organization',
   'sales',
+  'sales.payments',
   'inventory',
   'product',
   'vehicle',
@@ -46,6 +53,8 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
  * No API yet: GET /v1/me/businesses (M2), the POS screen's calls (POST /v1/invoices exists, #191, but the POS service
  * is wired in its own PR), the stock routes' screens, the model and unit routes (#105, #107), and every report call but
  * the owner dashboard. GET /v1/reports/owner-dashboard exists (M6, #197), so it is real unless named.
+ * POST /v1/payments exists (ADR 0057), but `sales.payments` stays sample until invoice reads exist: the screens pay
+ * sample invoices, whose ids the API doesn't know.
  */
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
   [...DEMO_CAPABLE].filter((service) => service !== 'report.ownerDashboard'),
