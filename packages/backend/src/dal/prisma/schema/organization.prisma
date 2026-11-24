@@ -69,6 +69,8 @@ model Business {
   numberSeries    NumberSeries[]
   products        Product[]
   staff           Staff[]
+  /// The business's chart of accounts (ADR 0013). Back-relation Prisma requires.
+  accounts        Account[]
 
   @@map("business")
 }
@@ -95,6 +97,8 @@ model Branch {
   staff        Staff[]
   /// Stock (ADR 0021, 0054): the branch's one location and its stock rows. Back-relations Prisma requires.
   locations      Location[]
+  /// Journals posted at this branch (ADR 0013). Back-relation Prisma requires.
+  journals       Journal[]
   stockMovements StockMovement[]
   stockBalances  StockBalance[]
   stockCosts     StockCost[]
