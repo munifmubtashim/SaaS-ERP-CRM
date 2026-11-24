@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import type { DemoService, ISalesService } from '../../services';
+import { ApiRequestError, type DemoService, type ISalesService } from '../../services';
 import { SampleSalesService } from '../../services/sample/SampleSalesService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { PosPage } from './PosPage';
@@ -11,7 +11,7 @@ import { PosPage } from './PosPage';
 /** The POS screen (design/owner-dashboard/Sales.dc.html, selling half) over the sample sales service. */
 function renderPos({
   sales = new SampleSalesService(0),
-  demo = new Set<DemoService>(['sales']),
+  demo = new Set<DemoService>(['sales.pos']),
   locale = 'en' as 'en' | 'bn',
 }: { sales?: ISalesService; demo?: ReadonlySet<DemoService>; locale?: 'en' | 'bn' } = {}) {
   const services = fakeServices(new FakeHealthService(new Error('unused')), { sales, demo });
@@ -120,6 +120,89 @@ describe('PosPage', () => {
     await screen.findByRole('status');
     expect(keys).toHaveLength(2);
     expect(keys[1]).toBe(keys[0]);
+  });
+
+  it.each([
+    [
+      '409 stock.insufficient',
+      new ApiRequestError(409, {
+        code: 'CONFLICT',
+        message: 'Not enough stock for this product at this branch.',
+        fields: [{ path: 'qtyDelta', code: 'stock.insufficient', message: 'Not enough stock.' }],
+        requestId: 'r1',
+      }),
+      'Not enough stock for one of these items. Lower the quantity and try again.',
+    ],
+    [
+      '403',
+      new ApiRequestError(403, {
+        code: 'FORBIDDEN',
+        message: 'You may not do this here.',
+        fields: [],
+        requestId: 'r2',
+      }),
+      'You may not record sales at this branch.',
+    ],
+    [
+      'a due on the walk-in party',
+      new ApiRequestError(409, {
+        code: 'CONFLICT',
+        message: 'A sale that leaves a due must name the customer.',
+        fields: [{ path: 'partyId', code: 'invoice.due_needs_customer', message: 'Name the customer.' }],
+        requestId: 'r3',
+      }),
+      'A sale that leaves a due needs a named customer. Take the full amount for now.',
+    ],
+  ])('shows the server’s %s inline under the button', async (_case, error, text) => {
+    const sample = new SampleSalesService(0);
+    const sales: ISalesService = {
+      ...sample,
+      posItems: () => sample.posItems(),
+      completeSale: () => Promise.reject(error),
+    };
+    renderPos({ sales });
+    await within(await screen.findByRole('region', { name: 'Products' })).findByText('Full-face helmet');
+    add('Full-face helmet');
+    fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
+    expect(await within(sale()).findByRole('alert')).toHaveTextContent(text);
+  });
+
+  it('a validation refusal lists each field’s message inline', async () => {
+    const sample = new SampleSalesService(0);
+    const sales: ISalesService = {
+      ...sample,
+      posItems: () => sample.posItems(),
+      completeSale: () =>
+        Promise.reject(
+          new ApiRequestError(400, {
+            code: 'VALIDATION_FAILED',
+            message: 'Check the sale.',
+            fields: [
+              {
+                path: 'discount',
+                code: 'invoice.discount_above_subtotal',
+                message: 'The discount is too high.',
+              },
+              { path: 'payments.0.externalRef', code: 'too_small', message: 'Enter the transaction ID.' },
+            ],
+            requestId: 'r4',
+          }),
+        ),
+    };
+    renderPos({ sales });
+    await within(await screen.findByRole('region', { name: 'Products' })).findByText('Full-face helmet');
+    add('Full-face helmet');
+    fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
+    const alert = await within(sale()).findByRole('alert');
+    expect(alert).toHaveTextContent('The discount is too high.');
+    expect(alert).toHaveTextContent('Enter the transaction ID.');
+  });
+
+  it('on the real API (sales.pos not sample) the items carry no Demo data badge', async () => {
+    renderPos({ demo: new Set<DemoService>() });
+    const list = await screen.findByRole('region', { name: 'Products' });
+    await within(list).findByText('Full-face helmet');
+    expect(within(list).queryByText('Demo data')).toBeNull();
   });
 
   it('marks the items as Demo data when sample, and renders in Bangla', async () => {

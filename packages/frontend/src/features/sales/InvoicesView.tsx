@@ -67,7 +67,7 @@ export function InvoicesView() {
                 </p>
               )}
             </div>
-            <DemoBadge service="sales" />
+            <DemoBadge service="sales.invoices" />
           </div>
           <div role="group" aria-label={t('inv.filter.aria')} className="flex flex-wrap gap-1">
             {FILTERS.map((f) => (

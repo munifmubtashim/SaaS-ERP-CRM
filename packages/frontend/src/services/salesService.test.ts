@@ -1,4 +1,11 @@
-import { invoiceDetailSchema, invoiceSummarySchema, posItemSchema, type SaleDraft } from '@erp/shared';
+import {
+  invoiceDetailSchema,
+  invoiceSummarySchema,
+  posItemSchema,
+  postInvoiceSchema,
+  type SaleDraft,
+} from '@erp/shared';
+import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import type { IHttpClient } from './HttpClient';
 import { SampleSalesService } from './sample/SampleSalesService';
@@ -26,14 +33,6 @@ const draft = (serial: string | null, paid: string | null): SaleDraft => ({
 });
 
 describe('SalesService (the API)', () => {
-  it('completeSale posts the draft to /v1/sales with its Idempotency-Key', async () => {
-    const http = new RecordingHttp();
-    await new SalesService(http)
-      .completeSale(draft('VL3-000101', '100000.00'), 'key-1')
-      .catch(() => undefined);
-    expect(http.posts).toEqual([{ path: '/v1/sales', body: draft('VL3-000101', '100000.00'), key: 'key-1' }]);
-  });
-
   it('recordPayment posts to the invoice’s payments with its Idempotency-Key', async () => {
     const http = new RecordingHttp();
     await new SalesService(http)
@@ -191,5 +190,163 @@ describe('SampleSalesService invoices', () => {
     const last = before.map((r) => Number(r.slice(2))).sort((a, b) => b - a)[0] ?? 0;
     expect(atSale).toBe(`R-${String(last + 1).padStart(6, '0')}`);
     expect(later).toBe(`R-${String(last + 2).padStart(6, '0')}`);
+  });
+});
+
+/** The POS wiring (Munif, 25 Nov): GET /v1/stock/pos-catalog in, POST /v1/invoices out (#185's shapes). */
+const PARTS = '0196f000-0000-7000-8000-0000000000f0';
+const BIKE = '0196f000-0000-7000-8000-0000000000f2';
+const UNIT = '0196f000-0000-7000-8000-0000000000a1';
+const WALK_IN = '0196f000-0000-7000-8000-0000000000c0';
+const catalog = {
+  walkInPartyId: WALK_IN,
+  items: [
+    {
+      productId: PARTS,
+      code: 'PRT-BRK-0214',
+      name: 'Brake pad set, front',
+      unit: 'pcs',
+      category: 'Parts',
+      tracking: 'quantity',
+      sellPrice: '1000.00',
+      isPassThrough: false,
+      onHand: '12.000',
+      units: [],
+    },
+    {
+      productId: BIKE,
+      code: 'VL3-150',
+      name: 'Velo 150 V3',
+      unit: 'pcs',
+      category: null,
+      tracking: 'serial',
+      sellPrice: '245000.00',
+      isPassThrough: false,
+      onHand: '1.000',
+      units: [{ id: UNIT, serialNo: 'VL3-000101' }],
+    },
+  ],
+};
+const posted = (paid: string, due: string) => ({
+  id: '0196f000-0000-7000-8000-0000000000d1',
+  number: 'INV-000007',
+  invoiceDate: '2026-11-25',
+  partyId: WALK_IN,
+  customerName: 'Sample Customer',
+  subtotal: '247000.00',
+  discount: '5000.00',
+  total: '242000.00',
+  paid,
+  due,
+  status: 'posted',
+  lines: [],
+  payments: [],
+});
+
+class ApiHttp implements IHttpClient {
+  gets: string[] = [];
+  posts: { path: string; body: unknown; key: string | undefined }[] = [];
+  constructor(private readonly answer: unknown = posted('242000.00', '0.00')) {}
+  getJson = async <T extends z.ZodType>(path: string, schema: T) => {
+    this.gets.push(path);
+    return schema.parse(catalog) as z.infer<T>;
+  };
+  postJson = async <T extends z.ZodType>(
+    path: string,
+    body: unknown,
+    schema: T,
+    options?: { idempotencyKey?: string },
+  ) => {
+    this.posts.push({ path, body, key: options?.idempotencyKey });
+    return schema.parse(this.answer) as z.infer<T>;
+  };
+  post = () => Promise.reject(new Error('unused'));
+}
+
+const realDraft = (paid: SaleDraft['payment']): SaleDraft => ({
+  customerName: 'Sample Customer',
+  lines: [
+    { itemId: BIKE, name: 'Velo 150 V3', unitPrice: '245000.00', quantity: '1', serialNumber: 'VL3-000101' },
+    { itemId: PARTS, name: 'Brake pad set, front', unitPrice: '1000.00', quantity: '2', serialNumber: null },
+  ],
+  discount: '5000.00',
+  payment: paid,
+});
+
+describe('SalesService: the POS on the real API (POST /v1/invoices, #191)', () => {
+  it('posItems reads GET /v1/stock/pos-catalog: on hand, price, category (null kept), units by serial number', async () => {
+    const http = new ApiHttp();
+    const items = await new SalesService(http).posItems();
+    expect(http.gets).toEqual(['/v1/stock/pos-catalog']);
+    expect(items).toEqual([
+      {
+        id: PARTS,
+        name: 'Brake pad set, front',
+        category: 'Parts',
+        kind: 'quantity',
+        price: '1000.00',
+        available: '12.000',
+        serialNumbers: [],
+      },
+      {
+        id: BIKE,
+        name: 'Velo 150 V3',
+        category: null,
+        kind: 'serial',
+        price: '245000.00',
+        available: '1.000',
+        serialNumbers: ['VL3-000101'],
+      },
+    ]);
+    for (const item of items) expect(posItemSchema.safeParse(item).success).toBe(true);
+  });
+
+  it('completeSale posts #185 postInvoiceSchema to /v1/invoices (never /v1/sales) with the Idempotency-Key: walk-in party, unit ids, the one payment', async () => {
+    const http = new ApiHttp(posted('100000.00', '142000.00'));
+    const service = new SalesService(http);
+    await service.posItems();
+    const summary = await service.completeSale(
+      realDraft({ method: 'bkash', amount: '100000.00', externalRef: 'BK7Q2' }),
+      'key-1',
+    );
+    expect(http.posts).toEqual([
+      {
+        path: '/v1/invoices',
+        key: 'key-1',
+        body: {
+          partyId: WALK_IN,
+          customerName: 'Sample Customer',
+          lines: [
+            { productId: BIKE, serialUnitId: UNIT, qty: '1' },
+            { productId: PARTS, serialUnitId: null, qty: '2' },
+          ],
+          discount: '5000.00',
+          payments: [{ method: 'bkash', amount: '100000.00', externalRef: 'BK7Q2' }],
+        },
+      },
+    ]);
+    expect(postInvoiceSchema.safeParse(http.posts[0]?.body).success).toBe(true);
+    expect(summary).toMatchObject({
+      number: 'INV-000007',
+      total: '242000.00',
+      paid: '100000.00',
+      status: 'partly_paid',
+    });
+    expect(invoiceSummarySchema.safeParse(summary).success).toBe(true);
+  });
+
+  it('nothing received is an empty payment list and a sale that is all due', async () => {
+    const http = new ApiHttp(posted('0.00', '242000.00'));
+    const service = new SalesService(http);
+    await service.posItems();
+    const summary = await service.completeSale(realDraft(null), 'key-2');
+    expect((http.posts[0]?.body as { payments: unknown[] }).payments).toEqual([]);
+    expect(summary.status).toBe('due');
+  });
+
+  it('refuses to post before the catalog is loaded (no walk-in party id yet)', async () => {
+    const http = new ApiHttp();
+    await expect(new SalesService(http).completeSale(realDraft(null), 'key-3')).rejects.toThrow(/catalog/);
+    expect(http.posts).toEqual([]);
   });
 });

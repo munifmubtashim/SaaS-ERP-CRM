@@ -36,7 +36,8 @@ export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
 export const posItemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  category: z.string().min(1),
+  /** The product's category; null when it has none (GET /v1/stock/pos-catalog). */
+  category: z.string().min(1).nullable(),
   kind: z.enum(['serial', 'quantity']),
   price: moneySchema,
   available: quantityTextSchema,

@@ -195,7 +195,7 @@ export function filterItems(items: readonly PosItem[], search: string, category:
 
 /** The category buttons: 'all' first, then each category once, in the order the items list them. */
 export function categoriesOf(items: readonly PosItem[]): string[] {
-  return ['all', ...new Set(items.map((item) => item.category))];
+  return ['all', ...new Set(items.flatMap((item) => (item.category ? [item.category] : [])))];
 }
 
 /** Typed taka ("1,250.5") to a money string ("1250.50") by text rules only, never a float; empty is 0; else null. */

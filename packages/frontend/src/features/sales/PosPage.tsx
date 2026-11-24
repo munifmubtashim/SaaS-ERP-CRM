@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useServices } from '../../app/servicesContext';
 import { DemoBadge } from '../../components/ui';
+import { ApiRequestError } from '../../services';
 import { useI18n } from '../../i18n';
 import {
   addItem,
@@ -30,6 +31,26 @@ const field = 'min-h-11 w-full rounded-xl border border-row-border bg-chip px-3 
  * Complete sale sends one draft with one Idempotency-Key per draft, so a retry can never sell twice (invariant 5).
  * Owner: Farhan (Sales). The design's switch opens the invoices half (InvoicesView).
  */
+/**
+ * What a refused Complete sale says, inline under the button (Munif, 25 Nov): the server's codes map to translated
+ * messages; a validation refusal (400) also lists each field's message (fieldMessages); anything else is "not saved".
+ */
+function failureKey(error: unknown) {
+  if (!(error instanceof ApiRequestError)) return 'pos.error.failed' as const;
+  const codes = error.body?.fields.map((field) => field.code) ?? [];
+  if (error.status === 403) return 'pos.error.forbidden' as const;
+  if (codes.includes('stock.insufficient')) return 'pos.error.stock' as const;
+  if (codes.includes('unit.not_available')) return 'pos.error.unit' as const;
+  if (codes.includes('invoice.due_needs_customer')) return 'pos.error.dueNeedsCustomer' as const;
+  if (error.status === 400) return 'pos.error.check' as const;
+  return 'pos.error.failed' as const;
+}
+
+function fieldMessages(error: unknown): string[] {
+  if (!(error instanceof ApiRequestError) || error.status !== 400) return [];
+  return [...new Set(error.body?.fields.map((field) => field.message) ?? [])];
+}
+
 export function PosPage() {
   const { t } = useI18n();
   const [view, setView] = useState<'pos' | 'invoices'>('pos');
@@ -76,6 +97,7 @@ function PointOfSale() {
     null,
   );
   const [toast, setToast] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
   // One key per draft: the same draft retried keeps its key; a changed draft gets a new one.
   const attempt = useRef<{ draft: string; key: string } | null>(null);
 
@@ -106,7 +128,10 @@ function PointOfSale() {
       setProblem(null);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'posItems'] });
     },
-    onError: () => setProblem('failed'),
+    onError: (error: unknown) => {
+      setFailure(error);
+      setProblem('failed');
+    },
   });
 
   const onComplete = () => {
@@ -134,7 +159,7 @@ function PointOfSale() {
         <section aria-label={t('pos.products')} className="glass flex min-w-0 flex-col gap-3 rounded-3xl p-4">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold">{t('pos.products')}</h2>
-            <DemoBadge service="sales" />
+            <DemoBadge service="sales.pos" />
           </div>
           <input
             type="search"
@@ -186,7 +211,7 @@ function PointOfSale() {
                     return (
                       <tr key={item.id} className="border-t border-row-border">
                         <td className="py-2 font-semibold">{item.name}</td>
-                        <td className="hidden py-2 text-text2 sm:table-cell">{item.category}</td>
+                        <td className="hidden py-2 text-text2 sm:table-cell">{item.category ?? '—'}</td>
                         <td className={`py-2 ${none ? 'text-neg-text' : 'text-text2'}`}>
                           {none ? t('pos.noneLeft') : t('pos.inStock', { count: Number(item.available) })}
                         </td>
@@ -376,8 +401,10 @@ function PointOfSale() {
                     ? 'pos.error.chassis'
                     : problem === 'reference_missing'
                       ? 'pay.error.reference'
-                      : 'pos.error.failed',
+                      : failureKey(failure),
               )}
+              {problem === 'failed' &&
+                fieldMessages(failure).map((message) => <span key={message}> {message}</span>)}
             </p>
           )}
           <button
