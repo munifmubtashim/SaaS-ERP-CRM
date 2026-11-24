@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { moneySchema } from '../utils/money.js';
 import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
+import { toE164 } from '../utils/phone.js';
 
 /**
  * Party module, Zod schemas shared by backend and frontend. Owner: Farhan.
  * One party is a customer, a supplier or both, and belongs to one business (ADR 0006 draft).
- * Read shapes only for now (task F1). Create and edit payloads come with F2.
+ * Read shapes (task F1), and the create and edit payloads (F2, ADR 0056 section 3).
  * Never add the national ID here: it has its own restricted route and schema (ADR 0001 row 2).
  */
 export const partyKindSchema = z.enum(['person', 'company']);
@@ -73,3 +75,65 @@ export const partyListQuerySchema = pageQuerySchema.extend({
 });
 
 export const partyListResponseSchema = cursorPageSchema(partyListItemSchema);
+
+/** A phone as the user types it, stored in E.164 (ADR 0019 section 4): the form and the API call the same rule. */
+const typedPhoneSchema = z.string().transform((raw, ctx) => {
+  const e164 = toE164(raw);
+  if (e164 === null) {
+    ctx.addIssue({ code: 'custom', message: 'Enter a Bangladesh mobile number or +country code.' });
+    return z.NEVER;
+  }
+  return e164;
+});
+
+/** Blank becomes null (the F2 form sends null for a blank Bangla name; #24). */
+const blankToNull = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .transform((s) => (s === null || s === '' ? null : s));
+
+/** The fields a user enters. Everything else (id, business, code, status, version, creator) is the server's. */
+const partyInputFields = partyBaseSchema
+  .pick({
+    name: true,
+    kind: true,
+    isCustomer: true,
+    isSupplier: true,
+    email: true,
+    address: true,
+    area: true,
+  })
+  .extend({
+    nameBn: blankToNull(200),
+    phone: typedPhoneSchema,
+    altPhone: typedPhoneSchema.nullable(),
+    /** null = no limit (spec S-15). A money string, zero or more. */
+    creditLimit: moneySchema.refine((m) => !m.startsWith('-'), 'Zero or more').nullable(),
+    /** null = the business default. */
+    payTermDays: z.number().int().min(0).max(365).nullable(),
+  });
+
+/** Save even though another active party of the business has the same phone (ADR 0019 section 4). */
+const confirmDuplicateSchema = z.boolean().default(false);
+
+/** POST /v1/parties (ADR 0056 section 3). */
+export const createPartySchema = partyInputFields
+  .extend({ confirmDuplicate: confirmDuplicateSchema })
+  .strict()
+  .refine((p) => p.isCustomer || p.isSupplier, {
+    message: 'A party must be a customer, a supplier or both.',
+    path: ['isCustomer'],
+  });
+
+/** PATCH /v1/parties/:id: the version read, and only the fields that change. */
+export const updatePartySchema = partyInputFields
+  .partial()
+  .extend({ version: z.number().int().min(1), confirmDuplicate: confirmDuplicateSchema })
+  .strict()
+  .refine((p) => p.isCustomer !== false || p.isSupplier !== false, {
+    message: 'A party must be a customer, a supplier or both.',
+    path: ['isCustomer'],
+  });
