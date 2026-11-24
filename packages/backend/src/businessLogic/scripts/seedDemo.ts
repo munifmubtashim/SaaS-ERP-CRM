@@ -1,14 +1,16 @@
 /**
- * npm run db:seed: seeds the demo organization and its owner (ADR 0009 part 4, plan A19 note) into the database
- * MIGRATION_DATABASE_URL names, as the migration owner. Reads DEMO_OWNER_EMAIL and DEMO_OWNER_PASSWORD from the
+ * npm run db:seed: seeds the demo (ADR 0009 part 4, ADR 0058) into the database MIGRATION_DATABASE_URL names, as the
+ * migration owner, and moves its opening stock through the app's own path at DATABASE_URL. Reads DEMO_OWNER_EMAIL and DEMO_OWNER_PASSWORD from the
  * environment (or the repo-root .env); hashes the password with Argon2PasswordHasher. Prints only ids: never the
  * password, its hash or the email. Idempotent: safe to run again.
  */
 import { Argon2PasswordHasher } from '../src/Argon2PasswordHasher.js';
 import { runDemoSeed } from '../src/demoSeed.js';
+import { createManagers, DenyAllRoleSource } from '../src/index.js';
 
 const required = [
   'MIGRATION_DATABASE_URL',
+  'DATABASE_URL',
   'DEMO_OWNER_EMAIL',
   'DEMO_OWNER_PASSWORD',
   'DEMO_USERS_PASSWORD',
@@ -19,21 +21,37 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// The seed's opening day: 42 days ago (ADR 0058 section 3). Opening stock and the opening journal carry its date.
+const fixedOpening = new Date(Date.now() - 42 * 86_400_000);
+const { provided, tenantScope, close } = createManagers({
+  databaseUrl: process.env.DATABASE_URL ?? '',
+  version: 'demo-seed',
+  dbPoolMax: 1,
+  dbTxTimeoutMs: 60_000,
+  roleSource: new DenyAllRoleSource(),
+  clock: { now: () => fixedOpening },
+});
+
 try {
   const result = await runDemoSeed(
     {
       migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL ?? '',
+      appDatabaseUrl: process.env.DATABASE_URL ?? '',
       ownerEmail: process.env.DEMO_OWNER_EMAIL ?? '',
       ownerPassword: process.env.DEMO_OWNER_PASSWORD ?? '',
       usersPassword: process.env.DEMO_USERS_PASSWORD ?? '',
       nodeEnv: process.env.NODE_ENV,
     },
     new Argon2PasswordHasher(),
+    undefined,
+    { stock: provided.stock, tenantScope, clock: { now: () => fixedOpening } },
   );
   console.log(
     `Demo organization seeded: organization ${result.organizationId}, owner user ${result.ownerUserId}.`,
   );
 } catch (error) {
   console.error(`Demo seed failed: ${error instanceof Error ? error.message : 'unknown error'}`);
-  process.exit(1);
+  process.exitCode = 1;
+} finally {
+  await close();
 }
