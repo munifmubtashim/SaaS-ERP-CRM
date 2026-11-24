@@ -4,7 +4,9 @@ import type {
   ApiManagers,
   IAuthManager,
   IHealthManager,
+  IIdempotency,
   IProductManager,
+  ISalesManager,
   ITenantScopeRunner,
 } from '../controllers/contracts/index.js';
 
@@ -42,6 +44,15 @@ export const unusedProduct: IProductManager = {
   edit: unexpected('product'),
 };
 
+/** An idempotency guard for apps whose tests never call an idempotent route: using it fails loudly. */
+export const unusedIdempotency: IIdempotency = {
+  claim: () => unexpected('idempotent')(),
+  complete: () => unexpected('idempotent')(),
+};
+
+/** A Sales Manager for tests that never post a sale: using it fails loudly. */
+export const unusedSales: ISalesManager = { postInvoice: unexpected('sales') };
+
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
 export function fakeManagers(health: IHealthManager): ApiManagers {
   return {
@@ -54,7 +65,7 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
     vehicle: {},
     report: {},
     party: {},
-    sales: {},
+    sales: unusedSales,
     purchase: {},
     service: {},
     crm: {},

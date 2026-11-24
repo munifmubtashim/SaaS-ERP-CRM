@@ -6,7 +6,13 @@ import { createApp } from '../../app.js';
 import type { AuthenticatedSession, IAuthManager } from '../../controllers/contracts/index.js';
 import { createAuthMiddleware } from '../../middleware/authMiddleware.js';
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
-import { fakeManagers, FakeHealthManager, noTenantScope, silentLogger } from '../helpers.js';
+import {
+  fakeManagers,
+  FakeHealthManager,
+  noTenantScope,
+  silentLogger,
+  unusedIdempotency,
+} from '../helpers.js';
 
 /**
  * ADR 0018 section 6 (authMiddleware) and section 3 (logout), the HTTP half. AuthManager is a fake holding one
@@ -57,6 +63,7 @@ function fullApp(auth: FakeAuthManager) {
     logger: silentLogger,
     managers,
     tenantScope: noTenantScope,
+    idempotency: unusedIdempotency,
     sessionCookie: { secure: true },
   });
 }
