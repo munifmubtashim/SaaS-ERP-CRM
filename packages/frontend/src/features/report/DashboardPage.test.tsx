@@ -67,6 +67,28 @@ describe('DashboardPage summary', () => {
     expect(figures).not.toHaveTextContent('Covers about'); // dropped: no plan defines it (Munif, 24 Nov)
   });
 
+  it('revenue month to date comes from the owner dashboard (M6, ADR 0023 amended 24 Nov), marked only if that is sample', async () => {
+    class RealDashboard extends SampleReportService {
+      override ownerDashboard = async () => {
+        const sample = await new SampleReportService(0, STORY_DAY).ownerDashboard();
+        return { ...sample, totals: { ...sample.totals, revenueMonth: '3600.00' } };
+      };
+    }
+    renderPage({ report: new RealDashboard(0, STORY_DAY) });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    const revenue = (await within(figures).findByText('৳3,600')).closest('article') as HTMLElement;
+    expect(within(revenue).getByText('Revenue')).toBeInTheDocument();
+    expect(within(revenue).queryByText('Demo data')).toBeNull();
+  });
+
+  it('the revenue card is marked Demo data when the owner dashboard is sample', async () => {
+    renderPage({ demo: new Set<DemoService>(['report.ownerDashboard']) });
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    await within(figures).findByText('৳1,40,59,500');
+    const card = within(figures).getByText('Revenue').closest('article') as HTMLElement;
+    expect(within(card).getByText('Demo data')).toBeInTheDocument();
+  });
+
   it('marks Demo data only on cards whose figures are sample', async () => {
     renderPage();
     const figures = await screen.findByRole('region', { name: 'Key figures' });

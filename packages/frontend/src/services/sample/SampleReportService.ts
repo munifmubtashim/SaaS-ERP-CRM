@@ -147,10 +147,28 @@ function sampleFor(today: string): Answers {
   return {
     ownerDashboard: {
       asOf: AS_OF,
-      totals: { dues: '6348645.00', collectionsToday: '1150000.00' },
+      // Revenue month to date is the same story as salesToday's; stock value at cost (a hidden figure in real data).
+      totals: {
+        dues: '6348645.00',
+        collectionsToday: '1150000.00',
+        revenueMonth: toDate('14059500.00'),
+        stockValue: '25300000.00',
+      },
       businesses: [
-        { ...MOTORS, dues: '4820400.00', collectionsToday: '910000.00' },
-        { ...PARTS, dues: '1528245.00', collectionsToday: '240000.00' },
+        {
+          ...MOTORS,
+          dues: '4820400.00',
+          collectionsToday: '910000.00',
+          revenueMonth: toDate('10248000.00'),
+          stockValue: '21450000.00',
+        },
+        {
+          ...PARTS,
+          dues: '1528245.00',
+          collectionsToday: '240000.00',
+          revenueMonth: toDate('3811500.00'),
+          stockValue: '3850000.00',
+        },
       ],
     } satisfies OwnerDashboard,
     salesToday: {

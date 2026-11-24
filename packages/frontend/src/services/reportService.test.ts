@@ -176,6 +176,17 @@ describe('sample sales keep the design’s pace story on any day', () => {
     expect((await late.customerInsights()).topCustomers[0]?.revenue).toBe('2480000.00');
   });
 
+  it('the sample owner dashboard carries revenue month to date (the same as sales month to date) and stock value', async () => {
+    for (const day of ['2026-11-12', '2026-11-23']) {
+      const sample = story(day);
+      const [owner, sales] = [await sample.ownerDashboard(), await sample.salesToday()];
+      expect(owner.totals.revenueMonth).toBe(sales.monthToDate);
+      expect(owner.businesses.map((b) => b.revenueMonth)).toEqual(sales.byBusiness.map((b) => b.monthToDate));
+      expect(owner.totals.stockValue).toMatch(/^\d+\.\d{2}$/);
+      expect(ownerDashboardSchema.safeParse(owner).success).toBe(true);
+    }
+  });
+
   it('collections are one day’s figure, so they don’t grow with the month', async () => {
     expect((await story('2026-11-23').ownerDashboard()).totals.collectionsToday).toBe('1150000.00');
   });
