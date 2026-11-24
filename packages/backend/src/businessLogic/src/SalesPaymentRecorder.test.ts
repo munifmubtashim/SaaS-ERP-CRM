@@ -208,4 +208,12 @@ describe('review fixes on #99', () => {
         ),
     ).toThrow(/cash.*registered twice/);
   });
+
+  it('a receipt number the caller took earlier (a sale, ADR 0015 order) is used, and no second number is taken', async () => {
+    const { recorder, numbers, query } = setup();
+    const recorded = await recorder.record(input({ receiptNumber: 'RC-UTT-000777' }));
+    expect(recorded.receiptNumber).toBe('RC-UTT-000777');
+    expect(numbers.taken).toEqual([]);
+    expect(query.inserted[0]?.receiptNumber).toBe('RC-UTT-000777');
+  });
 });

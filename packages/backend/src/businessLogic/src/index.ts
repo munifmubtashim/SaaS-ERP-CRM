@@ -15,6 +15,7 @@ import {
   ReportQuery,
   PartyQuery,
   SalesQuery,
+  SalesPaymentQuery,
   PurchaseQuery,
   ServiceQuery,
   CrmQuery,
@@ -39,6 +40,8 @@ import { NumberSeries } from './NumberSeries.js';
 import { IdempotencyGuard } from './IdempotencyGuard.js';
 import { StockService } from './StockService.js';
 import { PostingService } from './PostingService.js';
+import { SalesPaymentRecorder } from './SalesPaymentRecorder.js';
+import { BankPayment, BkashPayment, CardPayment, CashPayment } from './paymentMethods.js';
 import type { IStockService } from './contracts/provided/IStockService.js';
 import type { IPostingService } from './contracts/provided/IPostingService.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
@@ -203,6 +206,17 @@ export function createManagers(config: ManagerConfig): {
     poolMax: config.dbPoolMax,
     txTimeoutMs: config.dbTxTimeoutMs,
   });
+  const numberSeries = new NumberSeries(new NumberSeriesQuery());
+  const stock = new StockService(new StockQuery());
+  const posting = new PostingService(new JournalQuery(), numberSeries);
+  const clock = new SystemClock();
+  // ADR 0016 section 3: the release 1 methods; the demo POS shows cash and bKash.
+  const salesPayments = new SalesPaymentRecorder(new SalesPaymentQuery(), posting, numberSeries, clock, [
+    new CashPayment(),
+    new BankPayment(),
+    new BkashPayment(),
+    new CardPayment(),
+  ]);
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(
@@ -219,19 +233,24 @@ export function createManagers(config: ManagerConfig): {
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery()),
     party: new PartyManager(new PartyQuery()),
-    sales: new SalesManager(new SalesQuery()),
+    sales: new SalesManager(new SalesQuery(), {
+      stock,
+      posting,
+      numbers: numberSeries,
+      payments: salesPayments,
+      clock,
+    }),
     purchase: new PurchaseManager(new PurchaseQuery()),
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
-  const numberSeries = new NumberSeries(new NumberSeriesQuery());
   return {
     managers,
     provided: {
       numberSeries,
       idempotency: new IdempotencyGuard(new IdempotencyQuery()),
-      stock: new StockService(new StockQuery()),
-      posting: new PostingService(new JournalQuery(), numberSeries),
+      stock,
+      posting,
     },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),
