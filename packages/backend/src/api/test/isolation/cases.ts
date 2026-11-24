@@ -25,6 +25,13 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
   'PATCH /v1/products/:id': {
     attempts: ["edit X's product from Y: 404, and X's product is unchanged"],
   },
+  // Run by stock.isolation.test.ts against real Postgres (Munif, 24 Nov).
+  'GET /v1/stock': {
+    attempts: ["search X's product from Y: no rows", 'name X from B: 404'],
+  },
+  'GET /v1/stock/pos-catalog': {
+    attempts: ["Y's catalog never lists X's product or X's walk-in party"],
+  },
   // Run by reports.isolation.test.ts against real Postgres (M6, ADR 0023).
   'GET /v1/reports/owner-dashboard': {
     attempts: [

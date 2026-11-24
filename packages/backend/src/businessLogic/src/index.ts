@@ -216,7 +216,8 @@ export function createManagers(config: ManagerConfig): {
     txTimeoutMs: config.dbTxTimeoutMs,
   });
   const numberSeries = new NumberSeries(new NumberSeriesQuery());
-  const stock = new StockService(new StockQuery());
+  const stockQuery = new StockQuery();
+  const stock = new StockService(stockQuery);
   const posting = new PostingService(new JournalQuery(), numberSeries);
   const clock = new SystemClock();
   // ADR 0016 section 3: the release 1 methods; the demo POS shows cash and bKash.
@@ -238,7 +239,7 @@ export function createManagers(config: ManagerConfig): {
     ),
     organization: new OrganizationManager(new OrganizationQuery(), provisioning, config.roleSource),
     product: new ProductManager(new ProductQuery()),
-    inventory: new InventoryManager(new InventoryQuery()),
+    inventory: new InventoryManager(new InventoryQuery(), stockQuery),
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery(), clock),

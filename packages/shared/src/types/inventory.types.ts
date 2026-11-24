@@ -1,5 +1,7 @@
 import type { z } from 'zod';
 import type {
+  posCatalogItemSchema,
+  posCatalogSchema,
   stockListQuerySchema,
   stockListResponseSchema,
   stockRowSchema,
@@ -11,3 +13,6 @@ export type StockRow = z.infer<typeof stockRowSchema>;
 export type StockListQueryInput = z.input<typeof stockListQuerySchema>;
 export type StockListQuery = z.infer<typeof stockListQuerySchema>;
 export type StockListResponse = z.infer<typeof stockListResponseSchema>;
+export type PosCatalogItem = z.infer<typeof posCatalogItemSchema>;
+/** GET /v1/stock/pos-catalog. */
+export type PosCatalog = z.infer<typeof posCatalogSchema>;
