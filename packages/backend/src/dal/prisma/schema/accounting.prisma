@@ -96,6 +96,11 @@ model Journal {
   original  Journal?      @relation("JournalReversal", fields: [businessId, reversalOf], references: [businessId, id])
   reversals Journal[]     @relation("JournalReversal")
   lines     JournalLine[]
+  /// The invoice this journal posted (ADR 0022). Back-relation Prisma requires.
+  invoices  Invoice[]     @relation("InvoiceJournal")
+  /// Payments this journal posted, and payments it voided (ADR 0026). Back-relations Prisma requires.
+  salesPayments       SalesPayment[] @relation("PaymentJournal")
+  voidedSalesPayments SalesPayment[] @relation("PaymentVoidJournal")
 
   @@unique([businessId, id])
   @@unique([businessId, number])

@@ -99,6 +99,9 @@ model Branch {
   locations      Location[]
   /// Journals posted at this branch (ADR 0013). Back-relation Prisma requires.
   journals       Journal[]
+  /// Sales at this branch (ADR 0022). Back-relation Prisma requires.
+  invoices       Invoice[]
+  salesPayments  SalesPayment[]
   stockMovements StockMovement[]
   stockBalances  StockBalance[]
   stockCosts     StockCost[]
