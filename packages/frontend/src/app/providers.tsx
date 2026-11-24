@@ -1,14 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { I18nProvider } from '../i18n';
-import { createServices, type Services } from '../services';
+import type { Services } from '../services';
 import { usePreferences } from '../store/preferencesStore';
 import { ServicesContext } from './servicesContext';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
-const defaultServices = createServices();
 
 /** Applies the chosen theme, density and language to <html> on every page, the login screen included. */
 function PreferenceEffects() {
@@ -22,13 +21,7 @@ function PreferenceEffects() {
 }
 
 /** App-wide providers: API services, server state (TanStack Query) and language. */
-export function Providers({
-  children,
-  services = defaultServices,
-}: {
-  children: ReactNode;
-  services?: Services;
-}) {
+export function Providers({ children, services }: { children: ReactNode; services: Services }) {
   return (
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={queryClient}>
