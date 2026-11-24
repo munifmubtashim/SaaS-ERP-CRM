@@ -5,6 +5,7 @@ import {
   IdempotencyQuery,
   StockQuery,
   JournalQuery,
+  LedgerQuery,
   HealthQuery,
   AuthQuery,
   OrganizationQuery,
@@ -40,6 +41,9 @@ import { NumberSeries } from './NumberSeries.js';
 import { IdempotencyGuard } from './IdempotencyGuard.js';
 import { StockService } from './StockService.js';
 import { PostingService } from './PostingService.js';
+import { LedgerReader } from './LedgerReader.js';
+import type { IPartyLedger } from './contracts/provided/IPartyLedger.js';
+import type { ITrialBalance } from './contracts/provided/ITrialBalance.js';
 import { SalesPaymentRecorder } from './SalesPaymentRecorder.js';
 import { BankPayment, BkashPayment, CardPayment, CashPayment } from './paymentMethods.js';
 import type { IStockService } from './contracts/provided/IStockService.js';
@@ -103,6 +107,8 @@ export type {
   PostedJournal,
 } from './contracts/provided/IPostingService.js';
 export type { IStockService, StockMovementDraft } from './contracts/provided/IStockService.js';
+export type { IPartyLedger, PartyBalances } from './contracts/provided/IPartyLedger.js';
+export type { ITrialBalance, TrialBalance, TrialBalanceRow } from './contracts/provided/ITrialBalance.js';
 export { NumberSeries } from './NumberSeries.js';
 export {
   IdempotencyGuard,
@@ -189,6 +195,9 @@ export function createManagers(config: ManagerConfig): {
     idempotency: IdempotencyGuard;
     stock: IStockService;
     posting: IPostingService;
+    /** Accounting's ledger reads (M4): a party's balances, and the trial balance. */
+    partyLedger: IPartyLedger;
+    trialBalance: ITrialBalance;
   };
   tenantScope: ITenantScope;
   close: () => Promise<void>;
@@ -217,6 +226,7 @@ export function createManagers(config: ManagerConfig): {
     new BkashPayment(),
     new CardPayment(),
   ]);
+  const ledger = new LedgerReader(new LedgerQuery());
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(
@@ -251,6 +261,8 @@ export function createManagers(config: ManagerConfig): {
       idempotency: new IdempotencyGuard(new IdempotencyQuery()),
       stock,
       posting,
+      partyLedger: ledger,
+      trialBalance: ledger,
     },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),

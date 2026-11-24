@@ -42,6 +42,7 @@ export { PartyQuery } from './query/PartyQuery.js';
 export { SalesDTO } from './dto/SalesDTO.js';
 export { SalesQuery, type InvoiceInsert, type InvoiceLineInsert } from './query/SalesQuery.js';
 export { SalesPaymentQuery, type SalesPaymentInsert } from './query/SalesPaymentQuery.js';
+export { LedgerQuery } from './query/LedgerQuery.js';
 export { PurchaseDTO } from './dto/PurchaseDTO.js';
 export { PurchaseQuery } from './query/PurchaseQuery.js';
 export { ServiceDTO } from './dto/ServiceDTO.js';
