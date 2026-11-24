@@ -31,7 +31,9 @@
     "db:migrate:deploy": "npm run db:migrate:deploy -w @erp/dal",
     "db:migrate:check": "npm run db:migrate:check -w @erp/dal",
     "db:studio": "npm run db:studio -w @erp/dal",
-    "db:seed": "npm run db:seed -w @erp/business-logic"
+    "db:seed": "npm run db:seed -w @erp/business-logic",
+    "demo:reset": "sh tools/scripts/demo-reset.sh",
+    "demo:start": "npm run demo:reset && npm run dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
