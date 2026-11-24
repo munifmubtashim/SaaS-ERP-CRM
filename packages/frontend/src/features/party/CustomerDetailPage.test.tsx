@@ -335,3 +335,10 @@ describe('the Demo data badge (task 4, frontend-wiring.md)', () => {
     expect(screen.getAllByText('Demo data')).toHaveLength(2);
   });
 });
+
+describe('editing from the profile (task 4 T3)', () => {
+  it('offers "Edit", which opens the form for this customer', async () => {
+    renderPage(new FakeParty(), new FakeSales());
+    expect(await screen.findByRole('link', { name: 'Edit' })).toHaveAttribute('href', `/customers/${ID}/edit`);
+  });
+});
