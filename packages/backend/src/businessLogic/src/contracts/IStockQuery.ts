@@ -12,6 +12,8 @@ export interface StockMovementRecord {
   reason: string | null;
   sourceType: string;
   sourceId: string;
+  /** The movement's business date (YYYY-MM-DD, Asia/Dhaka), from the service's clock. */
+  movementDate?: string;
 }
 
 export interface IStockQuery {
