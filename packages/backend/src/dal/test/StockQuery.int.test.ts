@@ -47,7 +47,8 @@ async function addPart(): Promise<string> {
 /** Stock in through the query, the way StockService will: lock, apply, record. */
 async function receive(branchId: string, productId: string, qty: string, unitCost: string, avgCost: string) {
   const { locationId } = await query.lockForIn(branchId, productId);
-  await query.applyIn(branchId, productId, locationId, qty, avgCost);
+  await query.addIn(branchId, productId, locationId, qty);
+  await query.setCost(branchId, productId, avgCost);
   return query.insertMovement({
     branchId,
     productId,
