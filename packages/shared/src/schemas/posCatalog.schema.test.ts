@@ -10,6 +10,7 @@ const item = {
   code: 'PRT-BRK-0214',
   name: 'Brake pad set, front, 150 cc',
   unit: 'pcs',
+  category: 'Parts',
   tracking: 'quantity',
   sellPrice: '1000.00',
   isPassThrough: false,
@@ -34,6 +35,12 @@ const list = { walkInPartyId: '0196f000-0000-7000-8000-0000000000c0', items: [it
 describe('posCatalogSchema', () => {
   it('accepts parts by quantity and bikes with their units in stock', () => {
     expect(posCatalogSchema.safeParse(list).success).toBe(true);
+  });
+
+  it('a product without a category is allowed (null), but the field must be there', () => {
+    expect(posCatalogSchema.safeParse({ ...list, items: [{ ...item, category: null }] }).success).toBe(true);
+    const { category: _left, ...withoutCategory } = item;
+    expect(posCatalogSchema.safeParse({ ...list, items: [withoutCategory] }).success).toBe(false);
   });
 
   it('allows no walk-in party yet (null) and an empty list', () => {

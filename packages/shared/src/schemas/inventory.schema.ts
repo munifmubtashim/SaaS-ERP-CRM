@@ -34,6 +34,8 @@ export const posCatalogItemSchema = z
     code: z.string().min(1),
     name: z.string().min(1),
     unit: z.string().min(1),
+    /** The product's category (Parts, Oil, Tyres …), for the POS filter; null when none is set. */
+    category: z.string().min(1).nullable(),
     tracking: z.enum(['serial', 'quantity']),
     sellPrice: moneySchema,
     /** A pass-through fee (item 3d): sold without stock. */
