@@ -1,11 +1,13 @@
 import {
   AppError,
+  businessDateInDhaka,
   divideByQuantity,
   formatMoney,
   multiplyByQuantity,
   parseMoney,
   addMoney,
 } from '@erp/shared';
+import type { IClock } from './contracts/IClock.js';
 import type { IStockQuery } from './contracts/IStockQuery.js';
 import type { IStockService, StockMovementDraft } from './contracts/provided/IStockService.js';
 
@@ -43,7 +45,11 @@ function conflict(code: string, message: string, path: string): AppError {
  * sorted by (product, branch), so two documents touching the same products can't deadlock.
  */
 export class StockService implements IStockService {
-  constructor(private readonly stock: IStockQuery) {}
+  /** The clock dates each movement by its business day in Dhaka (createManagers passes SystemClock, or the seed's). */
+  constructor(
+    private readonly stock: IStockQuery,
+    private readonly clock: IClock,
+  ) {}
 
   async move(movements: StockMovementDraft[]): Promise<{ movementIds: string[]; costs: string[] }> {
     for (const m of movements) this.check(m);
@@ -119,6 +125,7 @@ export class StockService implements IStockService {
       reason: m.reason ?? null,
       sourceType: m.source.type,
       sourceId: m.source.id,
+      movementDate: businessDateInDhaka(this.clock.now()),
     });
     return { id, cost };
   }
