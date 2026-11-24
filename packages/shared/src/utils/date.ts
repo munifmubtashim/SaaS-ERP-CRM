@@ -98,3 +98,12 @@ export function weekStartBD(date: string): string {
   const weekday = new Date(utcDay(date)).getUTCDay(); // 0 Sunday … 6 Saturday
   return addDaysISO(date, -((weekday + 1) % 7));
 }
+
+/** A calendar date ("YYYY-MM-DD") as a short day and month ("7 Nov"), for column headings. */
+export function formatDayMonthBD(date: string, locale: 'en-BD' | 'bn-BD' = 'en-BD'): string {
+  return new Intl.DateTimeFormat(locale === 'bn-BD' ? 'bn-BD' : 'en-GB', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(utcDay(date)));
+}
