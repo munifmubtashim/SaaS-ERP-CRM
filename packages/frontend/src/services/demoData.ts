@@ -29,13 +29,21 @@ const REPORT_KEYS = [
   'report.cashForecast',
 ] as const;
 
+/** The sales calls: the POS (catalog and Complete sale, routes built) and the invoices view (no routes yet). */
+const SALES_KEYS = ['sales.pos', 'sales.invoices'] as const;
+
 export type DemoService =
-  'organization' | 'sales' | 'inventory' | 'product' | 'vehicle' | (typeof REPORT_KEYS)[number];
+  | 'organization'
+  | 'inventory'
+  | 'product'
+  | 'vehicle'
+  | (typeof SALES_KEYS)[number]
+  | (typeof REPORT_KEYS)[number];
 
 /** Services that have a sample implementation. A later screen PR adds its service here with its sample. */
 export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
   'organization',
-  'sales',
+  ...SALES_KEYS,
   'inventory',
   'product',
   'vehicle',
@@ -43,12 +51,16 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
 ]);
 
 /**
- * No API yet: GET /v1/me/businesses (M2), the POS screen's calls (POST /v1/invoices exists, #191, but the POS service
- * is wired in its own PR), the stock routes' screens, the model and unit routes (#105, #107), and every report call but
- * the owner dashboard. GET /v1/reports/owner-dashboard exists (M6, #197), so it is real unless named.
+ * No API yet: GET /v1/me/businesses (M2), the invoices view's calls, the stock routes' screens, the model and unit
+ * routes (#105, #107), and every report call but the owner dashboard. Real unless named: the owner dashboard (M6,
+ * #197) and the POS (sales.pos: GET /v1/stock/pos-catalog #199, POST /v1/invoices #191).
  */
+const REAL_BY_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>([
+  'report.ownerDashboard',
+  'sales.pos',
+]);
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
-  [...DEMO_CAPABLE].filter((service) => service !== 'report.ownerDashboard'),
+  [...DEMO_CAPABLE].filter((service) => !REAL_BY_DEFAULT.has(service)),
 );
 
 export function parseDemoData(
@@ -64,7 +76,7 @@ export function parseDemoData(
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean)
-    .flatMap((name) => (name === 'report' ? [...REPORT_KEYS] : [name]));
+    .flatMap((name) => (name === 'report' ? [...REPORT_KEYS] : name === 'sales' ? [...SALES_KEYS] : [name]));
   for (const name of names) {
     if (!(DEMO_CAPABLE as ReadonlySet<string>).has(name)) {
       throw new Error(

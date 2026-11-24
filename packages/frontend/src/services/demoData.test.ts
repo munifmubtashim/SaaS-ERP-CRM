@@ -19,6 +19,13 @@ describe('parseDemoData', () => {
     // GET /v1/reports/owner-dashboard exists (M6, #197): real by default, sample only when named.
     expect(DEMO_DEFAULT.has('report.ownerDashboard')).toBe(false);
     expect(DEMO_CAPABLE.has('report.ownerDashboard')).toBe(true);
+    // The POS routes exist (#191, #199): sales.pos is real by default; the invoices view (sales.invoices) is not.
+    expect(DEMO_DEFAULT.has('sales.pos')).toBe(false);
+    expect(DEMO_DEFAULT.has('sales.invoices')).toBe(true);
+    expect([...parseDemoData('sales', { production: false })].sort()).toEqual([
+      'sales.invoices',
+      'sales.pos',
+    ]);
   });
 
   it('a comma list picks services; "all" is every service that has a sample; "none" is real everywhere', () => {
