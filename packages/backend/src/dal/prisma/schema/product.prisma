@@ -32,6 +32,8 @@ model Product {
   stockMovements StockMovement[]
   stockBalances  StockBalance[]
   stockCosts     StockCost[]
+  /// Invoice lines selling this product (ADR 0022). Back-relation Prisma requires.
+  invoiceLines   InvoiceLine[]
   serialUnits SerialUnit[]
 
   /// For serial_unit (business_id, product_id): a unit can't name another business's product.
