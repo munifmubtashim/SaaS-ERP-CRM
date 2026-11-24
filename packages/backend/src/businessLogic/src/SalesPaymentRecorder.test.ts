@@ -94,12 +94,16 @@ describe('SalesPaymentRecorder.record (ADR 0016)', () => {
           externalRef: ref,
           receiptNumber: 'RC-UTT-000001',
           journalId: journal?.journalId,
+          receivedAt: new Date('2026-11-21T19:30:00Z'),
+          note: null,
+          createdBy: null,
         },
       ]);
       expect(result).toEqual({
         paymentId: PAYMENT,
         receiptNumber: 'RC-UTT-000001',
         journalId: journal?.journalId,
+        receivedAt: '2026-11-21T19:30:00.000Z',
       });
     },
   );
@@ -188,6 +192,17 @@ describe('review fixes on #99', () => {
       field: 'payment.invoice_not_found',
     });
     expect(posting.journals).toEqual([]);
+  });
+
+  it('stores the note and the creator, and the time received is the server clock (ADR 0057)', async () => {
+    const { recorder, query } = setup();
+    const done = await recorder.record(input({ note: 'Paid at the counter', createdBy: PARTY }));
+    expect(query.inserted[0]).toMatchObject({
+      note: 'Paid at the counter',
+      createdBy: PARTY,
+      receivedAt: new Date('2026-11-21T19:30:00Z'),
+    });
+    expect(done.receivedAt).toBe('2026-11-21T19:30:00.000Z');
   });
 
   it('the external reference is stored trimmed', async () => {
