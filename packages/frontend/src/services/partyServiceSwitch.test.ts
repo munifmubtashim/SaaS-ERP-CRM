@@ -1,11 +1,12 @@
 import { customerDuesSchema, type CustomerDues, type PartyDetail, type PartyListResponse } from '@erp/shared';
 import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import type { IHttpClient } from './HttpClient';
+import type { IHttpClient, IHttpPatch } from './HttpClient';
 import { PartyService, PartyServiceSwitch, type IPartyService, type PartyCall } from './partyService';
 
 /** Task 4 T2: the customer screens on the real party routes, dues on the sample until F5 (frontend-wiring.md). */
-class RecordingHttp implements IHttpClient {
+class RecordingHttp implements IHttpClient, IHttpPatch {
+  patchJson = () => Promise.reject(new Error('unused'));
   gets: { path: string; schema: z.ZodType }[] = [];
   getJson = <T extends z.ZodType>(path: string, schema: T) => {
     this.gets.push({ path, schema });
@@ -28,6 +29,8 @@ describe('PartyServiceSwitch', () => {
     list: () => Promise.resolve({ items: [], nextCursor: who } as PartyListResponse),
     get: () => Promise.resolve({ code: who } as PartyDetail),
     dues: () => Promise.resolve({ partyId: who } as CustomerDues),
+    create: () => Promise.reject(new Error('unused')),
+    update: () => Promise.reject(new Error('unused')),
   });
 
   it('asks the real or the sample service per call', async () => {

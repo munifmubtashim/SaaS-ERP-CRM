@@ -1,9 +1,14 @@
 import {
+  createPartySchema,
   DEFAULT_PAGE_SIZE,
+  updatePartySchema,
+  type CreatePartyInput,
+  type Party,
   type PartyDetail,
   type PartyListItem,
   type PartyListQueryInput,
   type PartyListResponse,
+  type UpdatePartyInput,
 } from '@erp/shared';
 import { ApiRequestError } from '../HttpClient';
 import type { IPartyService } from '../partyService';
@@ -158,11 +163,42 @@ function decodeCursor(cursor: string): number {
  * an opaque cursor.
  */
 /** The customers' sample (list, get); the dues' sample is MockSalesService (SamplePartyService joins them). */
-export class MockPartyService implements Pick<IPartyService, 'list' | 'get'> {
+export class MockPartyService implements Omit<IPartyService, 'dues'> {
   constructor(
     private readonly activeBusinessId: () => string,
     private readonly delayMs = 400,
   ) {}
+
+  /** Customers added or edited in this session, per business: the sample has no database (task 4 T3). */
+  private readonly saved = new Map<string, Map<string, PartyDetail>>();
+
+  private savedIn(businessId: string): Map<string, PartyDetail> {
+    let rows = this.saved.get(businessId);
+    if (!rows) {
+      rows = new Map();
+      this.saved.set(businessId, rows);
+    }
+    return rows;
+  }
+
+  /** The business's rows as the list shows them: the fixed sample with this session's additions and edits. */
+  private rowsOf(businessId: string): PartyListItem[] {
+    const saved = this.savedIn(businessId);
+    const fixed = (SAMPLE_PARTIES[businessId] ?? []).map((r) => saved.get(r.id) ?? r);
+    const added = [...saved.values()].filter((p) => !fixed.some((r) => r.id === p.id));
+    return [...fixed, ...added].map((p) => ({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      nameBn: p.nameBn,
+      kind: p.kind,
+      isCustomer: p.isCustomer,
+      isSupplier: p.isSupplier,
+      phone: p.phone,
+      area: p.area,
+      status: p.status,
+    }));
+  }
 
   async list(query: PartyListQueryInput): Promise<PartyListResponse> {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
@@ -170,7 +206,7 @@ export class MockPartyService implements Pick<IPartyService, 'list' | 'get'> {
     const start = query.cursor ? decodeCursor(query.cursor) : 0;
     const search = query.search?.trim();
 
-    const rows = (SAMPLE_PARTIES[this.activeBusinessId()] ?? [])
+    const rows = this.rowsOf(this.activeBusinessId())
       .filter((r) => query.role !== 'customer' || r.isCustomer)
       .filter((r) => query.role !== 'supplier' || r.isSupplier)
       .filter((r) => !query.status || r.status === query.status)
@@ -188,8 +224,93 @@ export class MockPartyService implements Pick<IPartyService, 'list' | 'get'> {
   async get(id: string): Promise<PartyDetail> {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
     const businessId = this.activeBusinessId();
+    const saved = this.savedIn(businessId).get(id);
+    if (saved) return saved;
     const row = findSampleParty(businessId, id);
     if (!row) throw notFound();
     return sampleDetail(row, businessId);
   }
+
+  /** Stands in for POST /v1/parties: the API's checks on the same shared schema, and its duplicate-phone 409. */
+  async create(input: CreatePartyInput): Promise<Party> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    const businessId = this.activeBusinessId();
+    const body = createPartySchema.parse(input);
+    if (!body.confirmDuplicate) this.refuseDuplicate(businessId, [body.phone, body.altPhone], null);
+    const saved = this.savedIn(businessId);
+    const now = new Date().toISOString();
+    const party: PartyDetail = {
+      id: crypto.randomUUID(),
+      businessId,
+      code: `C-${String(901 + saved.size).padStart(4, '0')}`,
+      name: body.name,
+      nameBn: body.nameBn,
+      kind: body.kind,
+      isCustomer: body.isCustomer,
+      isSupplier: body.isSupplier,
+      phone: body.phone,
+      altPhone: body.altPhone,
+      email: body.email,
+      address: body.address,
+      area: body.area,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      nidLast4: null,
+      creditLimit: body.creditLimit,
+      payTermDays: body.payTermDays,
+      onCreditHold: false,
+      isWalkIn: false,
+    };
+    saved.set(party.id, party);
+    return party;
+  }
+
+  /** Stands in for PATCH /v1/parties/:id: the version read must still be current (409 party.version_conflict). */
+  async update(id: string, input: UpdatePartyInput): Promise<Party> {
+    const current = await this.get(id);
+    const { version, confirmDuplicate, ...changes } = updatePartySchema.parse(input);
+    if (version !== current.version)
+      throw conflict('version', 'party.version_conflict', 'Changed by someone else.');
+    if (!confirmDuplicate && (changes.phone !== undefined || changes.altPhone !== undefined)) {
+      this.refuseDuplicate(this.activeBusinessId(), [changes.phone ?? null, changes.altPhone ?? null], id);
+    }
+    const edited: PartyDetail = {
+      ...current,
+      ...Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined)),
+      version: current.version + 1,
+      updatedAt: new Date().toISOString(),
+    };
+    this.savedIn(this.activeBusinessId()).set(id, edited);
+    return edited;
+  }
+
+  /** The API's rule (ADR 0056 section 3): one field error per active party already holding one of the phones. */
+  private refuseDuplicate(businessId: string, phones: (string | null)[], exceptId: string | null): void {
+    const wanted = phones.filter((p): p is string => p !== null);
+    const matches = this.rowsOf(businessId).filter(
+      (r) => r.id !== exceptId && r.status === 'active' && wanted.includes(r.phone),
+    );
+    if (matches.length === 0) return;
+    throw new ApiRequestError(409, {
+      code: 'CONFLICT',
+      message: 'A customer or supplier with this phone already exists.',
+      fields: matches.map((m) => ({
+        path: 'phone',
+        code: 'party.possible_duplicate',
+        message: `${m.code} ${m.name}`,
+      })),
+      requestId: 'mock',
+    });
+  }
+}
+
+function conflict(path: string, code: string, message: string): ApiRequestError {
+  return new ApiRequestError(409, {
+    code: 'CONFLICT',
+    message,
+    fields: [{ path, code, message }],
+    requestId: 'mock',
+  });
 }

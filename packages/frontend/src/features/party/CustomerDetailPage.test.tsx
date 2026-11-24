@@ -5,7 +5,13 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import { ApiRequestError, type DemoService, type IHttpClient, type IPartyService } from '../../services';
+import {
+  ApiRequestError,
+  type IHttpPatch,
+  type DemoService,
+  type IHttpClient,
+  type IPartyService,
+} from '../../services';
 import { PartyService } from '../../services/partyService';
 import { activeBusinessStore } from '../../store/activeBusinessStore';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
@@ -112,6 +118,8 @@ function renderPage(
     list: (query) => customers.list(query),
     get: (id) => customers.get(id),
     dues: (partyId) => duesOf.dues(partyId),
+    create: () => Promise.reject(new Error('This test never adds a customer.')),
+    update: () => Promise.reject(new Error('This test never edits a customer.')),
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -147,10 +155,11 @@ describe('CustomerDetailPage (mock data)', () => {
   it('shows only the last four NID digits, and never a full NID the API wrongly sent', async () => {
     const fullNid = '1990000001234';
     // The real PartyService checks the reply with partyDetailSchema, which drops every unknown key.
-    const http: IHttpClient = {
+    const http: IHttpClient & IHttpPatch = {
       getJson: async (_path, schema) => schema.parse({ ...profile, nid: fullNid, nationalId: fullNid }),
       postJson: () => Promise.reject(new Error('not used')),
       post: () => Promise.reject(new Error('not used')),
+      patchJson: () => Promise.reject(new Error('not used')),
     };
     const { container } = renderPage(new PartyService(http), new FakeSales());
     expect(await screen.findByText('•••• 1234')).toBeInTheDocument();

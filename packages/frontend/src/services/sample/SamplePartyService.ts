@@ -1,4 +1,12 @@
-import type { CustomerDues, PartyDetail, PartyListQueryInput, PartyListResponse } from '@erp/shared';
+import type {
+  CreatePartyInput,
+  CustomerDues,
+  Party,
+  PartyDetail,
+  PartyListQueryInput,
+  PartyListResponse,
+  UpdatePartyInput,
+} from '@erp/shared';
 import type { IPartyService } from '../partyService';
 
 /**
@@ -8,10 +16,12 @@ import type { IPartyService } from '../partyService';
  */
 export class SamplePartyService implements IPartyService {
   constructor(
-    private readonly customers: Pick<IPartyService, 'list' | 'get'>,
+    private readonly customers: Omit<IPartyService, 'dues'>,
     private readonly duesSample: Pick<IPartyService, 'dues'>,
   ) {}
   list = (query: PartyListQueryInput): Promise<PartyListResponse> => this.customers.list(query);
   get = (id: string): Promise<PartyDetail> => this.customers.get(id);
   dues = (partyId: string): Promise<CustomerDues> => this.duesSample.dues(partyId);
+  create = (input: CreatePartyInput): Promise<Party> => this.customers.create(input);
+  update = (id: string, input: UpdatePartyInput): Promise<Party> => this.customers.update(id, input);
 }
