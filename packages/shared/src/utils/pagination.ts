@@ -21,3 +21,14 @@ export function cursorPageSchema<T extends z.ZodType>(item: T) {
     nextCursor: z.string().min(1).nullable(),
   });
 }
+
+/**
+ * A list's free-text search: trimmed, at most 100 characters, and a blank search means no search, so
+ * "?search=" never filters the list down to nothing.
+ */
+export const searchTermSchema = z
+  .string()
+  .trim()
+  .max(100)
+  .transform((s) => (s === '' ? undefined : s))
+  .optional();
