@@ -32,6 +32,10 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
   'GET /v1/parties/:id': {
     attempts: ["read X's party from Y: 404, the same as a guessed id"],
   },
+  // Run by dues.isolation.test.ts against real Postgres (ADR 0059 test 2).
+  'GET /v1/parties/:id/dues': {
+    attempts: ["read X's customer's dues from Y: 404, the same as a guessed id, and nothing of X shows"],
+  },
   'POST /v1/parties': {
     attempts: [
       'send businessId, code or status in the body: 400, nothing created',

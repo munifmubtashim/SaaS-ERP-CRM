@@ -15,6 +15,16 @@ export interface SalesPaymentInsert {
   createdBy: string | null;
 }
 
+/** One open invoice, as the dues read lists it. Money as strings. */
+export interface OpenInvoiceRow {
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  total: string;
+  paid: string;
+  due: string;
+}
+
 /**
  * Sales payments' database access (ADR 0026 section 1, ADR 0016 section 1). Satisfies businessLogic's
  * contracts/ISalesPaymentQuery for SalesPaymentRecorder: at the sale (item 3b) and, later, POST /v1/payments
@@ -40,6 +50,30 @@ export class SalesPaymentQuery extends BaseQuery {
       SELECT (${invoice.total}::numeric(18,2) - coalesce(sum(amount), 0))::numeric(18,2)::text AS due
         FROM sales_payment WHERE invoice_id = ${invoiceId}::uuid AND status = 'posted'`;
     return due?.due ?? invoice.total;
+  }
+
+  /**
+   * The party's posted invoices with something still to pay, oldest first (ADR 0059 section 1): each total less its
+   * posted payments, at the sale and after. Read under RLS in the request's transaction, the same scope as the ledger's
+   * balances, so a branch scope sees its branches' invoices and journals alike. Satisfies IOpenInvoiceQuery.
+   */
+  async openInvoices(partyId: string): Promise<OpenInvoiceRow[]> {
+    return this.db.$queryRaw<OpenInvoiceRow[]>`
+      SELECT i.id::text AS "invoiceId",
+             i.number AS "invoiceNumber",
+             to_char(i.invoice_date, 'YYYY-MM-DD') AS "invoiceDate",
+             i.total::numeric(18,2)::text AS total,
+             coalesce(p.paid, 0)::numeric(18,2)::text AS paid,
+             (i.total - coalesce(p.paid, 0))::numeric(18,2)::text AS due
+        FROM invoice i
+        LEFT JOIN (SELECT invoice_id, sum(amount) AS paid
+                     FROM sales_payment
+                    WHERE party_id = ${partyId}::uuid AND status = 'posted' AND invoice_id IS NOT NULL
+                    GROUP BY invoice_id) p ON p.invoice_id = i.id
+       WHERE i.party_id = ${partyId}::uuid
+         AND i.status = 'posted'
+         AND i.total > coalesce(p.paid, 0)
+       ORDER BY i.invoice_date, i.created_at, i.id`;
   }
 
   async insertPayment(payment: SalesPaymentInsert): Promise<void> {
