@@ -1,12 +1,12 @@
 import { formatTaka } from '@erp/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { useServices } from '../../app/servicesContext';
 import { DemoBadge } from '../../components/ui';
 import { useI18n } from '../../i18n';
-
-export const pill =
-  'min-h-10 rounded-full px-4 text-[13px] text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
+import { pill } from './pill';
+import { ProductCatalogue } from './ProductCatalogue';
 
 /** A view a pack adds to the Products screen (the Vehicle pack adds Units); the core knows nothing else of it. */
 export interface ProductsView {
@@ -16,21 +16,31 @@ export interface ProductsView {
 }
 
 /**
- * Products (design/owner-dashboard/Bikes.dc.html): the core shows Models; a pack may add views before it, which then
- * open first. Generic core words only (spec O-11): chassis, engine and BRTA live in features/vehicle. Owner: Munif.
+ * Products (design/owner-dashboard/Bikes.dc.html): the core shows Models and All products (the catalogue, task 5); a
+ * pack may add views before them, which then open first. "Add product" opens the form. Generic core words only (spec
+ * O-11): chassis, engine and BRTA live in features/vehicle. Owner: Munif.
  */
 export function ProductsPage({ packViews = [] }: { packViews?: ProductsView[] }) {
   const { t } = useI18n();
   const views: ProductsView[] = [
     ...packViews,
     { key: 'models', label: t('prod.view.models'), element: <ModelsView /> },
+    { key: 'catalogue', label: t('prod.view.catalogue'), element: <ProductCatalogue /> },
   ];
   const [view, setView] = useState(views[0]?.key ?? 'models');
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="num text-[28px] font-bold">{t('shell.nav.products')}</h1>
-        <p className="text-[13px] text-text2">{t('prod.subtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="num text-[28px] font-bold">{t('shell.nav.products')}</h1>
+          <p className="text-[13px] text-text2">{t('prod.subtitle')}</p>
+        </div>
+        <Link
+          to="/products/new"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:brightness-110"
+        >
+          {t('prod.add')}
+        </Link>
       </div>
       {views.length > 1 && (
         <div
