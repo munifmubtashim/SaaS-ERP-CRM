@@ -345,3 +345,19 @@ describe('editing from the profile (task 4 T3)', () => {
     );
   });
 });
+
+describe('the walk-in customer (ADR 0055, ADR 0057)', () => {
+  it('offers no Record payment: a walk-in sale never leaves a due, and an advance must name a customer', async () => {
+    renderPage(new FakeParty({ ...profile, name: 'Walk-in customer', isWalkIn: true }), new FakeSales());
+    expect(await screen.findByRole('heading', { name: 'Walk-in customer' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Record payment' })).toBeNull();
+  });
+
+  it('a named customer still offers it', async () => {
+    renderPage(new FakeParty(), new FakeSales());
+    expect(await screen.findByRole('link', { name: 'Record payment' })).toHaveAttribute(
+      'href',
+      `/customers/${ID}/payment`,
+    );
+  });
+});
