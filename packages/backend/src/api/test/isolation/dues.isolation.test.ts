@@ -4,6 +4,7 @@ import { customerDuesSchema, type TenantScope } from '@erp/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createApp, DEV_APP_ORIGIN } from '../../app.js';
+import { openDuesTotal } from '../duesTotal.js';
 import { silentLogger } from '../helpers.js';
 
 /**
@@ -162,8 +163,7 @@ describe('ADR 0059 test 1: the ledger total and the documents agree', () => {
       [first.id, first.number, '1000.00', '400.00', '600.00'],
       [second.id, second.number, '2000.00', '0.00', '2000.00'],
     ]);
-    const sumPaisa = dues.openInvoices.reduce((s, i) => s + BigInt(i.due.replace('.', '')), 0n);
-    expect(sumPaisa).toBe(BigInt(dues.totalDue.replace('.', '')));
+    expect(openDuesTotal(dues)).toBe(dues.totalDue);
   });
 });
 
