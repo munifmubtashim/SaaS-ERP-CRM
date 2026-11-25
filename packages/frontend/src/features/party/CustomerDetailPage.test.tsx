@@ -347,10 +347,12 @@ describe('editing from the profile (task 4 T3)', () => {
 });
 
 describe('the walk-in customer (ADR 0055, ADR 0057)', () => {
-  it('offers no Record payment: a walk-in sale never leaves a due, and an advance must name a customer', async () => {
+  it('offers no Record payment and no Edit: a walk-in sale never leaves a due, an advance must name a customer, and it is never edited', async () => {
     renderPage(new FakeParty({ ...profile, name: 'Walk-in customer', isWalkIn: true }), new FakeSales());
     expect(await screen.findByRole('heading', { name: 'Walk-in customer' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Record payment' })).toBeNull();
+    // ADR 0059 section 3: the API refuses to edit it (409 party.walk_in_locked).
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
   });
 
   it('a named customer still offers it', async () => {

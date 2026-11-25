@@ -541,6 +541,10 @@ export const bn: Record<MessageKey, string> = {
   'payment.error.amount': 'শূন্যের বেশি পরিমাণ লিখুন, যেমন 12500 বা 12500.50।',
   'payment.error.externalRef': 'এই পদ্ধতির জন্য লেনদেন আইডি লিখুন।',
   'payment.error.save': 'জমা নিশ্চিত করা যায়নি। আবার চেষ্টা করুন: একই টাকা দুবার জমা হবে না।',
+  'payment.error.exceedsDue':
+    'এই চালানে যা বাকি আছে, এটি তার চেয়ে বেশি। পরিমাণ বদলান, অথবা বাকিটা অগ্রিম হিসেবে নিন।',
+  'payment.error.invoiceGone': 'এই চালানটি আর খোলা নেই। কী বাকি আছে দেখতে গ্রাহকের পাতায় ফিরে যান।',
+  'payment.error.forbidden': 'পেমেন্ট নেওয়ার অনুমতি আপনার নেই।',
   'payment.done.title': 'টাকা জমা হয়েছে',
   'payment.done.receipt': 'রসিদ নম্বর',
   'payment.done.amount': 'পরিমাণ',

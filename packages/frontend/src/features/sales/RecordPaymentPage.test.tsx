@@ -84,6 +84,7 @@ class FakeSales implements Pick<IPartyService, 'dues'>, ISalesPaymentService {
   constructor(
     private readonly answer: CustomerDues = dues,
     private failures = 0,
+    private readonly failWith: () => Error = () => new Error('network down'),
   ) {}
   async dues(): Promise<CustomerDues> {
     return this.answer;
@@ -92,7 +93,7 @@ class FakeSales implements Pick<IPartyService, 'dues'>, ISalesPaymentService {
     this.requests.push({ input, key: idempotencyKey });
     if (this.failures > 0) {
       this.failures -= 1;
-      throw new Error('network down');
+      throw this.failWith();
     }
     return {
       id: '0196f000-0000-7000-8000-000000000301',
@@ -236,6 +237,54 @@ describe('RecordPaymentPage (mock data)', () => {
     expect(sales.requests).toHaveLength(2);
     expect(sales.requests[0]?.input.amount).toBe('2500.50');
     expect(sales.requests[1]?.key).toBe(sales.requests[0]?.key);
+  });
+
+  it('a payment above the due is refused by the API with its reason, and no retry is offered', async () => {
+    const refusal = () =>
+      new ApiRequestError(409, {
+        code: 'CONFLICT',
+        message: 'exceeds',
+        fields: [{ path: 'amount', code: 'payment.exceeds_due', message: 'exceeds' }],
+        requestId: 'test',
+      });
+    const sales = new FakeSales(dues, 1, refusal);
+    renderPage(new FakeParty(), sales);
+    await screen.findByLabelText('Payment for');
+    typeAmount('2500');
+    await continueToConfirm();
+    click('Record payment');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This is more than is still due on the invoice. Change the amount, or take the rest as an advance.',
+    );
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    click('Change');
+    expect(await screen.findByLabelText('Amount (৳)')).toHaveValue('2500');
+  });
+
+  it('an invoice that is no longer open, and a missing permission, are named too', async () => {
+    const cases: [() => Error, string][] = [
+      [
+        () =>
+          new ApiRequestError(404, {
+            code: 'NOT_FOUND',
+            message: 'gone',
+            fields: [{ path: 'invoiceId', code: 'payment.invoice_not_found', message: 'gone' }],
+            requestId: 'test',
+          }),
+        'This invoice is no longer open. Go back to the customer to see what is due.',
+      ],
+      [() => apiError(403, 'FORBIDDEN'), 'You do not have permission to record payments.'],
+    ];
+    for (const [failWith, text] of cases) {
+      const view = renderPage(new FakeParty(), new FakeSales(dues, 1, failWith));
+      await screen.findByLabelText('Payment for');
+      typeAmount('100');
+      await continueToConfirm();
+      click('Record payment');
+      expect(await screen.findByRole('alert')).toHaveTextContent(text);
+      expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+      view.unmount();
+    }
   });
 
   it('"Change" goes back to the form with the values kept', async () => {
