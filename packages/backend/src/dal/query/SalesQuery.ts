@@ -56,7 +56,10 @@ export interface InvoiceDetailRow extends InvoiceSummaryRow {
   }[];
 }
 
-/** The summary columns of the invoice reads; soldBy, subtotal and discount ride along for the detail. */
+/**
+ * The summary columns of the invoice reads; soldBy, subtotal and discount ride along for the detail. soldBy is the staff
+ * member linked to the login that sold it (staff.user_id): only AuthQuery may name the access tables (ADR 0008 test 15).
+ */
 const SUMMARY_SELECT = Prisma.sql`
   SELECT i.id::text AS id,
          i.number,
@@ -69,12 +72,16 @@ const SUMMARY_SELECT = Prisma.sql`
          coalesce(pay.paid, 0)::numeric(18,2)::text AS paid,
          (i.total - coalesce(pay.paid, 0))::numeric(18,2)::text AS due,
          i.status,
-         coalesce(u.display_name, '—') AS "soldBy",
+         coalesce(st.name, '—') AS "soldBy",
          i.subtotal::numeric(18,2)::text AS subtotal,
          i.discount::numeric(18,2)::text AS discount
     FROM invoice i
     JOIN party p ON p.id = i.party_id
-    LEFT JOIN app_user u ON u.id = i.sold_by
+    LEFT JOIN LATERAL (SELECT s.name
+                         FROM staff s
+                        WHERE s.user_id = i.sold_by AND s.business_id = i.business_id
+                        ORDER BY s.created_at, s.id
+                        LIMIT 1) st ON true
     LEFT JOIN LATERAL (SELECT sum(sp.amount) AS paid
                          FROM sales_payment sp
                         WHERE sp.invoice_id = i.id AND sp.status = 'posted') pay ON true`;
