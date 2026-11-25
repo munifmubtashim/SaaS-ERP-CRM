@@ -75,6 +75,10 @@ export const unusedInventory: IInventoryService = {
 /** IProductService and IVehicleService for tests that never read them: using one is a test bug. */
 export const unusedProduct: IProductService = {
   models: () => Promise.reject(new Error('This test listed models without injecting a service.')),
+  list: () => Promise.reject(new Error('This test listed products without injecting a service.')),
+  get: () => Promise.reject(new Error('This test opened a product without injecting a service.')),
+  create: () => Promise.reject(new Error('This test added a product without injecting a service.')),
+  edit: () => Promise.reject(new Error('This test edited a product without injecting a service.')),
 };
 export const unusedVehicle: IVehicleService = {
   units: () => Promise.reject(new Error('This test listed units without injecting a service.')),

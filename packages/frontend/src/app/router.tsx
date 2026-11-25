@@ -5,6 +5,7 @@ import { RecordPaymentPage } from '../features/sales';
 import { AppShell, NAV } from './AppShell';
 import { DashboardPage } from '../features/report';
 import { InventoryPage } from '../features/inventory';
+import { ProductFormPage } from '../features/product';
 import { PosPage } from '../features/sales';
 import { VehicleProductsPage } from '../features/vehicle';
 import { NotBuiltPage } from './NotBuiltPage';
@@ -27,6 +28,8 @@ export const router = createBrowserRouter([
       { path: 'customers/:id', element: <CustomerDetailPage /> },
       { path: 'customers/:id/edit', element: <CustomerFormPage /> },
       { path: 'customers/:id/payment', element: <RecordPaymentPage /> },
+      { path: 'products/new', element: <ProductFormPage /> },
+      { path: 'products/:id/edit', element: <ProductFormPage /> },
       // TODO(owner of each module): replace with the module's routes from features/<module>/.
       ...NAV.filter((n) => n.to !== '/' && n.to !== '/customers').map((n) => ({
         path: n.to.slice(1),

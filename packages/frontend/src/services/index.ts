@@ -3,7 +3,7 @@ import { HttpClient, type IHttpClient, type IHttpPatch } from './HttpClient';
 import { AuthService, type IAuthService } from './authService';
 import { OrganizationService, type IOrganizationService } from './organizationService';
 import { MockOrganizationService } from './mock/MockOrganizationService';
-import { ProductService, type IProductService } from './productService';
+import { ProductService, ProductServiceSwitch, type IProductService } from './productService';
 import { InventoryService, type IInventoryService } from './inventoryService';
 import { AccountingService, type IAccountingService } from './accountingService';
 import { VehicleService, type IVehicleService } from './vehicleService';
@@ -87,8 +87,11 @@ export function createServices(
     auth: new AuthService(http),
     // Sample until GET /v1/me/businesses exists (M2); a production build always calls the API.
     organization: demo.has('organization') ? new MockOrganizationService() : new OrganizationService(http),
-    // Sample until the catalogue routes exist (#105, ADR 0052); a production build always calls the API.
-    product: demo.has('product') ? new SampleProductService() : new ProductService(http),
+    // The catalogue routes exist (#131): real unless `product.catalogue` is named. The Models tab has no route yet
+    // (`product`). A production build always calls the API.
+    product: new ProductServiceSwitch(new ProductService(http), new SampleProductService(), (call) =>
+      demo.has(call === 'models' ? 'product' : 'product.catalogue'),
+    ),
     // Sample until the stock routes exist (ADR 0021, 0054); a production build always calls the API.
     inventory: demo.has('inventory') ? new SampleInventoryService() : new InventoryService(http),
     accounting: new AccountingService(http),

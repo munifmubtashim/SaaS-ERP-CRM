@@ -1,13 +1,13 @@
 import { productModelSummarySchema, vehicleUnitDetailSchema, vehicleUnitSchema } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
-import type { IHttpClient } from './HttpClient';
+import type { IHttpClient, IHttpPatch } from './HttpClient';
 import { ProductService } from './productService';
 import { SampleProductService } from './sample/SampleProductService';
 import { SampleVehicleService } from './sample/SampleVehicleService';
 import { VehicleService } from './vehicleService';
 
 /** The Products screen's reads: models (core) and units (Vehicle pack only, spec O-11). */
-class RecordingHttp implements IHttpClient {
+class RecordingHttp implements IHttpClient, IHttpPatch {
   gets: string[] = [];
   getJson = (path: string) => {
     this.gets.push(path);
@@ -15,6 +15,7 @@ class RecordingHttp implements IHttpClient {
   };
   postJson = () => Promise.reject(new Error('unused'));
   post = () => Promise.reject(new Error('unused'));
+  patchJson = () => Promise.reject(new Error('unused'));
 }
 
 describe('ProductService and VehicleService (the API)', () => {

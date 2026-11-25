@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
@@ -20,7 +21,9 @@ function renderPage({ pack = true, locale = 'en' as 'en' | 'bn' } = {}) {
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <I18nProvider locale={locale}>
-          <VehicleProductsPage />
+          <MemoryRouter>
+            <VehicleProductsPage />
+          </MemoryRouter>
         </I18nProvider>
       </QueryClientProvider>
     </ServicesContext.Provider>,
