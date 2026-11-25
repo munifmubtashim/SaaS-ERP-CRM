@@ -1,11 +1,12 @@
 import { partyListResponseSchema } from '@erp/shared';
 import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import type { IHttpClient } from './HttpClient';
+import type { IHttpClient, IHttpPatch } from './HttpClient';
 import { PartyService } from './partyService';
 
 /** Records what the service asks the HTTP client for, and answers with an empty page. */
-class RecordingHttp implements IHttpClient {
+class RecordingHttp implements IHttpClient, IHttpPatch {
+  patchJson = () => Promise.reject(new Error('unused'));
   readonly calls: { path: string; schema: z.ZodType }[] = [];
   async getJson<T extends z.ZodType>(path: string, schema: T): Promise<z.infer<T>> {
     this.calls.push({ path, schema });

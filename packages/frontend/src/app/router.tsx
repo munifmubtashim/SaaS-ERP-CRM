@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router';
 import { LoginPage, RequireSession } from '../features/auth';
-import { CustomerDetailPage, CustomerListPage } from '../features/party';
+import { CustomerDetailPage, CustomerFormPage, CustomerListPage } from '../features/party';
 import { RecordPaymentPage } from '../features/sales';
 import { AppShell, NAV } from './AppShell';
 import { DashboardPage } from '../features/report';
@@ -23,7 +23,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'customers', element: <CustomerListPage /> },
+      { path: 'customers/new', element: <CustomerFormPage /> },
       { path: 'customers/:id', element: <CustomerDetailPage /> },
+      { path: 'customers/:id/edit', element: <CustomerFormPage /> },
       { path: 'customers/:id/payment', element: <RecordPaymentPage /> },
       // TODO(owner of each module): replace with the module's routes from features/<module>/.
       ...NAV.filter((n) => n.to !== '/' && n.to !== '/customers').map((n) => ({

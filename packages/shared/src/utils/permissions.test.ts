@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  hasAnyRole,
+  hasPermission,
   PERMISSIONS,
   permissionCodeSchema,
   ROLE_CODES,
@@ -14,11 +16,19 @@ import {
 // the three codes this ADR defines. Each later module adds its own codes and mapping in its own PR.
 
 describe('permission codes', () => {
-  it('has the three codes ADR 0008 defines', () => {
+  it('has the three codes ADR 0008 defines, sales.invoice.post (ADR 0022), the release 1 party codes (ADR 0056) and sales.payment.create (ADR 0057)', () => {
     expect([...PERMISSIONS].sort()).toEqual([
       'accounting.salary.view',
+      'party.customer.create',
+      'party.customer.deactivate',
+      'party.customer.edit',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
+      'sales.payment.create',
     ]);
   });
 
@@ -61,23 +71,70 @@ describe('roles', () => {
 describe('default role mapping (provisional, ADR 0008 section 3)', () => {
   const sorted = (codes: readonly string[]) => [...codes].sort();
 
-  it('matches the ADR 0008 table exactly', () => {
+  it('matches the ADR 0008 table and ADR 0056 section 2 exactly', () => {
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.owner)).toEqual([
       'accounting.salary.view',
+      'party.customer.create',
+      'party.customer.deactivate',
+      'party.customer.edit',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.post',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.accountant)).toEqual([
       'accounting.salary.view',
+      'party.customer.create',
+      'party.customer.deactivate',
+      'party.customer.edit',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.business_manager)).toEqual([
+      'party.customer.create',
+      'party.customer.deactivate',
+      'party.customer.edit',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.payment.create',
     ]);
-    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).toEqual([]);
-    expect(DEFAULT_ROLE_PERMISSIONS.cashier).toEqual([]);
+    expect(sorted(DEFAULT_ROLE_PERMISSIONS.branch_manager)).toEqual([
+      'party.customer.create',
+      'party.customer.edit',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
+      'sales.invoice.post',
+      'sales.payment.create',
+    ]);
+    expect(sorted(DEFAULT_ROLE_PERMISSIONS.cashier)).toEqual([
+      'party.customer.create',
+      'party.customer.view',
+      'party.supplier.create',
+      'party.supplier.view',
+      'sales.invoice.post',
+      'sales.payment.create',
+    ]);
+  });
+
+  it('lets all five roles record a customer payment (ADR 0026 section 4, ADR 0057)', () => {
+    for (const role of ROLE_CODES) expect(DEFAULT_ROLE_PERMISSIONS[role]).toContain('sales.payment.create');
+  });
+
+  it('gives the Cashier no party edit or deactivate, and the Branch Manager no deactivate (ADR 0006 section 8)', () => {
+    expect(DEFAULT_ROLE_PERMISSIONS.cashier).not.toContain('party.customer.edit');
+    expect(DEFAULT_ROLE_PERMISSIONS.cashier).not.toContain('party.customer.deactivate');
+    expect(DEFAULT_ROLE_PERMISSIONS.branch_manager).not.toContain('party.customer.deactivate');
   });
 
   it('gives Branch Manager and Cashier none of cost, profit or salary', () => {
@@ -112,5 +169,20 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
 
   it('maps Owner explicitly to every code in PERMISSIONS (no wildcard)', () => {
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.owner)).toEqual(sorted(PERMISSIONS));
+  });
+});
+
+describe('the access checks the api uses (ADR 0051 section 2)', () => {
+  it('hasPermission: only a granted code passes', () => {
+    expect(hasPermission(['report.profit.view'], 'report.profit.view')).toBe(true);
+    expect(hasPermission(['product.cost.view'], 'report.profit.view')).toBe(false);
+    expect(hasPermission([], 'accounting.salary.view')).toBe(false);
+  });
+
+  it('hasAnyRole: one of the allowed role codes passes; an unknown or empty role list does not', () => {
+    expect(hasAnyRole(['cashier', 'business_manager'], ['owner', 'business_manager'])).toBe(true);
+    expect(hasAnyRole(['branch_manager', 'cashier'], ['owner', 'business_manager'])).toBe(false);
+    expect(hasAnyRole(['custom_role'], ['owner'])).toBe(false);
+    expect(hasAnyRole([], ['owner'])).toBe(false);
   });
 });

@@ -90,6 +90,8 @@ const unusedParty: IPartyService = {
   list: () => Promise.reject(new Error('This test did not expect a party request.')),
   get: () => Promise.reject(new Error('This test did not expect a party request.')),
   dues: () => Promise.reject(new Error('This test did not expect a party request.')),
+  create: () => Promise.reject(new Error('This test did not expect a party request.')),
+  update: () => Promise.reject(new Error('This test did not expect a party request.')),
 };
 
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */

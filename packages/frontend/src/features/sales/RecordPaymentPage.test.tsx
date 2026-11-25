@@ -124,6 +124,8 @@ function renderPage(
     list: () => customers.list(),
     get: () => customers.get(),
     dues: () => sales.dues(),
+    create: () => Promise.reject(new Error('This test never adds a customer.')),
+    update: () => Promise.reject(new Error('This test never edits a customer.')),
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

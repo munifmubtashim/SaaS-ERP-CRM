@@ -12,6 +12,18 @@ export const PERMISSIONS = [
   'product.cost.view',
   'report.profit.view',
   'accounting.salary.view',
+  // Posting a sale at the counter (ADR 0022, item 3b).
+  'sales.invoice.post',
+  // Recording a customer payment, POST /v1/payments (ADR 0026 section 4, ADR 0057).
+  'sales.payment.create',
+  // Party, release 1 (ADR 0006 section 8, ADR 0056 section 2). Merge, import, NID, credit and the supplier
+  // edit and deactivate codes come with their features.
+  'party.customer.view',
+  'party.customer.create',
+  'party.customer.edit',
+  'party.customer.deactivate',
+  'party.supplier.view',
+  'party.supplier.create',
 ] as const satisfies readonly `${string}.${string}.${string}`[];
 
 export const permissionCodeSchema = z.enum(PERMISSIONS);
@@ -40,10 +52,46 @@ export const ROLE_NAMES = {
  * Typed as a plain record, not `as const`: callers ask `DEFAULT_ROLE_PERMISSIONS[role].includes(code)` with a
  * role chosen at run time, which does not compile when each role has its own literal tuple type.
  */
+/** ADR 0006 section 8: who may view, create, edit and deactivate parties (release 1 codes, ADR 0056). */
+const PARTY_VIEW_CREATE = [
+  'party.customer.view',
+  'party.customer.create',
+  'party.supplier.view',
+  'party.supplier.create',
+] as const satisfies readonly PermissionCode[];
+const PARTY_ALL = [
+  ...PARTY_VIEW_CREATE,
+  'party.customer.edit',
+  'party.customer.deactivate',
+] as const satisfies readonly PermissionCode[];
+
 export const DEFAULT_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly PermissionCode[]>> = {
-  owner: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
-  business_manager: ['product.cost.view', 'report.profit.view'],
-  branch_manager: [],
-  accountant: ['product.cost.view', 'report.profit.view', 'accounting.salary.view'],
-  cashier: [],
+  owner: [
+    'sales.payment.create',
+    'product.cost.view',
+    'report.profit.view',
+    'accounting.salary.view',
+    'sales.invoice.post',
+    ...PARTY_ALL,
+  ],
+  business_manager: ['sales.payment.create', 'product.cost.view', 'report.profit.view', ...PARTY_ALL],
+  branch_manager: ['sales.payment.create', 'sales.invoice.post', ...PARTY_VIEW_CREATE, 'party.customer.edit'],
+  accountant: [
+    'sales.payment.create',
+    'product.cost.view',
+    'report.profit.view',
+    'accounting.salary.view',
+    ...PARTY_ALL,
+  ],
+  cashier: ['sales.payment.create', 'sales.invoice.post', ...PARTY_VIEW_CREATE],
 };
+
+/** True when the granted codes include `code` (ADR 0051 section 2). The api refuses with it; the UI hides with it. */
+export function hasPermission(granted: readonly PermissionCode[], code: PermissionCode): boolean {
+  return granted.includes(code);
+}
+
+/** True when the caller holds one of the allowed system role codes. A custom role's code matches none of them. */
+export function hasAnyRole(held: readonly string[], allowed: readonly RoleCode[]): boolean {
+  return held.some((role) => (allowed as readonly string[]).includes(role));
+}

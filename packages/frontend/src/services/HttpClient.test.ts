@@ -151,3 +151,34 @@ describe('HttpClient: the active scope travels on every call (ADR 0007, tenantMi
     expect(Object.keys(headersOf(0))).not.toContain('X-Branch-Id');
   });
 });
+
+describe('HttpClient.patchJson (task 4 T3: PATCH /v1/parties/:id)', () => {
+  it('PATCHes a JSON body with the active scope, and validates the reply', async () => {
+    stubFetch(200, healthy);
+    const scope = {
+      businessId: '0196f000-0000-7000-8000-0000000000a1',
+      branchId: '0196f000-0000-7000-8000-0000000001a1',
+    };
+    await expect(
+      new HttpClient('/api', () => scope).patchJson('/v1/parties/p1', { version: 1 }, healthResponseSchema),
+    ).resolves.toEqual(healthy);
+    expect(fetch).toHaveBeenCalledWith('/api/v1/parties/p1', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Business-Id': scope.businessId,
+        'X-Branch-Id': scope.branchId,
+      },
+      body: JSON.stringify({ version: 1 }),
+    });
+  });
+
+  it('throws ApiRequestError on a refused PATCH, keeping the API error', async () => {
+    stubFetch(409, { code: 'CONFLICT', message: 'Stale', fields: [], requestId: 'r3' });
+    await expect(new HttpClient().patchJson('/x', {}, healthResponseSchema)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});
