@@ -19,13 +19,14 @@ describe('parseDemoData', () => {
     // GET /v1/reports/owner-dashboard exists (M6, #197): real by default, sample only when named.
     expect(DEMO_DEFAULT.has('report.ownerDashboard')).toBe(false);
     expect(DEMO_CAPABLE.has('report.ownerDashboard')).toBe(true);
-    // POST /v1/payments exists (ADR 0057), but the screens pay sample invoices until invoice reads exist.
+    // POST /v1/payments (ADR 0057) pays the real open invoices that F5 lists (#220): real by default (ADR 0059 s. 4).
     expect(DEMO_CAPABLE.has('sales.payments')).toBe(true);
-    expect(DEMO_DEFAULT.has('sales.payments')).toBe(true);
-    // The party routes exist (#209, #216): customers are real by default; dues wait for F5.
+    expect(DEMO_DEFAULT.has('sales.payments')).toBe(false);
+    // The party routes (#209, #216) and the dues route (F5, #220) exist: customers and dues are real by default.
     expect(DEMO_CAPABLE.has('party')).toBe(true);
     expect(DEMO_DEFAULT.has('party')).toBe(false);
-    expect(DEMO_DEFAULT.has('party.dues')).toBe(true);
+    expect(DEMO_CAPABLE.has('party.dues')).toBe(true);
+    expect(DEMO_DEFAULT.has('party.dues')).toBe(false);
   });
 
   it('a comma list picks services; "all" is every service that has a sample; "none" is real everywhere', () => {

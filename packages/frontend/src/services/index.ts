@@ -101,7 +101,7 @@ export function createServices(
     report: new ReportServiceSwitch(new ReportService(http), new SampleReportService(), (call) =>
       demo.has(`report.${call}`),
     ),
-    // The customer routes exist (#209, #216): real unless `party` is named. Dues wait for F5 (`party.dues`).
+    // The customer routes (#209, #216) and dues (F5, #220) exist: real unless `party` or `party.dues` is named.
     party: new PartyServiceSwitch(
       new PartyService(http),
       new SamplePartyService(
@@ -112,7 +112,7 @@ export function createServices(
     ),
     // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
     sales: demo.has('sales') ? new SampleSalesService() : new SalesService(http),
-    // POST /v1/payments exists (ADR 0057); sample by default until invoice reads exist (demoData.ts).
+    // POST /v1/payments (ADR 0057): real unless `sales.payments` is named; it pays the open invoices F5 lists (#220).
     salesPayments: demo.has('sales.payments')
       ? new SampleSalesPaymentService()
       : new SalesPaymentService(http),

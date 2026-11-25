@@ -95,17 +95,20 @@ function CustomerDetail({ id }: { id: string }) {
             )}
           </div>
         </div>
-        <div className="flex gap-2 self-start">
-          <Link to={`/customers/${customer.id}/edit`} className={quietLink}>
-            {t('customer.edit')}
-          </Link>
-          {/* The walk-in customer never owes (a sale with a due names its customer) and can't pay an advance (ADR 0057). */}
-          {!customer.isWalkIn && (
+        {/*
+          The walk-in customer is never edited (ADR 0059 section 3), never owes (a sale with a due names its customer)
+          and can't pay an advance (ADR 0057): it has no actions.
+        */}
+        {!customer.isWalkIn && (
+          <div className="flex gap-2 self-start">
+            <Link to={`/customers/${customer.id}/edit`} className={quietLink}>
+              {t('customer.edit')}
+            </Link>
             <Link to={`/customers/${customer.id}/payment`} className={actionLink}>
               {t('customer.recordPayment')}
             </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">

@@ -59,16 +59,21 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
  * No API yet: GET /v1/me/businesses (M2), the POS screen's calls (POST /v1/invoices exists, #191, but the POS service
  * is wired in its own PR), the stock routes' screens, the model and unit routes (#105, #107), and every report call but
  * the owner dashboard. GET /v1/reports/owner-dashboard exists (M6, #197), so it is real unless named.
- * POST /v1/payments exists (ADR 0057), but `sales.payments` stays sample until invoice reads exist: the screens pay
- * sample invoices, whose ids the API doesn't know.
+ * POST /v1/payments (ADR 0057) and the dues route (F5, #220) exist: the payment form pays the real open invoices the
+ * dues list, so both are real unless named (ADR 0059 section 4). POS › Invoices pays through `sales`, still sample.
  */
+const REAL_BY_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>([
+  'report.ownerDashboard',
+  'party',
+  'party.dues',
+  'product.catalogue',
+  'sales.payments',
+]);
+
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
-  // The owner dashboard (#197), the customer routes (#209, #216) and the product routes (#131) exist, so they are
-  // real unless named.
-  [...DEMO_CAPABLE].filter(
-    (service) =>
-      service !== 'report.ownerDashboard' && service !== 'party' && service !== 'product.catalogue',
-  ),
+  // These routes exist, so they are real unless named: the owner dashboard (#197), customers (#209, #216), products
+  // (#131), dues (F5, #220) and payments (ADR 0057), which pay the real open invoices that dues list (ADR 0059).
+  [...DEMO_CAPABLE].filter((service) => !REAL_BY_DEFAULT.has(service)),
 );
 
 export function parseDemoData(
