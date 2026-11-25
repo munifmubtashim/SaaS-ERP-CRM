@@ -60,7 +60,7 @@ const ERRORS = {
   'party.not_found': ['NOT_FOUND', 'id', 'Customer or supplier not found.'],
   'party.phone_invalid': ['VALIDATION_FAILED', 'phone', 'Enter a Bangladesh mobile number or +country code.'],
   'party.version_conflict': ['CONFLICT', 'version', 'Changed by someone else. Reload and try again.'],
-  'party.walk_in_locked': ['CONFLICT', 'id', 'The walk-in customer cannot be deactivated.'],
+  'party.walk_in_locked': ['CONFLICT', 'id', 'The walk-in customer cannot be changed.'],
   'party.inactive': ['CONFLICT', 'partyId', 'This customer or supplier is inactive.'],
   'party.supplier_forbidden': ['FORBIDDEN', 'isSupplier', 'You may not add suppliers.'],
   'page.cursor_invalid': ['VALIDATION_FAILED', 'cursor', 'Start the list again from the first page.'],
@@ -240,6 +240,8 @@ export class PartyManager {
 
   async edit(id: string, edit: PartyEdit, actor: PartyActor): Promise<Party> {
     const current = await this.findCustomer(id);
+    // ADR 0059 section 3: the business's trigger made it (ADR 0055) and the POS relies on its name and code.
+    if (current.isWalkIn) throw fail('party.walk_in_locked');
     // Adding the supplier role needs that role's create code (ADR 0006 section 8).
     if (edit.isSupplier === true && !current.isSupplier) this.requireSupplierCreate(actor);
     const changes = changesOf(edit);
@@ -254,7 +256,7 @@ export class PartyManager {
     return toParty(await this.write(id, edit.version, changes));
   }
 
-  /** ADR 0006 section 6: the walk-in party is never deactivated. */
+  /** ADR 0006 section 6: the walk-in party is never deactivated (nor edited, see edit). */
   async deactivate(id: string, version: number): Promise<Party> {
     const row = await this.findCustomer(id);
     if (row.isWalkIn) throw fail('party.walk_in_locked');

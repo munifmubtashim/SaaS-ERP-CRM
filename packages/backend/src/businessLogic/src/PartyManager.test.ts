@@ -186,6 +186,22 @@ describe('edit (ADR 0019 test 13)', () => {
   });
 });
 
+describe('the walk-in party is not edited (ADR 0059 section 3)', () => {
+  it('an edit of the walk-in party is 409 party.walk_in_locked, and nothing is written', async () => {
+    const { query, manager } = setup([record({ isWalkIn: true })]);
+    expect(await errorOf(manager.edit(ID, { version: 1, name: 'Renamed' }, actor))).toEqual({
+      code: 'CONFLICT',
+      fields: ['id party.walk_in_locked'],
+    });
+    expect(query.edits).toEqual([]);
+  });
+
+  it('a named customer is still edited', async () => {
+    const { manager } = setup([record()]);
+    expect(await manager.edit(ID, { version: 1, name: 'Renamed' }, actor)).toMatchObject({ name: 'Renamed' });
+  });
+});
+
 describe('deactivate (ADR 0019 test 13, ADR 0006 test 17)', () => {
   it('sets the status to inactive with the version read', async () => {
     const { query, manager } = setup([record()]);
