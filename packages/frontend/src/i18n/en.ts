@@ -513,7 +513,8 @@ export const en = {
   'customerForm.error.phone': 'Enter a mobile number like 01712345678.',
   'customerForm.error.email': 'Enter an email address like name@example.com.',
   'customerForm.duplicate.title': 'A customer with this phone number already exists.',
-  'customerForm.duplicate.hint': 'Check it is not the same person. If it is a different customer, save anyway.',
+  'customerForm.duplicate.hint':
+    'Check it is not the same person. If it is a different customer, save anyway.',
   'customerForm.duplicate.saveAnyway': 'Save anyway',
   'customerForm.conflict': 'Someone else changed this customer. Reload the page to see their change.',
   'customerForm.forbidden': 'You do not have permission to add or edit customers.',

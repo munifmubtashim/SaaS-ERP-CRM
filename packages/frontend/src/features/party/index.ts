@@ -1,6 +1,7 @@
 /**
  * Party module, frontend feature folder. Owner: Farhan.
- * F1b: the customer list and the customer profile against mock data (ADR 0006, order of work step 2).
+ * The customer list, the profile and the add and edit form (ADR 0006, ADR 0056; task 4 T3).
  */
 export { CustomerDetailPage } from './CustomerDetailPage';
+export { CustomerFormPage } from './CustomerFormPage';
 export { CustomerListPage } from './CustomerListPage';

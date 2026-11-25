@@ -44,8 +44,11 @@ const profile: PartyDetail = {
   isWalkIn: false,
 };
 
-const apiError = (status: number, code: ErrorCode, fields: { path: string; code: string; message: string }[] = []) =>
-  new ApiRequestError(status, { code, message: code, fields, requestId: 'test' });
+const apiError = (
+  status: number,
+  code: ErrorCode,
+  fields: { path: string; code: string; message: string }[] = [],
+) => new ApiRequestError(status, { code, message: code, fields, requestId: 'test' });
 
 class FakeParty implements IPartyService {
   created: CreatePartyInput[] = [];
@@ -53,7 +56,11 @@ class FakeParty implements IPartyService {
   constructor(private readonly refuse: ApiRequestError[] = []) {}
   list = () => Promise.reject(new Error('not used'));
   dues = () => Promise.reject(new Error('not used'));
-  get = async (): Promise<PartyDetail> => profile;
+  reads: string[] = [];
+  get = async (id: string): Promise<PartyDetail> => {
+    this.reads.push(id);
+    return profile;
+  };
   async create(input: CreatePartyInput): Promise<Party> {
     this.created.push(input);
     const refusal = this.refuse.shift();
@@ -87,7 +94,8 @@ function renderForm(party: IPartyService, path: string, locale: 'en' | 'bn' = 'e
   );
 }
 
-const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+const type = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe('adding a customer', () => {
   it('sends the typed details as a customer and opens their profile', async () => {
@@ -126,7 +134,9 @@ describe('adding a customer', () => {
 
   it('a phone another customer has lists the match; "Save anyway" sends again with confirmDuplicate', async () => {
     const party = new FakeParty([
-      apiError(409, 'CONFLICT', [{ path: 'phone', code: 'party.possible_duplicate', message: 'C-0007 Abdur Rahman' }]),
+      apiError(409, 'CONFLICT', [
+        { path: 'phone', code: 'party.possible_duplicate', message: 'C-0007 Abdur Rahman' },
+      ]),
     ]);
     renderForm(party, '/customers/new');
     await screen.findByRole('heading', { name: 'Add customer' });
@@ -146,7 +156,17 @@ describe('adding a customer', () => {
     type('Name', 'Sample New Customer');
     type('Phone', '01700000099');
     fireEvent.click(screen.getByRole('button', { name: 'Save customer' }));
-    expect(await screen.findByText('You do not have permission to add or edit customers.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('You do not have permission to add or edit customers.'),
+    ).toBeInTheDocument();
+  });
+
+  it('reads no customer: the add form starts empty and stays a new customer', async () => {
+    const party = new FakeParty();
+    renderForm(party, '/customers/new');
+    await screen.findByRole('heading', { name: 'Add customer' });
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(party.reads).toEqual([]);
   });
 
   it('shows the form in Bangla', async () => {
@@ -166,7 +186,10 @@ describe('editing a customer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save customer' }));
     expect(await screen.findByText('Profile page')).toBeInTheDocument();
     expect(party.updated).toEqual([
-      { id: ID, input: expect.objectContaining({ version: 1, name: 'Renamed Customer', confirmDuplicate: false }) },
+      {
+        id: ID,
+        input: expect.objectContaining({ version: 1, name: 'Renamed Customer', confirmDuplicate: false }),
+      },
     ]);
   });
 

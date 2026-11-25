@@ -36,9 +36,17 @@ function CustomerList() {
 
   return (
     <>
-      <div className="mb-1 flex items-center gap-2">
-        <h1 className="text-2xl font-semibold">{t('customers.title')}</h1>
-        <DemoBadge service="party" />
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">{t('customers.title')}</h1>
+          <DemoBadge service="party" />
+        </div>
+        <Link
+          to="/customers/new"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:brightness-110"
+        >
+          {t('customers.add')}
+        </Link>
       </div>
       <p className="text-muted">{t('customers.subtitle')}</p>
 

@@ -299,6 +299,9 @@ describe('the Demo data badge (task 4, frontend-wiring.md)', () => {
 describe('adding a customer from the list (task 4 T3)', () => {
   it('offers "Add customer", which opens the form', async () => {
     renderPage(new FakePartyService({ [BIZ_A]: [customer(1)] }));
-    expect(await screen.findByRole('link', { name: 'Add customer' })).toHaveAttribute('href', '/customers/new');
+    expect(await screen.findByRole('link', { name: 'Add customer' })).toHaveAttribute(
+      'href',
+      '/customers/new',
+    );
   });
 });

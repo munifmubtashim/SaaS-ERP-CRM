@@ -1,7 +1,8 @@
 import { partySchema, type CreatePartyInput } from '@erp/shared';
 import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
-import { ApiRequestError, type IHttpClient, type IHttpPatch } from './HttpClient';
+import type { ApiRequestError } from './HttpClient';
+import { type IHttpClient, type IHttpPatch } from './HttpClient';
 import { MockPartyService } from './mock/MockPartyService';
 import { PartyService, PartyServiceSwitch, type IPartyService } from './partyService';
 
