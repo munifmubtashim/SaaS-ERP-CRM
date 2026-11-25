@@ -179,7 +179,10 @@ function setup() {
     new BkashPayment(),
     new CardPayment(),
   ]);
-  const manager = new SalesManager(sales, { stock, posting, numbers, payments, clock });
+  // These tests never read invoices (SalesManager.invoiceReads.test.ts does): a read here is a test bug.
+  const unusedReads = () => Promise.reject(new Error('invoice read in a test that does not expect it'));
+  const invoiceReads = { listInvoices: unusedReads, findInvoice: unusedReads };
+  const manager = new SalesManager(sales, { stock, posting, numbers, payments, clock, invoiceReads });
   return { manager, sales, paymentQuery, posting, numbers, stock };
 }
 

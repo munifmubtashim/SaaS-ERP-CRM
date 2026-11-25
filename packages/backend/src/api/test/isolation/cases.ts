@@ -56,6 +56,13 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
     ],
   },
   // Run by invoices.isolation.test.ts against real Postgres (item 3b).
+  // Run by invoices.read.isolation.test.ts against real Postgres (ADR 0059 test 5).
+  'GET /v1/invoices': {
+    attempts: ["list in Y, even naming X's customer: X's invoices never appear"],
+  },
+  'GET /v1/invoices/:id': {
+    attempts: ["read X's invoice from Y: 404, the same as a guessed id"],
+  },
   'POST /v1/invoices': {
     attempts: [
       "sell X's product from Y: 409 product unavailable, and X's stock is unchanged",
