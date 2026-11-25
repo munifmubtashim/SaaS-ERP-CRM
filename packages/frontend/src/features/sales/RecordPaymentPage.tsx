@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { Link, useParams } from 'react-router';
 import { Button, Card, DemoBadge } from '../../components/ui';
-import { useI18n, useTaka } from '../../i18n';
+import { useI18n, useTaka, type MessageKey } from '../../i18n';
 import { ApiRequestError } from '../../services';
 import { useActiveBusinessId } from '../../store/activeBusinessStore';
 import { useCustomerDues, useCustomerProfile } from '../party/useCustomerDetail';
@@ -22,6 +22,19 @@ const fill = (text: string, values: Record<string, string>) =>
  * Next action: record it, after a confirm step that names what will be recorded. No date field: the server
  * sets the business date. Keyed by the active business, like the profile (ADR 0007).
  */
+/**
+ * Why the API refused a payment, when retrying can't help (ADR 0057 section 4): the person must change something. Null
+ * for anything else (a network failure, a 5xx), where a retry with the same Idempotency-Key is safe.
+ */
+function refusalOf(error: unknown): MessageKey | null {
+  if (!(error instanceof ApiRequestError)) return null;
+  const codes = (error.body?.fields ?? []).map((f) => f.code);
+  if (codes.includes('payment.exceeds_due')) return 'payment.error.exceedsDue';
+  if (codes.includes('payment.invoice_not_found')) return 'payment.error.invoiceGone';
+  if (error.status === 403) return 'payment.error.forbidden';
+  return null;
+}
+
 export function RecordPaymentPage() {
   const businessId = useActiveBusinessId();
   const { id = '' } = useParams();
@@ -126,6 +139,7 @@ function PaymentFlow({ customer, dues }: { customer: PartyDetail; dues: Customer
       invoice: invoice?.invoiceNumber ?? '',
     };
     const send = () => record.mutate(pending);
+    const refusal = record.isError ? refusalOf(record.error) : null;
     return (
       <>
         <h2 className="text-lg font-semibold">{t('payment.confirm.title')}</h2>
@@ -134,17 +148,20 @@ function PaymentFlow({ customer, dues }: { customer: PartyDetail; dues: Customer
         </p>
         {record.isError && (
           <p role="alert" className="mt-3 text-neg-text">
-            {t('payment.error.save')}
+            {t(refusal ?? 'payment.error.save')}
           </p>
         )}
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button variant="primary" disabled={record.isPending} onClick={send}>
-            {record.isPending
-              ? t('payment.saving')
-              : record.isError
-                ? t('customer.retry')
-                : t('payment.confirm.submit')}
-          </Button>
+          {/* A refusal needs a change, not a retry: only "Change" is offered then. */}
+          {!refusal && (
+            <Button variant="primary" disabled={record.isPending} onClick={send}>
+              {record.isPending
+                ? t('payment.saving')
+                : record.isError
+                  ? t('customer.retry')
+                  : t('payment.confirm.submit')}
+            </Button>
+          )}
           <Button
             disabled={record.isPending}
             onClick={() => {

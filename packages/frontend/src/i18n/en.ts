@@ -538,6 +538,10 @@ export const en = {
   'payment.error.amount': 'Enter an amount above zero, like 12500 or 12500.50.',
   'payment.error.externalRef': 'Enter the transaction id for this method.',
   'payment.error.save': 'Could not confirm the payment. Try again: the same payment is never recorded twice.',
+  'payment.error.exceedsDue':
+    'This is more than is still due on the invoice. Change the amount, or take the rest as an advance.',
+  'payment.error.invoiceGone': 'This invoice is no longer open. Go back to the customer to see what is due.',
+  'payment.error.forbidden': 'You do not have permission to record payments.',
   'payment.done.title': 'Payment recorded',
   'payment.done.receipt': 'Receipt number',
   'payment.done.amount': 'Amount',
