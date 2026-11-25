@@ -3,6 +3,7 @@ import { AuthService } from './authService';
 import { createServices } from './index';
 import { MockOrganizationService } from './mock/MockOrganizationService';
 import { OrganizationService } from './organizationService';
+import { PartyServiceSwitch } from './partyService';
 import { SalesPaymentService } from './salesPaymentService';
 import { SampleSalesPaymentService } from './sample/SampleSalesPaymentService';
 
@@ -34,5 +35,11 @@ describe('createServices: customer payments (ADR 0057)', () => {
       SampleSalesPaymentService,
     );
     expect(createServices(undefined, { demo: new Set() }).salesPayments).toBeInstanceOf(SalesPaymentService);
+  });
+});
+
+describe('createServices: customers (task 4)', () => {
+  it('answers party calls through the switch, by the party and party.dues keys', () => {
+    expect(createServices(undefined, { demo: new Set() }).party).toBeInstanceOf(PartyServiceSwitch);
   });
 });

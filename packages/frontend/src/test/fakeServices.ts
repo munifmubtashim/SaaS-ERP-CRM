@@ -3,6 +3,7 @@ import type {
   IAuthService,
   IHealthService,
   IInventoryService,
+  IPartyService,
   IProductService,
   IVehicleService,
   IOrganizationService,
@@ -84,6 +85,13 @@ export const unusedSalesPayments: ISalesPaymentService = {
   recordPayment: () => Promise.reject(new Error('This test recorded a payment without injecting a service.')),
 };
 
+/** A party service a test did not expect to be called: using it fails loudly. */
+const unusedParty: IPartyService = {
+  list: () => Promise.reject(new Error('This test did not expect a party request.')),
+  get: () => Promise.reject(new Error('This test did not expect a party request.')),
+  dues: () => Promise.reject(new Error('This test did not expect a party request.')),
+};
+
 /** Services made of fakes; pass overrides for the ones a test drives. Stub modules have empty contracts. */
 export function fakeServices(health: IHealthService, overrides: Partial<Services> = {}): Services {
   return {
@@ -95,7 +103,7 @@ export function fakeServices(health: IHealthService, overrides: Partial<Services
     accounting: {},
     vehicle: unusedVehicle,
     report: unusedReport,
-    party: {},
+    party: unusedParty,
     sales: unusedSales,
     salesPayments: unusedSalesPayments,
     purchase: {},

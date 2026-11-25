@@ -33,6 +33,8 @@ export type DemoService =
   | 'organization'
   | 'sales'
   | 'sales.payments'
+  | 'party'
+  | 'party.dues'
   | 'inventory'
   | 'product'
   | 'vehicle'
@@ -43,6 +45,8 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
   'organization',
   'sales',
   'sales.payments',
+  'party',
+  'party.dues',
   'inventory',
   'product',
   'vehicle',
@@ -57,7 +61,8 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
  * sample invoices, whose ids the API doesn't know.
  */
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
-  [...DEMO_CAPABLE].filter((service) => service !== 'report.ownerDashboard'),
+  // The owner dashboard (#197) and the customer routes (#209, #216) exist, so they are real unless named.
+  [...DEMO_CAPABLE].filter((service) => service !== 'report.ownerDashboard' && service !== 'party'),
 );
 
 export function parseDemoData(
