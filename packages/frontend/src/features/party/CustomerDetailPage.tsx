@@ -93,9 +93,12 @@ function CustomerDetail({ id }: { id: string }) {
             )}
           </div>
         </div>
-        <Link to={`/customers/${customer.id}/payment`} className={`${actionLink} self-start`}>
-          {t('customer.recordPayment')}
-        </Link>
+        {/* The walk-in customer never owes (a sale with a due names its customer) and can't pay an advance (ADR 0057). */}
+        {!customer.isWalkIn && (
+          <Link to={`/customers/${customer.id}/payment`} className={`${actionLink} self-start`}>
+            {t('customer.recordPayment')}
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
