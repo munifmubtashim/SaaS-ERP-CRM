@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MONEY_PATTERN, ZERO, moneySchema, parseMoney } from '../utils/money.js';
-import { cursorPageSchema } from '../utils/pagination.js';
+import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
+import { quantitySchema } from '../utils/quantity.js';
 
 /**
  * Sales module, Zod schemas shared by backend and frontend. Owner: Farhan.
@@ -189,3 +190,67 @@ export const customerDuesSchema = z.object({
   advance: moneySchema,
   openInvoices: z.array(openInvoiceSchema),
 });
+
+/**
+ * F4, the invoice reads (ADR 0059 section 2): how much of a sale is paid. It isn't the document's status, which is
+ * `invoiceStatusSchema`.
+ */
+export const invoicePaymentStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
+
+/**
+ * One row of GET /v1/invoices. The POS view shape (#134) becomes the contract here, with the ids, the business date, the
+ * due and the document status an API answer needs. Unknown keys are dropped, so no cost or margin can ride along
+ * (plan 2.5).
+ */
+export const invoiceSummarySchema = z.object({
+  id: z.uuid(),
+  number: z.string().min(1),
+  branchId: z.uuid(),
+  partyId: z.uuid(),
+  /** The business date in Asia/Dhaka (YYYY-MM-DD). */
+  invoiceDate: z.iso.date(),
+  /** When it was posted. */
+  issuedAt: z.iso.datetime(),
+  customerName: z.string().min(1),
+  total: moneySchema,
+  paid: moneySchema,
+  due: moneySchema,
+  status: invoiceStatusSchema,
+  paymentStatus: invoicePaymentStatusSchema,
+});
+
+/** GET /v1/invoices/:id: the summary with its lines and payments. */
+export const invoiceDetailSchema = invoiceSummarySchema.extend({
+  /** The display name of the user who sold it. */
+  soldBy: z.string().min(1),
+  subtotal: moneySchema,
+  discount: moneySchema,
+  lines: z.array(
+    z.object({
+      /** The product's name. Serial and vehicle details are the Vehicle pack's (spec O-11). */
+      description: z.string().min(1),
+      quantity: quantitySchema,
+      unitPrice: moneySchema,
+      amount: moneySchema,
+    }),
+  ),
+  payments: z.array(
+    z.object({
+      receivedAt: z.iso.datetime(),
+      receiptNumber: z.string().min(1),
+      method: paymentMethodSchema,
+      amount: moneySchema,
+      externalRef: z.string().min(1).nullable(),
+    }),
+  ),
+});
+
+/** GET /v1/invoices query: the scope's posted and voided invoices, newest first, by party and branch. */
+export const invoiceListQuerySchema = pageQuerySchema
+  .extend({
+    partyId: z.uuid().optional(),
+    branchId: z.uuid().optional(),
+  })
+  .strict();
+
+export const invoiceListResponseSchema = cursorPageSchema(invoiceSummarySchema);

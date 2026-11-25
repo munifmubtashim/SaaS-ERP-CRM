@@ -16,7 +16,7 @@ import {
 // the three codes this ADR defines. Each later module adds its own codes and mapping in its own PR.
 
 describe('permission codes', () => {
-  it('has the three codes ADR 0008 defines, sales.invoice.post (ADR 0022), the release 1 party codes (ADR 0056) and sales.payment.create (ADR 0057)', () => {
+  it('has the three codes ADR 0008 defines, sales.invoice.post (ADR 0022), the release 1 party codes (ADR 0056), sales.payment.create (ADR 0057) and sales.invoice.view (ADR 0059)', () => {
     expect([...PERMISSIONS].sort()).toEqual([
       'accounting.salary.view',
       'party.customer.create',
@@ -28,6 +28,7 @@ describe('permission codes', () => {
       'product.cost.view',
       'report.profit.view',
       'sales.invoice.post',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
   });
@@ -71,7 +72,7 @@ describe('roles', () => {
 describe('default role mapping (provisional, ADR 0008 section 3)', () => {
   const sorted = (codes: readonly string[]) => [...codes].sort();
 
-  it('matches the ADR 0008 table and ADR 0056 section 2 exactly', () => {
+  it('matches the ADR 0008 table, ADR 0056 section 2 and ADR 0059 section 2 exactly', () => {
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.owner)).toEqual([
       'accounting.salary.view',
       'party.customer.create',
@@ -83,6 +84,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'product.cost.view',
       'report.profit.view',
       'sales.invoice.post',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.accountant)).toEqual([
@@ -95,6 +97,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.business_manager)).toEqual([
@@ -106,6 +109,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.view',
       'product.cost.view',
       'report.profit.view',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.branch_manager)).toEqual([
@@ -115,6 +119,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.create',
       'party.supplier.view',
       'sales.invoice.post',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
     expect(sorted(DEFAULT_ROLE_PERMISSIONS.cashier)).toEqual([
@@ -123,6 +128,7 @@ describe('default role mapping (provisional, ADR 0008 section 3)', () => {
       'party.supplier.create',
       'party.supplier.view',
       'sales.invoice.post',
+      'sales.invoice.view',
       'sales.payment.create',
     ]);
   });

@@ -235,6 +235,7 @@ export function createManagers(config: ManagerConfig): {
     new CardPayment(),
   ]);
   const ledger = new LedgerReader(new LedgerQuery());
+  const salesQuery = new SalesQuery();
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(
@@ -255,12 +256,14 @@ export function createManagers(config: ManagerConfig): {
       ledger,
       openInvoices: new SalesPaymentQuery(),
     }),
-    sales: new SalesManager(new SalesQuery(), {
+    sales: new SalesManager(salesQuery, {
       stock,
       posting,
       numbers: numberSeries,
       payments: salesPayments,
       clock,
+      // ADR 0059 section 2: the invoice reads, on the same Query.
+      invoiceReads: salesQuery,
     }),
     purchase: new PurchaseManager(new PurchaseQuery()),
     service: new ServiceManager(new ServiceQuery()),

@@ -28,6 +28,7 @@ const PERMISSION_DESCRIPTIONS = {
   'accounting.salary.view': 'See salary entries and amounts',
   'sales.invoice.post': 'Post a sale at the counter, with its payments',
   'sales.payment.create': 'Record a customer payment against an invoice or as an advance',
+  'sales.invoice.view': 'List and open invoices, with their lines and payments',
   // Party, release 1 (ADR 0006 section 8, ADR 0056 section 2).
   'party.customer.view': 'List, search and open customers',
   'party.customer.create': 'Add a customer',
