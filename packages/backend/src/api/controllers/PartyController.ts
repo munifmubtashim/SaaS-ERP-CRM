@@ -7,6 +7,7 @@ import {
   type Party,
   type PartyDetail,
   type PartyListResponse,
+  type CustomerDues,
 } from '@erp/shared';
 import type { Request } from 'express';
 import { BaseController, type HttpResult } from './BaseController.js';
@@ -27,6 +28,11 @@ export class PartyController extends BaseController {
 
   async get(req: Request): Promise<HttpResult<PartyDetail>> {
     return this.json(200, await this.manager.get(String(req.params.id)));
+  }
+
+  /** What the customer owes: totals from the ledger, open invoices from the documents (ADR 0059 section 1). */
+  async dues(req: Request): Promise<HttpResult<CustomerDues>> {
+    return this.json(200, await this.manager.dues(String(req.params.id)));
   }
 
   /** The creator is the signed-in user and the branch is the request's; neither comes from the body. */

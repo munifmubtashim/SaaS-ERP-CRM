@@ -250,7 +250,11 @@ export function createManagers(config: ManagerConfig): {
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery()),
-    party: new PartyManager(new PartyQuery(), numberSeries),
+    // ADR 0059: dues read the ledger's totals and the documents' open invoices.
+    party: new PartyManager(new PartyQuery(), numberSeries, {
+      ledger,
+      openInvoices: new SalesPaymentQuery(),
+    }),
     sales: new SalesManager(new SalesQuery(), {
       stock,
       posting,

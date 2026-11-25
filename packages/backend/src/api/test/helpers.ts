@@ -49,6 +49,7 @@ export const unusedProduct: IProductManager = {
 export const unusedParty: IPartyManager = {
   list: unexpected('party'),
   get: unexpected('party'),
+  dues: unexpected('party'),
   create: unexpected('party'),
   edit: unexpected('party'),
   deactivate: unexpected('party'),

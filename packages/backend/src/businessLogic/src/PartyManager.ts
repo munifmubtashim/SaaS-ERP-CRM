@@ -1,6 +1,7 @@
 import {
   AppError,
   hasPermission,
+  type CustomerDues,
   toE164,
   type Party,
   type PartyDetail,
@@ -16,7 +17,15 @@ import type {
   PartyRecord,
   PartyRecordChanges,
 } from './contracts/IPartyQuery.js';
+import type { IOpenInvoiceQuery } from './contracts/IOpenInvoiceQuery.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
+import type { IPartyLedger } from './contracts/provided/IPartyLedger.js';
+
+/** What the dues read needs (ADR 0059 section 1): the ledger's totals and the documents' open invoices. */
+export interface PartyDuesSources {
+  ledger: IPartyLedger;
+  openInvoices: IOpenInvoiceQuery;
+}
 
 /**
  * What a create carries: phones as typed. No code (the party_code series, ADR 0056), business id, creator or branch:
@@ -172,6 +181,7 @@ export class PartyManager {
   constructor(
     private readonly query: IPartyQuery,
     private readonly numberSeries: INumberSeries,
+    private readonly duesSources: PartyDuesSources,
   ) {}
 
   /**
@@ -217,6 +227,24 @@ export class PartyManager {
       isWalkIn: row.isWalkIn,
       onCreditHold: false,
       nidLast4: null,
+    };
+  }
+
+  /**
+   * GET /v1/parties/:id/dues (ADR 0059 section 1, ADR 0026 section 3). The totals come from the ledger (invariant 1),
+   * the open invoices from the documents; with only sales and payments posted they agree, and if a manual journal moves
+   * the receivable the ledger total wins. Same 404 as get for anything that isn't a customer of the scope.
+   */
+  async dues(id: string): Promise<CustomerDues> {
+    const row = await this.findCustomer(id);
+    // One after the other: both run in the request's one transaction, on one connection.
+    const balances = await this.duesSources.ledger.balances(row.id);
+    const openInvoices = await this.duesSources.openInvoices.openInvoices(row.id);
+    return {
+      partyId: row.id,
+      totalDue: balances.receivable,
+      advance: balances.customerAdvance,
+      openInvoices,
     };
   }
 
