@@ -67,13 +67,13 @@ export function ProductCatalogue() {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[13px]">
+          <table className="w-full text-[13px]">
             <thead>
               <tr className="text-left text-xs text-muted">
                 <th className="py-1 font-semibold">{t('prod.col.product')}</th>
-                <th className="py-1 font-semibold">{t('prod.col.code')}</th>
-                <th className="py-1 font-semibold">{t('prod.col.brand')}</th>
-                <th className="py-1 font-semibold">{t('prod.col.unit')}</th>
+                <th className="hidden py-1 font-semibold md:table-cell">{t('prod.col.code')}</th>
+                <th className="hidden py-1 font-semibold md:table-cell">{t('prod.col.brand')}</th>
+                <th className="hidden py-1 font-semibold md:table-cell">{t('prod.col.unit')}</th>
                 <th className="py-1 font-semibold">{t('prod.col.tracking')}</th>
               </tr>
             </thead>
@@ -84,10 +84,14 @@ export function ProductCatalogue() {
                     <Link to={`/products/${p.id}/edit`} className="font-semibold hover:text-accent-text">
                       {p.name}
                     </Link>
+                    {/* A phone hides the code, brand and unit columns; code and unit stay under the name. */}
+                    <span className="num block text-xs text-muted md:hidden">
+                      {p.code} · {p.unit}
+                    </span>
                   </td>
-                  <td className="num py-2 text-text2">{p.code}</td>
-                  <td className="py-2 text-text2">{p.brand ?? '—'}</td>
-                  <td className="py-2 text-text2">{p.unit}</td>
+                  <td className="num hidden py-2 text-text2 md:table-cell">{p.code}</td>
+                  <td className="hidden py-2 text-text2 md:table-cell">{p.brand ?? '—'}</td>
+                  <td className="hidden py-2 text-text2 md:table-cell">{p.unit}</td>
                   <td className="py-2 text-text2">{t(`prod.tracking.${p.tracking}`)}</td>
                 </tr>
               ))}

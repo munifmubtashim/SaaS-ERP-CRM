@@ -66,6 +66,13 @@ describe('the product catalogue', () => {
     expect(within(table).getByText('By serial number')).toBeInTheDocument();
   });
 
+  it('keeps code and unit under each name, for a phone where those columns are hidden', async () => {
+    renderPage(new FakeProduct([row(1, { unit: 'litre' })]));
+    fireEvent.click(screen.getByRole('button', { name: 'All products' }));
+    const link = await screen.findByRole('link', { name: 'Sample Product 1' });
+    expect(link.closest('td')).toHaveTextContent('P-01 · litre');
+  });
+
   it('shows archived products when asked', async () => {
     const product = new FakeProduct([row(1), row(3, { status: 'archived' })]);
     renderPage(product);
