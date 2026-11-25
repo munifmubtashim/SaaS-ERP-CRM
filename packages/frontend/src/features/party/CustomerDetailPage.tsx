@@ -99,9 +99,12 @@ function CustomerDetail({ id }: { id: string }) {
           <Link to={`/customers/${customer.id}/edit`} className={quietLink}>
             {t('customer.edit')}
           </Link>
-          <Link to={`/customers/${customer.id}/payment`} className={actionLink}>
-            {t('customer.recordPayment')}
-          </Link>
+          {/* The walk-in customer never owes (a sale with a due names its customer) and can't pay an advance (ADR 0057). */}
+          {!customer.isWalkIn && (
+            <Link to={`/customers/${customer.id}/payment`} className={actionLink}>
+              {t('customer.recordPayment')}
+            </Link>
+          )}
         </div>
       </div>
 
