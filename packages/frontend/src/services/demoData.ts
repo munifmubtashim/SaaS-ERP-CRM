@@ -34,6 +34,10 @@ const SALES_KEYS = ['sales.pos', 'sales.invoices'] as const;
 
 export type DemoService =
   | 'organization'
+  | 'sales'
+  | 'sales.payments'
+  | 'party'
+  | 'party.dues'
   | 'inventory'
   | 'product'
   | 'vehicle'
@@ -48,6 +52,8 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
   ...SALES_KEYS,
   'sales',
   'sales.payments',
+  'party',
+  'party.dues',
   'inventory',
   'product',
   'vehicle',
@@ -70,6 +76,8 @@ const REAL_BY_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>([
 ]);
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
   [...DEMO_CAPABLE].filter((service) => !REAL_BY_DEFAULT.has(service)),
+  // The owner dashboard (#197) and the customer routes (#209, #216) exist, so they are real unless named.
+  [...DEMO_CAPABLE].filter((service) => service !== 'report.ownerDashboard' && service !== 'party'),
 );
 
 export function parseDemoData(

@@ -13,9 +13,15 @@ import { SampleProductService } from './sample/SampleProductService';
 import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, SalesServiceSwitch, type ISalesService } from './salesService';
+import { PartyService, PartyServiceSwitch, type IPartyService } from './partyService';
 import { SalesPaymentService, type ISalesPaymentService } from './salesPaymentService';
 import { SalesService, type ISalesService } from './salesService';
 import { SampleSalesService } from './sample/SampleSalesService';
+import { SamplePartyService } from './sample/SamplePartyService';
+import { MockPartyService } from './mock/MockPartyService';
+import { MockSalesService } from './mock/MockSalesService';
+import { activeBusinessStore } from '../store/activeBusinessStore';
+import { activeScopeStore } from '../store/activeScopeStore';
 import { SampleSalesPaymentService } from './sample/SampleSalesPaymentService';
 import { SampleVehicleService } from './sample/SampleVehicleService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
@@ -31,6 +37,7 @@ export type { DemoService } from './demoData';
 export type { IReportService, ReportCall } from './reportService';
 export type { ISalesService, PaymentDraft } from './salesService';
 export type { ISalesPaymentService } from './salesPaymentService';
+export type { IPartyService, PartyCall } from './partyService';
 export type { IInventoryService } from './inventoryService';
 export type { IProductService } from './productService';
 export type { IVehicleService } from './vehicleService';
@@ -60,9 +67,18 @@ export interface CreateServicesOptions {
   demo?: ReadonlySet<DemoService>;
 }
 
+export interface CreateServicesOptions {
+  /**
+   * Use the mock services for routes that don't exist yet. On by default only in a development build
+   * (`vite dev`), so a deployed app never shows invented data.
+   */
+  useMocks?: boolean;
+}
+
 /** Frontend composition root: the ONLY place services are constructed (lint-enforced). */
 export function createServices(
-  http: IHttpClient = new HttpClient(),
+  // The tab's active business and branch travel on every call (ADR 0007).
+  http: IHttpClient = new HttpClient('/api', () => activeScopeStore.get()),
   {
     demo = parseDemoData(import.meta.env.VITE_DEMO_DATA, { production: import.meta.env.PROD }),
   }: CreateServicesOptions = {},
@@ -84,7 +100,15 @@ export function createServices(
     report: new ReportServiceSwitch(new ReportService(http), new SampleReportService(), (call) =>
       demo.has(`report.${call}`),
     ),
-    party: new PartyService(http),
+    // The customer routes exist (#209, #216): real unless `party` is named. Dues wait for F5 (`party.dues`).
+    party: new PartyServiceSwitch(
+      new PartyService(http),
+      new SamplePartyService(
+        new MockPartyService(() => activeBusinessStore.get()),
+        new MockSalesService(() => activeBusinessStore.get()),
+      ),
+      (call) => demo.has(call === 'dues' ? 'party.dues' : 'party'),
+    ),
     // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
     // The POS (sales.pos) and the invoices view (sales.invoices) are real or sample on their own keys.
     sales: new SalesServiceSwitch(new SalesService(http), new SampleSalesService(), (call) =>

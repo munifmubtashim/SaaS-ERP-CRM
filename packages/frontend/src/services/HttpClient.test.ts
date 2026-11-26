@@ -29,6 +29,28 @@ describe('HttpClient', () => {
       ApiRequestError,
     );
   });
+
+  it('POSTs a JSON body with the Idempotency-Key header, and validates the reply', async () => {
+    stubFetch(201, healthy);
+    const body = { amount: '12500.00' };
+    await expect(
+      new HttpClient().postJson('/v1/payments', body, healthResponseSchema, { idempotencyKey: 'key-1' }),
+    ).resolves.toEqual(healthy);
+    // The session cookie travels on every call (ADR 0018 section 2).
+    expect(fetch).toHaveBeenCalledWith('/api/v1/payments', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': 'key-1' },
+      body: JSON.stringify(body),
+    });
+  });
+
+  it('throws ApiRequestError on a failed POST', async () => {
+    stubFetch(400, { code: 'VALIDATION_FAILED', message: 'Bad', fields: [], requestId: 'r2' });
+    await expect(new HttpClient().postJson('/x', {}, healthResponseSchema)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
 });
 
 describe('HttpClient: the session cookie travels, and nothing else (ADR 0018 section 2)', () => {
@@ -98,5 +120,34 @@ describe('HttpClient: Idempotency-Key on money and stock POSTs (ADR 0011)', () =
       .mock.calls.map(([, init]) => (init?.headers ?? {}) as Record<string, string>);
     expect(calls[0]?.['Idempotency-Key']).toBe('key-1');
     expect(calls[1]).not.toHaveProperty('Idempotency-Key');
+  });
+});
+
+describe('HttpClient: the active scope travels on every call (ADR 0007, tenantMiddleware)', () => {
+  const scope = {
+    businessId: '0196f000-0000-7000-8000-0000000000a1',
+    branchId: '0196f000-0000-7000-8000-0000000001a1',
+  };
+  const headersOf = (call: number) =>
+    (vi.mocked(fetch).mock.calls[call]?.[1] as { headers: Record<string, string> }).headers;
+
+  it('sends X-Business-Id and X-Branch-Id on a GET and a POST once a business and branch are chosen', async () => {
+    stubFetch(200, healthy);
+    const http = new HttpClient('/api', () => scope);
+    await http.getJson('/v1/parties', healthResponseSchema);
+    await http.postJson('/v1/payments', {}, healthResponseSchema, { idempotencyKey: 'k' });
+    for (const call of [0, 1]) {
+      expect(headersOf(call)).toMatchObject({
+        'X-Business-Id': scope.businessId,
+        'X-Branch-Id': scope.branchId,
+      });
+    }
+  });
+
+  it('sends neither before a scope is chosen (the login and the business switcher)', async () => {
+    stubFetch(200, healthy);
+    await new HttpClient('/api', () => null).getJson('/v1/me/businesses', healthResponseSchema);
+    expect(Object.keys(headersOf(0))).not.toContain('X-Business-Id');
+    expect(Object.keys(headersOf(0))).not.toContain('X-Branch-Id');
   });
 });
