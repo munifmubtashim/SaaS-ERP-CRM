@@ -9,6 +9,11 @@ import {
   subtractMoney,
   sumMoney,
   ZERO,
+  type InvoiceDetail,
+  type InvoiceListQuery,
+  type InvoiceListResponse,
+  type InvoicePaymentStatus,
+  type InvoiceSummary,
   type Paisa,
   type RecordPayment,
   type SalesPayment,
@@ -16,6 +21,11 @@ import {
   type PostInvoiceInput,
 } from '@erp/shared';
 import type { IClock } from './contracts/IClock.js';
+import type {
+  IInvoiceReadQuery,
+  InvoiceDetailRecord,
+  InvoiceSummaryRecord,
+} from './contracts/IInvoiceReadQuery.js';
 import type { ISalesPaymentRecorder } from './contracts/ISalesPaymentRecorder.js';
 import type { ISalesQuery, PartyForSale, ProductForSale } from './contracts/ISalesQuery.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
@@ -34,6 +44,8 @@ export interface SalesManagerServices {
   numbers: INumberSeries;
   payments: ISalesPaymentRecorder;
   clock: IClock;
+  /** F4, the invoice reads (ADR 0059 section 2). */
+  invoiceReads: IInvoiceReadQuery;
 }
 
 interface CheckedLine {
@@ -59,6 +71,42 @@ function refuse(
   message: string,
 ) {
   return new AppError(code, message, [{ path, code: field, message }]);
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** How much of a sale is paid (ADR 0059 section 2): nothing yet, some of it, or all of it. */
+function paymentStatusOf(paid: string, due: string): InvoicePaymentStatus {
+  if (compareMoney(parseMoney(due), ZERO) <= 0) return 'paid';
+  return isZero(parseMoney(paid)) ? 'due' : 'partly_paid';
+}
+
+function toSummary(row: InvoiceSummaryRecord): InvoiceSummary {
+  return {
+    id: row.id,
+    number: row.number,
+    branchId: row.branchId,
+    partyId: row.partyId,
+    invoiceDate: row.invoiceDate,
+    issuedAt: row.issuedAt.toISOString(),
+    customerName: row.customerName,
+    total: row.total,
+    paid: row.paid,
+    due: row.due,
+    status: row.status,
+    paymentStatus: paymentStatusOf(row.paid, row.due),
+  };
+}
+
+function toDetail(row: InvoiceDetailRecord): InvoiceDetail {
+  return {
+    ...toSummary(row),
+    soldBy: row.soldBy,
+    subtotal: row.subtotal,
+    discount: row.discount,
+    lines: row.lines.map((line) => ({ ...line })),
+    payments: row.payments.map((payment) => ({ ...payment, receivedAt: payment.receivedAt.toISOString() })),
+  };
 }
 
 /**
@@ -332,6 +380,39 @@ export class SalesManager {
    * the due with the invoice row locked, takes the branch's receipt number, posts the journal and inserts the payment,
    * all in the request's one transaction.
    */
+  /**
+   * GET /v1/invoices (ADR 0059 section 2): the scope's invoices, newest first. The cursor is the last invoice shown
+   * (ids are uuid v7); one extra row says whether another page exists.
+   */
+  async listInvoices(query: InvoiceListQuery): Promise<InvoiceListResponse> {
+    if (query.cursor !== undefined && !UUID.test(query.cursor)) {
+      throw refuse(
+        'VALIDATION_FAILED',
+        'cursor',
+        'page.cursor_invalid',
+        'Start the list again from the first page.',
+      );
+    }
+    const rows = await this.services.invoiceReads.listInvoices({
+      limit: query.limit + 1,
+      partyId: query.partyId,
+      branchId: query.branchId,
+      beforeId: query.cursor,
+    });
+    const page = rows.slice(0, query.limit);
+    return {
+      items: page.map(toSummary),
+      nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  /** GET /v1/invoices/:id: one invoice with its lines and payments; 404 when it isn't in the scope. */
+  async getInvoice(id: string): Promise<InvoiceDetail> {
+    const row = UUID.test(id) ? await this.services.invoiceReads.findInvoice(id) : null;
+    if (!row) throw refuse('NOT_FOUND', 'id', 'invoice.not_found', 'Invoice not found.');
+    return toDetail(row);
+  }
+
   async recordPayment(input: RecordPayment, where: SaleContext): Promise<SalesPayment> {
     const party = await this.query.partyForSale(input.partyId);
     if (!party || !party.isCustomer || party.status !== 'active') {

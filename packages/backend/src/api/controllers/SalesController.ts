@@ -1,7 +1,10 @@
 import {
   AppError,
+  invoiceListQuerySchema,
   postInvoiceSchema,
   recordPaymentSchema,
+  type InvoiceDetail,
+  type InvoiceListResponse,
   type PostedInvoice,
   type SalesPayment,
 } from '@erp/shared';
@@ -59,5 +62,15 @@ export class SalesController extends BaseController {
       userId,
     });
     return { status: 201, body: payment };
+  }
+
+  /** GET /v1/invoices (ADR 0059 section 2). The query is strict: the business comes from the scope only. */
+  async listInvoices(req: Request): Promise<HttpResult<InvoiceListResponse>> {
+    return this.json(200, await this.manager.listInvoices(this.parse(invoiceListQuerySchema, req.query)));
+  }
+
+  /** GET /v1/invoices/:id (ADR 0059 section 2). */
+  async getInvoice(req: Request): Promise<HttpResult<InvoiceDetail>> {
+    return this.json(200, await this.manager.getInvoice(String(req.params.id)));
   }
 }

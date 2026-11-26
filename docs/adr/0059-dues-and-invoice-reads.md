@@ -33,6 +33,11 @@ question 4.
   `branchId`. Shape: `invoiceSummarySchema`, which already exists as a provisional POS shape and becomes the
   contract.
 - `GET /v1/invoices/:id`: one invoice with its lines and payments, as `invoiceDetailSchema`.
+- **The shape as built (PR 2):** the provisional view shape (#134) has no id and uses `status` for how much is paid.
+  The contract keeps its names and fields and adds `id`, `branchId`, `partyId`, `invoiceDate` and `due`. `status`
+  becomes the document status (`posted`, `voided`), and `paymentStatus` (`paid`, `partly_paid`, `due`) is how much
+  is paid. The detail adds `subtotal`, and `balance` becomes `due`. The cursor is the last invoice id shown (uuid v7,
+  so newest first is id descending).
 - New permission `sales.invoice.view`, default for all five roles, in `permissions.ts`. This is shared code, so
   both developers review it.
 - No cost or margin in either answer (plan 2.5). 404 for another business's invoice (isolation cases).

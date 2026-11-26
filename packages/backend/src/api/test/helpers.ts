@@ -76,6 +76,8 @@ export const unusedReport: IReportManager = { ownerDashboard: unexpected('report
 export const unusedSales: ISalesManager = {
   postInvoice: unexpected('sales'),
   recordPayment: unexpected('sales'),
+  listInvoices: unexpected('sales'),
+  getInvoice: unexpected('sales'),
 };
 
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */

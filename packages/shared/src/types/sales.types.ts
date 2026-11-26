@@ -8,6 +8,9 @@ import type {
   saleDraftSchema,
   invoiceSummarySchema,
   invoiceDetailSchema,
+  invoiceListQuerySchema,
+  invoiceListResponseSchema,
+  invoicePaymentStatusSchema,
   customerDuesSchema,
   openInvoiceSchema,
   paymentStatusSchema,
@@ -52,3 +55,9 @@ export type SalesPayment = z.infer<typeof salesPaymentSchema>;
 export type SalesPaymentListResponse = z.infer<typeof salesPaymentListResponseSchema>;
 export type OpenInvoice = z.infer<typeof openInvoiceSchema>;
 export type CustomerDues = z.infer<typeof customerDuesSchema>;
+/** F4, the invoice reads (ADR 0059 section 2). */
+export type InvoicePaymentStatus = z.infer<typeof invoicePaymentStatusSchema>;
+export type InvoiceSummary = z.infer<typeof invoiceSummarySchema>;
+export type InvoiceDetail = z.infer<typeof invoiceDetailSchema>;
+export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+export type InvoiceListResponse = z.infer<typeof invoiceListResponseSchema>;
