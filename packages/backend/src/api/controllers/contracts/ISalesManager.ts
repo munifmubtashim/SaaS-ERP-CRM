@@ -1,3 +1,21 @@
+import type {
+  InvoiceDetail,
+  InvoiceListQuery,
+  InvoiceListResponse,
+  PostedInvoice,
+  PostInvoiceInput,
+  RecordPayment,
+  SalesPayment,
+} from '@erp/shared';
+
 /** What SalesController needs. Owned by api; businessLogic's SalesManager satisfies it. */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TODO(Farhan): add one small method per use case (interface segregation)
-export interface ISalesManager {}
+export interface ISalesManager {
+  /** ADR 0022 section 2: posts a sale and its payments in the request's transaction. */
+  postInvoice(input: PostInvoiceInput, where: { branchId: string; userId: string }): Promise<PostedInvoice>;
+  /** ADR 0057: records a customer payment, or an advance, with its journal and receipt. */
+  recordPayment(input: RecordPayment, where: { branchId: string; userId: string }): Promise<SalesPayment>;
+  /** ADR 0059 section 2: the scope's invoices, newest first. */
+  listInvoices(query: InvoiceListQuery): Promise<InvoiceListResponse>;
+  /** ADR 0059 section 2: one invoice with its lines and payments. */
+  getInvoice(id: string): Promise<InvoiceDetail>;
+}

@@ -1,7 +1,7 @@
 import { AppError } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import { AuthManager, type SessionLifetimes } from './AuthManager.js';
-import type { ActiveSession, IAuthQuery, LoginUser, NewSession } from './contracts/IAuthQuery.js';
+import type { ActiveSession, IAuthQuery, LoginUser, NewSession, ScopeGrant } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
 import type { ISessionTokens } from './contracts/ISessionTokens.js';
@@ -57,7 +57,12 @@ class FakeAuthQuery implements IAuthQuery {
   succeeded: { userId: string; newHash: string | null }[] = [];
   /** Sessions by token hash (hex), as the real table keys them. */
   sessions = new Map<string, NewSession & { id: string; lastSeenAt: Date; revokedAt: Date | null }>();
+  /** What scopeFor answers; null is "not found or not allowed". */
+  grant: ScopeGrant | null = null;
   constructor(private readonly user: LoginUser | null) {}
+  async scopeFor(): Promise<ScopeGrant | null> {
+    return this.grant;
+  }
   async createSession(session: NewSession): Promise<string> {
     const id = `session-${this.sessions.size + 1}`;
     this.sessions.set(Buffer.from(session.tokenHash).toString('hex'), {
@@ -361,5 +366,32 @@ describe('AuthManager.authenticate and logout (ADR 0018 sections 3 and 6)', () =
     const { later, stored } = await signedIn();
     await expect(later(0).logout('not-a-session')).resolves.toBeUndefined();
     expect(stored()?.revokedAt).toBeNull();
+  });
+});
+
+describe('AuthManager.resolveScope (ADR 0051)', () => {
+  const session = { userId: 'u1', organizationId: 'o1' };
+  const requested = { businessId: 'b1', branchId: 'r1' };
+
+  it('keeps only the permission codes this build knows', async () => {
+    const query = new FakeAuthQuery(null);
+    query.grant = { roles: ['accountant'], permissions: ['report.profit.view', 'future.code'] };
+    const manager = new AuthManager(query, new FakeHasher(), clock, new FakeTokens(), LIFETIMES);
+    expect(await manager.resolveScope(session, requested)).toEqual({
+      tenant: { organizationId: 'o1', businessIds: ['b1'], branchIds: ['r1'], branchId: 'r1' },
+      roles: ['accountant'],
+      permissions: ['report.profit.view'],
+    });
+  });
+
+  it('no grant is 404 NOT_FOUND', async () => {
+    const manager = new AuthManager(
+      new FakeAuthQuery(null),
+      new FakeHasher(),
+      clock,
+      new FakeTokens(),
+      LIFETIMES,
+    );
+    await expect(manager.resolveScope(session, requested)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

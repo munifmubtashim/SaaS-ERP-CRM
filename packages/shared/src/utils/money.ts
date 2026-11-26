@@ -8,7 +8,7 @@ import { AppError } from './AppError.js';
  * Inside the code an amount is `Paisa`: a bigint count of paisa (1 taka = 100 paisa). Nothing here ever
  * produces a `number`. Every result is checked against the numeric(18,2) range, +/-(10^18 - 1) paisa.
  * Rounding happens in exactly one place, `divideRounded`, and only when multiplying (by a quantity or a
- * rate). Adding, subtracting and allocating are exact.
+ * rate) or dividing by a quantity. Adding, subtracting and allocating are exact.
  */
 export const MONEY_PATTERN = /^-?\d{1,16}\.\d{2}$/;
 
@@ -105,11 +105,27 @@ export function negateMoney(amount: Paisa): Paisa {
 
 /** amount x quantity, the quantity a numeric(18,3) string such as "1.500". Rounded once, to paisa. */
 export function multiplyByQuantity(amount: Paisa, quantity: string): Paisa {
+  return inRange(divideRounded(amount * quantityThousandths(quantity), 1000n));
+}
+
+/**
+ * amount / quantity, the quantity a numeric(18,3) string above zero, e.g. a weighted-average cost (ADR 0021).
+ * Rounded once, half away from zero, to paisa.
+ */
+export function divideByQuantity(amount: Paisa, quantity: string): Paisa {
+  const thousandths = quantityThousandths(quantity);
+  if (thousandths <= 0n)
+    throw moneyError('money.invalid_quantity', `Can only divide by a quantity above zero: ${quantity}`);
+  return inRange(divideRounded(amount * 1000n, thousandths));
+}
+
+/** A numeric(18,3) quantity string ("1.500", "-2", "3.5") as a signed count of thousandths. */
+function quantityThousandths(quantity: string): bigint {
   const match = QUANTITY_PATTERN.exec(requireString(quantity));
   if (!match) throw moneyError('money.invalid_quantity', `Not a quantity with up to 3 decimals: ${quantity}`);
   const [, sign, whole = '0', fraction = ''] = match;
   const thousandths = BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, '0'));
-  return inRange(divideRounded(amount * (sign === '-' ? -thousandths : thousandths), 1000n));
+  return sign === '-' ? -thousandths : thousandths;
 }
 
 /**

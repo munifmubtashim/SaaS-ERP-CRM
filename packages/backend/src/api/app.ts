@@ -1,4 +1,4 @@
-import type { ApiManagers, ITenantScopeRunner } from './controllers/contracts/index.js';
+import type { ApiManagers, IIdempotency, ITenantScopeRunner } from './controllers/contracts/index.js';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
@@ -10,7 +10,7 @@ import type { LoginRateLimiter } from './middleware/loginRateLimit.js';
 import { createOriginCheck } from './middleware/originCheck.js';
 import { errorMiddleware, notFoundMiddleware } from './middleware/errorMiddleware.js';
 import { requestIdFor } from './middleware/requestId.js';
-import { tenantMiddleware } from './middleware/tenantMiddleware.js';
+import { createTenantMiddleware } from './middleware/tenantMiddleware.js';
 import { buildRoutes } from './routes/index.js';
 import { createRouteWrappers } from './routes/tenantRoute.js';
 
@@ -19,6 +19,8 @@ export interface AppDeps {
   managers: ApiManagers;
   /** Opens the one transaction per tenant request (ADR 0005). */
   tenantScope: ITenantScopeRunner;
+  /** The Idempotency-Key guard for money and stock routes (ADR 0014); a route asking for it without one fails to build. */
+  idempotency?: IIdempotency;
   /** The session cookie (ADR 0018 section 2); default: the production cookie, `__Host-erp_sid` with Secure. */
   sessionCookie?: SessionCookieConfig;
   /** The app's origin; every non-GET request must carry it (ADR 0018 section 2). Default: the Vite dev server. */
@@ -55,17 +57,20 @@ export function createApp(deps: AppDeps): Express {
   app.use(createOriginCheck(deps.appOrigin ?? DEV_APP_ORIGIN));
   app.use(express.json({ limit: '1mb' }));
 
-  // Every business route lives under /v1 and passes auth and tenant resolution first.
+  // Every business route lives under /v1 and passes auth first. Tenant resolution (X-Business-Id, X-Branch-Id)
+  // runs only in front of tenant module routers, so /v1/auth/* and /v1/me/* never need those headers.
   const cookie = deps.sessionCookie ?? SECURE_SESSION_COOKIE;
-  app.use('/v1', createAuthMiddleware(deps.managers.auth, cookie), tenantMiddleware);
+  app.use('/v1', createAuthMiddleware(deps.managers.auth, cookie));
+  const tenantScope = createTenantMiddleware(deps.managers.auth);
 
   const routes = buildRoutes(
     createControllers(deps.managers, cookie),
-    createRouteWrappers(deps.tenantScope),
+    createRouteWrappers(deps.tenantScope, deps.idempotency),
     deps.loginRateLimiter,
   );
-  for (const { basePath, router } of routes) {
-    app.use(basePath, router);
+  for (const { basePath, scope, router } of routes) {
+    if (scope === 'tenant') app.use(basePath, tenantScope, router);
+    else app.use(basePath, router);
   }
 
   app.use(notFoundMiddleware);

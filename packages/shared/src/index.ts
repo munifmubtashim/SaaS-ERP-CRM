@@ -34,4 +34,5 @@ export * from './utils/money.js';
 export * from './utils/date.js';
 export * from './utils/permissions.js';
 export * from './utils/pagination.js';
+export * from './utils/quantity.js';
 export * from './utils/phone.js';

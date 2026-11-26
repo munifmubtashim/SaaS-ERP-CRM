@@ -4,6 +4,10 @@ import type {
   ApiManagers,
   IAuthManager,
   IHealthManager,
+  IIdempotency,
+  IPartyManager,
+  IProductManager,
+  ISalesManager,
   ITenantScopeRunner,
 } from '../controllers/contracts/index.js';
 
@@ -27,6 +31,42 @@ export const unusedAuth: IAuthManager = {
   login: () => Promise.reject(new AppError('INTERNAL_ERROR', 'This test logged in without an auth Manager.')),
   authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
   logout: () => Promise.resolve(),
+  resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
+};
+
+const unexpected = (what: string) => () =>
+  Promise.reject(new AppError('INTERNAL_ERROR', `This test did not expect a ${what} request.`));
+
+/** A product Manager for tests that never touch products: using it fails loudly. */
+export const unusedProduct: IProductManager = {
+  list: unexpected('product'),
+  get: unexpected('product'),
+  create: unexpected('product'),
+  edit: unexpected('product'),
+};
+
+/** A Party Manager for tests that never call a party route: using it fails loudly. */
+export const unusedParty: IPartyManager = {
+  list: unexpected('party'),
+  get: unexpected('party'),
+  dues: unexpected('party'),
+  create: unexpected('party'),
+  edit: unexpected('party'),
+  deactivate: unexpected('party'),
+};
+
+/** An idempotency guard for apps whose tests never call an idempotent route: using it fails loudly. */
+export const unusedIdempotency: IIdempotency = {
+  claim: () => unexpected('idempotent')(),
+  complete: () => unexpected('idempotent')(),
+};
+
+/** A Sales Manager for tests that never post a sale: using it fails loudly. */
+export const unusedSales: ISalesManager = {
+  postInvoice: unexpected('sales'),
+  recordPayment: unexpected('sales'),
+  listInvoices: unexpected('sales'),
+  getInvoice: unexpected('sales'),
 };
 
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
@@ -35,13 +75,13 @@ export function fakeManagers(health: IHealthManager): ApiManagers {
     health,
     auth: unusedAuth,
     organization: {},
-    product: {},
+    product: unusedProduct,
     inventory: {},
     accounting: {},
     vehicle: {},
     report: {},
-    party: {},
-    sales: {},
+    party: unusedParty,
+    sales: unusedSales,
     purchase: {},
     service: {},
     crm: {},

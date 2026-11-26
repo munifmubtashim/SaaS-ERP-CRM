@@ -6,7 +6,13 @@ import { createApp } from '../../app.js';
 import type { AuthenticatedSession, IAuthManager } from '../../controllers/contracts/index.js';
 import { createAuthMiddleware } from '../../middleware/authMiddleware.js';
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
-import { fakeManagers, FakeHealthManager, noTenantScope, silentLogger } from '../helpers.js';
+import {
+  fakeManagers,
+  FakeHealthManager,
+  noTenantScope,
+  silentLogger,
+  unusedIdempotency,
+} from '../helpers.js';
 
 /**
  * ADR 0018 section 6 (authMiddleware) and section 3 (logout), the HTTP half. AuthManager is a fake holding one
@@ -25,6 +31,9 @@ class FakeAuthManager implements IAuthManager {
   revoked = new Set<string>();
   authenticated: string[] = [];
   async login(): Promise<never> {
+    throw new AppError('INTERNAL_ERROR', 'not used here');
+  }
+  async resolveScope(): Promise<never> {
     throw new AppError('INTERNAL_ERROR', 'not used here');
   }
   async authenticate(token: string): Promise<AuthenticatedSession> {
@@ -54,6 +63,7 @@ function fullApp(auth: FakeAuthManager) {
     logger: silentLogger,
     managers,
     tenantScope: noTenantScope,
+    idempotency: unusedIdempotency,
     sessionCookie: { secure: true },
   });
 }
@@ -64,7 +74,7 @@ describe('authMiddleware (ADR 0018 section 6)', () => {
       .get('/v1/anything')
       .set('Cookie', `theme=dark; __Host-erp_sid=${TOKEN}`);
     expect(res.status).toBe(200);
-    expect(res.body.auth).toEqual({ ...WHO, roles: [] });
+    expect(res.body.auth).toEqual({ ...WHO, roles: [], permissions: [] });
   });
 
   it.each([

@@ -89,7 +89,7 @@ describe('seedDemoOrganization', () => {
       users: 1,
       scopes: 1,
       seededBy: 1,
-      branchCodes: ['DMN', 'DMS'],
+      branchCodes: ['SHW', 'SVC'],
       user: { email: email.toLowerCase(), hash: HASH, active: true },
     });
   });

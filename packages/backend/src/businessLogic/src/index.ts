@@ -1,6 +1,11 @@
 // Public surface of @erp/business-logic, and the backend composition root (createManagers).
 import {
   createDbClient,
+  NumberSeriesQuery,
+  IdempotencyQuery,
+  StockQuery,
+  JournalQuery,
+  LedgerQuery,
   HealthQuery,
   AuthQuery,
   OrganizationQuery,
@@ -11,6 +16,7 @@ import {
   ReportQuery,
   PartyQuery,
   SalesQuery,
+  SalesPaymentQuery,
   PurchaseQuery,
   ServiceQuery,
   CrmQuery,
@@ -31,6 +37,19 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import type { IClock } from './contracts/IClock.js';
+import { NumberSeries } from './NumberSeries.js';
+import { IdempotencyGuard } from './IdempotencyGuard.js';
+import { StockService } from './StockService.js';
+import { PostingService } from './PostingService.js';
+import { LedgerReader } from './LedgerReader.js';
+import type { IPartyLedger } from './contracts/provided/IPartyLedger.js';
+import type { ITrialBalance } from './contracts/provided/ITrialBalance.js';
+import { SalesPaymentRecorder } from './SalesPaymentRecorder.js';
+import { BankPayment, BkashPayment, CardPayment, CashPayment } from './paymentMethods.js';
+import type { IStockService } from './contracts/provided/IStockService.js';
+import type { IPostingService } from './contracts/provided/IPostingService.js';
+import type { INumberSeries } from './contracts/provided/INumberSeries.js';
 import { SessionTokens } from './SessionTokens.js';
 import type { SessionLifetimes } from './AuthManager.js';
 import { Argon2PasswordHasher } from './Argon2PasswordHasher.js';
@@ -41,12 +60,31 @@ import type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IClock } from './contracts/IClock.js';
 export type { ITenantScope } from './contracts/ITenantScope.js';
 export type { IHealthQuery } from './contracts/IHealthQuery.js';
-export type { ActiveSession, IAuthQuery, LoginUser, NewSession, UserRef } from './contracts/IAuthQuery.js';
+export type {
+  ActiveSession,
+  IAuthQuery,
+  LoginUser,
+  NewSession,
+  ScopeGrant,
+  UserRef,
+} from './contracts/IAuthQuery.js';
 export type { IPasswordHasher } from './contracts/IPasswordHasher.js';
-export type { AuthenticatedSession, LoginOutcome, SessionLifetimes, VerifiedLogin } from './AuthManager.js';
+export type {
+  AuthenticatedSession,
+  LoginOutcome,
+  RequestedScope,
+  ResolvedScope,
+  SessionLifetimes,
+  VerifiedLogin,
+} from './AuthManager.js';
 export type { ISessionTokens } from './contracts/ISessionTokens.js';
 export type { IOrganizationQuery } from './contracts/IOrganizationQuery.js';
-export type { IProductQuery } from './contracts/IProductQuery.js';
+export type {
+  IProductQuery,
+  NewProductRecord,
+  ProductRecord,
+  ProductRecordChanges,
+} from './contracts/IProductQuery.js';
 export type { IInventoryQuery } from './contracts/IInventoryQuery.js';
 export type { IAccountingQuery } from './contracts/IAccountingQuery.js';
 export type { IVehicleQuery } from './contracts/IVehicleQuery.js';
@@ -58,6 +96,27 @@ export type { IServiceQuery } from './contracts/IServiceQuery.js';
 export type { ICrmQuery } from './contracts/ICrmQuery.js';
 export type { IProvisioningQuery } from './contracts/IProvisioningQuery.js';
 export type { IRoleSource } from './contracts/IRoleSource.js';
+export type { IIdempotencyQuery, ClaimInput, StoredKey } from './contracts/IIdempotencyQuery.js';
+export type { INumberSeriesQuery, TakenNumber } from './contracts/INumberSeriesQuery.js';
+export type { INumberSeries, NumberSeriesKind } from './contracts/provided/INumberSeries.js';
+export { NUMBER_SERIES_KINDS } from './contracts/provided/INumberSeries.js';
+export type {
+  IPostingService,
+  JournalDraft,
+  JournalLineDraft,
+  AccountRole,
+  PostedJournal,
+} from './contracts/provided/IPostingService.js';
+export type { IStockService, StockMovementDraft } from './contracts/provided/IStockService.js';
+export type { IPartyLedger, PartyBalances } from './contracts/provided/IPartyLedger.js';
+export type { ITrialBalance, TrialBalance, TrialBalanceRow } from './contracts/provided/ITrialBalance.js';
+export { NumberSeries } from './NumberSeries.js';
+export {
+  IdempotencyGuard,
+  canonicalHash,
+  type ClaimResult,
+  type IdempotentRequest,
+} from './IdempotencyGuard.js';
 export type { ProvisioningCaller } from './OrganizationManager.js';
 export { DenyAllRoleSource };
 export {
@@ -100,6 +159,11 @@ export const DEFAULT_SESSION_LIFETIMES: SessionLifetimes = {
 };
 
 export interface ManagerConfig {
+  /**
+   * The clock that dates stock movements, sales and payments (ADR 0058 section 3). Leave it out (SystemClock): only the
+   * demo seed passes one, to date its opening stock and sales over past weeks.
+   */
+  clock?: IClock;
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
   version: string;
@@ -128,6 +192,19 @@ export interface ManagerConfig {
  */
 export function createManagers(config: ManagerConfig): {
   managers: Managers;
+  /**
+   * Services one module publishes for others (ADR 0012): Accounting's gapless numbers (ADR 0015) and posting
+   * (ADR 0013), Inventory's stock (ADR 0021).
+   */
+  provided: {
+    numberSeries: INumberSeries;
+    idempotency: IdempotencyGuard;
+    stock: IStockService;
+    posting: IPostingService;
+    /** Accounting's ledger reads (M4): a party's balances, and the trial balance. */
+    partyLedger: IPartyLedger;
+    trialBalance: ITrialBalance;
+  };
   tenantScope: ITenantScope;
   close: () => Promise<void>;
 } {
@@ -144,6 +221,21 @@ export function createManagers(config: ManagerConfig): {
     poolMax: config.dbPoolMax,
     txTimeoutMs: config.dbTxTimeoutMs,
   });
+  const numberSeries = new NumberSeries(new NumberSeriesQuery());
+  // ADR 0058: one clock for everything that dates money and stock. The api never passes one (SystemClock); the demo
+  // seed passes its own, so its opening and its sales carry past business dates.
+  const clock = config.clock ?? new SystemClock();
+  const stock = new StockService(new StockQuery(), clock);
+  const posting = new PostingService(new JournalQuery(), numberSeries);
+  // ADR 0016 section 3: the release 1 methods; the demo POS shows cash and bKash.
+  const salesPayments = new SalesPaymentRecorder(new SalesPaymentQuery(), posting, numberSeries, clock, [
+    new CashPayment(),
+    new BankPayment(),
+    new BkashPayment(),
+    new CardPayment(),
+  ]);
+  const ledger = new LedgerReader(new LedgerQuery());
+  const salesQuery = new SalesQuery();
   const managers: Managers = {
     health: new HealthManager(new HealthQuery(db), new SystemClock(), config.version),
     auth: new AuthManager(
@@ -159,14 +251,34 @@ export function createManagers(config: ManagerConfig): {
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery()),
-    party: new PartyManager(new PartyQuery()),
-    sales: new SalesManager(new SalesQuery()),
+    // ADR 0059: dues read the ledger's totals and the documents' open invoices.
+    party: new PartyManager(new PartyQuery(), numberSeries, {
+      ledger,
+      openInvoices: new SalesPaymentQuery(),
+    }),
+    sales: new SalesManager(salesQuery, {
+      stock,
+      posting,
+      numbers: numberSeries,
+      payments: salesPayments,
+      clock,
+      // ADR 0059 section 2: the invoice reads, on the same Query.
+      invoiceReads: salesQuery,
+    }),
     purchase: new PurchaseManager(new PurchaseQuery()),
     service: new ServiceManager(new ServiceQuery()),
     crm: new CrmManager(new CrmQuery()),
   };
   return {
     managers,
+    provided: {
+      numberSeries,
+      idempotency: new IdempotencyGuard(new IdempotencyQuery()),
+      stock,
+      posting,
+      partyLedger: ledger,
+      trialBalance: ledger,
+    },
     tenantScope,
     close: async () => void (await Promise.all([db.$disconnect(), provisioning.close()])),
   };

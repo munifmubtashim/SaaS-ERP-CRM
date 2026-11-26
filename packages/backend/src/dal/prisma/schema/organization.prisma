@@ -68,7 +68,10 @@ model Business {
   idempotencyKeys IdempotencyKey[]
   numberSeries    NumberSeries[]
   products        Product[]
+  parties         Party[]
   staff           Staff[]
+  /// The business's chart of accounts (ADR 0013). Back-relation Prisma requires.
+  accounts        Account[]
 
   @@map("business")
 }
@@ -92,7 +95,18 @@ model Branch {
   userScopes   UserScope[]
   numberSeries NumberSeries[]
   serialUnits  SerialUnit[]
+  parties      Party[]
   staff        Staff[]
+  /// Stock (ADR 0021, 0054): the branch's one location and its stock rows. Back-relations Prisma requires.
+  locations      Location[]
+  /// Journals posted at this branch (ADR 0013). Back-relation Prisma requires.
+  journals       Journal[]
+  /// Sales at this branch (ADR 0022). Back-relation Prisma requires.
+  invoices       Invoice[]
+  salesPayments  SalesPayment[]
+  stockMovements StockMovement[]
+  stockBalances  StockBalance[]
+  stockCosts     StockCost[]
 
   /// For A4's user_scope (business_id, branch_id): a scope can't name another business's branch.
   @@unique([businessId, id])

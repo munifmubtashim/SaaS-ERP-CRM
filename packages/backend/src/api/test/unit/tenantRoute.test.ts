@@ -8,6 +8,8 @@ import type { ITenantScopeRunner, TenantRunOptions } from '../../controllers/con
 import { errorMiddleware } from '../../middleware/errorMiddleware.js';
 import { createRouteWrappers } from '../../routes/tenantRoute.js';
 
+const OWNER = '0196f000-0000-7000-8000-0000000000b9';
+
 const ORG = '0196f000-0000-7000-8000-00000000000a';
 const BIZ_A = '0196f000-0000-7000-8000-0000000000a1';
 const BRANCH_A = '0196f000-0000-7000-8000-0000000001a1';
@@ -49,6 +51,7 @@ function appWith(
   const app = express();
   app.use((req, res, next) => {
     if (tenant) req.tenant = tenant;
+    req.auth = { userId: OWNER, organizationId: OWNER, sessionId: OWNER, roles: ['owner'], permissions: [] };
     // The wrapper must send only after the commit: record when the response starts.
     const send = res.send.bind(res);
     res.send = (body) => {
@@ -57,7 +60,7 @@ function appWith(
     };
     next();
   });
-  app.post('/t', wrap.tenant(handler, { readOnly }));
+  app.post('/t', wrap.tenant(handler, { readOnly, roles: ['owner'] }));
   app.use(errorMiddleware);
   return app;
 }

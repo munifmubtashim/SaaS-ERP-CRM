@@ -1,3 +1,55 @@
 // Party module: customers, suppliers, contacts, dues (roadmap 5.3)
 // Owner: Farhan. Changes by the other developer need the owner's review (CODEOWNERS).
-// No models yet: Phase 0 ships no domain tables. Add this module's models here, nowhere else.
+// Add this module's models here, nowhere else.
+
+/// A customer or supplier (ADR 0006, ADR 0019 section 2). Business-wide: no branch_id, no balance, no NID.
+/// CHECKs, the walk-in index, grants and RLS are in dal/sql/rls/party.sql.
+model Party {
+  id              String   @id @default(dbgenerated("uuid_v7()")) @db.Uuid
+  businessId      String   @map("business_id") @db.Uuid
+  /// Unique per business, up to 32 characters; never changed by erp_app. Its source is ADR 0019 question 1.
+  code            String
+  name            String
+  nameBn          String?  @map("name_bn")
+  /// person or company (CHECK).
+  kind            String
+  isCustomer      Boolean  @map("is_customer")
+  isSupplier      Boolean  @map("is_supplier")
+  /// E.164, normalised by the shared phone helper before storing (ADR 0019 section 4).
+  phoneE164       String   @map("phone_e164")
+  altPhoneE164    String?  @map("alt_phone_e164")
+  email           String?
+  address         String?
+  area            String?
+  /// Null: no limit, the default (S-15).
+  creditLimit     Decimal? @map("credit_limit") @db.Decimal(18, 2)
+  /// Null: the business default.
+  payTermDays     Int?     @map("pay_term_days")
+  /// active or inactive (CHECK). A party is deactivated, never deleted.
+  status          String   @default("active")
+  /// At most one per business (partial unique index in party.sql).
+  isWalkIn        Boolean  @default(false) @map("is_walk_in")
+  /// A plain uuid for now; the foreign key to staff comes in ADR 0019 part 6.
+  assignedTo      String?  @map("assigned_to") @db.Uuid
+  createdBranchId String?  @map("created_branch_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// No foreign key, ever (ADR 0008). Required unless is_walk_in (CHECK).
+  createdBy       String?  @map("created_by") @db.Uuid
+  version         Int      @default(1)
+
+  business      Business @relation(fields: [businessId], references: [id])
+  createdBranch Branch?  @relation(fields: [businessId, createdBranchId], references: [businessId, id])
+  /// Back-relations Prisma requires for the composite keys to party (party_keys, Munif): ledger lines, invoices, payments.
+  journalLines  JournalLine[]
+  invoices      Invoice[]
+  salesPayments SalesPayment[]
+
+  /// The target of every composite foreign key from other modules (ADR 0006 section 2).
+  @@unique([businessId, id])
+  @@unique([businessId, code])
+  @@index([businessId, phoneE164])
+  @@index([businessId, altPhoneE164])
+  @@index([businessId, name])
+  @@map("party")
+}
