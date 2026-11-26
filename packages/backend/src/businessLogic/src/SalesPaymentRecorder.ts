@@ -19,12 +19,18 @@ export interface RecordPaymentInput {
    * journal number (ADR 0015 order, #60), so it passes them in; a payment on its own leaves this out.
    */
   receiptNumber?: string;
+  /** Free text from the payment form, trimmed (ADR 0057). */
+  note?: string | null;
+  /** The signed-in user who took the payment. */
+  createdBy?: string | null;
 }
 
 export interface RecordedPayment {
   paymentId: string;
   receiptNumber: string;
   journalId: string;
+  /** ISO 8601, UTC: when the server recorded it. */
+  receivedAt: string;
 }
 
 /**
@@ -57,10 +63,11 @@ export class SalesPaymentRecorder {
     const externalRef = input.externalRef?.trim() || null;
     const receiptNumber = input.receiptNumber ?? (await this.numbers.next('receipt', input.branchId));
     const paymentId = await this.query.newPaymentId();
+    const now = this.clock.now();
     const { journalId } = await this.posting.post({
       branchId: input.branchId,
       // The business date comes from the server clock in Dhaka, never from the caller (no back-dating).
-      date: businessDateInDhaka(this.clock.now()),
+      date: businessDateInDhaka(now),
       source: { type: 'sales_payment', id: paymentId },
       memo: `Payment ${receiptNumber}`,
       lines: [
@@ -83,8 +90,11 @@ export class SalesPaymentRecorder {
       externalRef,
       receiptNumber,
       journalId,
+      receivedAt: now,
+      note: input.note ?? null,
+      createdBy: input.createdBy ?? null,
     });
-    return { paymentId, receiptNumber, journalId };
+    return { paymentId, receiptNumber, journalId, receivedAt: now.toISOString() };
   }
 
   /**

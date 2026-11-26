@@ -52,6 +52,14 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
     attempts: ["edit X's party from Y: 404, and X's party is unchanged"],
   'POST /v1/parties/:id/deactivate': {
     attempts: ["deactivate X's party from Y: 404, and it stays active"],
+  },
+  // Run by payments.isolation.test.ts against real Postgres (ADR 0057, ADR 0026 test 9).
+  'POST /v1/payments': {
+    attempts: [
+      "pay X's invoice or name X's customer from Y: 404, and X's due is unchanged",
+      'a cashier of X1 names branch X2a: refused by tenantMiddleware',
+    ],
+  },
   // Run by invoices.isolation.test.ts against real Postgres (item 3b).
   'POST /v1/invoices': {
     attempts: [

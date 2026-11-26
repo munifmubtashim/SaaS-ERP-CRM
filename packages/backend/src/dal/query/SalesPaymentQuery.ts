@@ -10,6 +10,9 @@ export interface SalesPaymentInsert {
   externalRef: string | null;
   receiptNumber: string;
   journalId: string;
+  receivedAt: Date;
+  note: string | null;
+  createdBy: string | null;
 }
 
 /**
@@ -43,9 +46,10 @@ export class SalesPaymentQuery extends BaseQuery {
     await this.requireOneBusiness('A payment');
     await this.db.$executeRaw`
       INSERT INTO sales_payment (id, business_id, branch_id, receipt_number, party_id, invoice_id, method, external_ref,
-                                 amount, journal_id)
+                                 amount, journal_id, received_at, note, created_by)
       VALUES (${payment.id}::uuid, (SELECT app_business_ids())[1], ${payment.branchId}::uuid, ${payment.receiptNumber},
               ${payment.partyId}::uuid, ${payment.invoiceId}::uuid, ${payment.method}, ${payment.externalRef},
-              ${payment.amount}::numeric(18,2), ${payment.journalId}::uuid)`;
+              ${payment.amount}::numeric(18,2), ${payment.journalId}::uuid, ${payment.receivedAt}::timestamptz,
+              ${payment.note}, ${payment.createdBy}::uuid)`;
   }
 }

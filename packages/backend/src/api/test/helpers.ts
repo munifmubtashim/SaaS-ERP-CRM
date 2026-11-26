@@ -72,7 +72,10 @@ export const unusedInventory: IInventoryManager = {
 export const unusedReport: IReportManager = { ownerDashboard: unexpected('report') };
 
 /** A Sales Manager for tests that never post a sale: using it fails loudly. */
-export const unusedSales: ISalesManager = { postInvoice: unexpected('sales') };
+export const unusedSales: ISalesManager = {
+  postInvoice: unexpected('sales'),
+  recordPayment: unexpected('sales'),
+};
 
 /** ApiManagers made of fakes. Stub modules have empty contracts, so `{}` satisfies them. */
 export function fakeManagers(health: IHealthManager): ApiManagers {
