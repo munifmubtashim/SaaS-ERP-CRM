@@ -8,16 +8,16 @@ const SAMPLE: MyBusinessesResponse = {
       id: '0196f000-0000-7000-8000-0000000000a1',
       name: 'Demo Motors',
       branches: [
-        { id: '0196f000-0000-7000-8000-0000000000a2', name: 'Demo Branch North' },
-        { id: '0196f000-0000-7000-8000-0000000000a3', name: 'Demo Branch South' },
+        { id: '0196f000-0000-7000-8000-0000000000a2', name: 'Demo Branch North', shortCode: 'NTH' },
+        { id: '0196f000-0000-7000-8000-0000000000a3', name: 'Demo Branch South', shortCode: 'STH' },
       ],
     },
     {
       id: '0196f000-0000-7000-8000-0000000000b1',
       name: 'Sample Traders',
       branches: [
-        { id: '0196f000-0000-7000-8000-0000000000b2', name: 'Sample Branch East' },
-        { id: '0196f000-0000-7000-8000-0000000000b3', name: 'Sample Branch West' },
+        { id: '0196f000-0000-7000-8000-0000000000b2', name: 'Sample Branch East', shortCode: 'EST' },
+        { id: '0196f000-0000-7000-8000-0000000000b3', name: 'Sample Branch West', shortCode: 'WST' },
       ],
     },
   ],

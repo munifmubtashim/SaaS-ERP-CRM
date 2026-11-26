@@ -16,16 +16,16 @@ const businesses: MyBusinessesResponse = {
       id: id(10),
       name: 'Demo Motors',
       branches: [
-        { id: id(11), name: 'Demo Branch North' },
-        { id: id(12), name: 'Demo Branch South' },
+        { id: id(11), name: 'Demo Branch North', shortCode: 'NTH' },
+        { id: id(12), name: 'Demo Branch South', shortCode: 'STH' },
       ],
     },
     {
       id: id(20),
       name: 'Sample Traders',
       branches: [
-        { id: id(21), name: 'Sample Branch East' },
-        { id: id(22), name: 'Sample Branch West' },
+        { id: id(21), name: 'Sample Branch East', shortCode: 'EST' },
+        { id: id(22), name: 'Sample Branch West', shortCode: 'WST' },
       ],
     },
   ],
