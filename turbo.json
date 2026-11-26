@@ -2,7 +2,14 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
   "globalDependencies": ["tsconfig.json", "eslint.config.mjs"],
-  "globalPassThroughEnv": ["DATABASE_URL", "MIGRATION_DATABASE_URL", "REDIS_URL", "LOG_LEVEL", "NODE_ENV"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "MIGRATION_DATABASE_URL",
+    "REDIS_URL",
+    "LOG_LEVEL",
+    "NODE_ENV",
+    "VITE_DEMO_DATA"
+  ],
   "tasks": {
     "generate": {
       "inputs": ["prisma/schema/**", "prisma.config.ts"],
