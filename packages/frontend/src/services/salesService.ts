@@ -1,5 +1,6 @@
 import {
   invoiceDetailSchema,
+  invoiceListResponseSchema,
   invoiceSummarySchema,
   posItemSchema,
   type InvoiceDetail,
@@ -23,31 +24,37 @@ export interface ISalesService {
    * same key answers the first invoice and sells nothing again.
    */
   completeSale(draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary>;
-  /** The active branch's invoices (the design's Invoices view). */
+  /** The scope's invoices, newest first (the design's Invoices view; GET /v1/invoices, #221). */
   invoices(): Promise<InvoiceSummary[]>;
-  /** One invoice with its lines, payments and balance. */
-  invoice(number: string): Promise<InvoiceDetail>;
+  /** One invoice by its id, with its lines and payments (GET /v1/invoices/:id, #221). */
+  invoice(id: string): Promise<InvoiceDetail>;
   /**
    * Collect a payment on an invoice. Moves money, so it carries an Idempotency-Key (invariant 5): a retry with the
-   * same key answers the first result and collects nothing again. Never more than the balance.
+   * same key answers the first result and collects nothing again. Never more than is due.
    */
-  recordPayment(number: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
+  recordPayment(invoiceId: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
 }
 
 /** A payment as the counter enters it (shared, provisional; ADR 0016 lines 20 and 36). */
 export type { PaymentDraft } from '@erp/shared';
 
-/** Sales module: the API. The paths are provisional; none of these routes exists yet (ADR 0022). */
+/**
+ * Sales module: the API. The invoice reads are #221's routes. The list reads the first page only, until the view
+ * pages. posItems, completeSale and recordPayment still call provisional paths: #205 moves the sale, and the
+ * payment moves to POST /v1/payments (ADR 0057).
+ */
 export class SalesService implements ISalesService {
   constructor(protected readonly http: IHttpClient) {}
   posItems = () => this.http.getJson('/v1/pos/items', z.array(posItemSchema));
   completeSale = (draft: SaleDraft, idempotencyKey: string) =>
     this.http.postJson('/v1/sales', draft, invoiceSummarySchema, { idempotencyKey });
-  invoices = () => this.http.getJson('/v1/invoices', z.array(invoiceSummarySchema));
-  invoice = (number: string) =>
-    this.http.getJson(`/v1/invoices/${encodeURIComponent(number)}`, invoiceDetailSchema);
-  recordPayment = (number: string, payment: PaymentDraft, idempotencyKey: string) =>
-    this.http.postJson(`/v1/invoices/${encodeURIComponent(number)}/payments`, payment, invoiceDetailSchema, {
-      idempotencyKey,
-    });
+  invoices = async () => (await this.http.getJson('/v1/invoices', invoiceListResponseSchema)).items;
+  invoice = (id: string) => this.http.getJson(`/v1/invoices/${encodeURIComponent(id)}`, invoiceDetailSchema);
+  recordPayment = (invoiceId: string, payment: PaymentDraft, idempotencyKey: string) =>
+    this.http.postJson(
+      `/v1/invoices/${encodeURIComponent(invoiceId)}/payments`,
+      payment,
+      invoiceDetailSchema,
+      { idempotencyKey },
+    );
 }

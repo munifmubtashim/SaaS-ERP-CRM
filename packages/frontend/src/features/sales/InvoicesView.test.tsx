@@ -108,10 +108,10 @@ describe('Invoices view', () => {
     let fail = true;
     const sales: ISalesService = {
       ...sample,
-      recordPayment: (number, payment, key) => {
+      recordPayment: (id, payment, key) => {
         keys.push(key);
         if (fail) return Promise.reject(new Error('timeout'));
-        return sample.recordPayment(number, payment, key);
+        return sample.recordPayment(id, payment, key);
       },
     };
     renderInvoices('en', sales);
@@ -128,6 +128,29 @@ describe('Invoices view', () => {
     expect(await screen.findByText('৳5,000 saved on C-000122.')).toBeInTheDocument();
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
+  });
+
+  it('a voided invoice (#221 status) says Voided, is left out of Due, and takes no payment', async () => {
+    const sample = new SampleSalesService(0, '2026-11-12');
+    const voided = <T extends { number: string; status: string }>(i: T): T =>
+      i.number === 'C-000120' ? { ...i, status: 'voided' } : i;
+    const sales: ISalesService = {
+      ...sample,
+      invoices: async () => (await sample.invoices()).map(voided),
+      invoice: async (id) => voided(await sample.invoice(id)),
+    };
+    renderInvoices('en', sales);
+    expect(await within(list()).findByRole('button', { name: /C-000120.*Voided/ })).toBeInTheDocument();
+    fireEvent.click(within(list()).getByRole('button', { name: 'Due' }));
+    expect(
+      within(list())
+        .getAllByRole('button', { name: /^C-0001/ })
+        .map((r) => r.textContent?.slice(0, 8)),
+    ).toEqual(['C-000117']);
+    fireEvent.click(within(list()).getByRole('button', { name: 'All' }));
+    await open('C-000120');
+    expect(await within(details()).findByText('Chain and sprocket kit')).toBeInTheDocument();
+    expect(within(details()).queryByRole('button', { name: 'Save payment' })).toBeNull();
   });
 
   it('print and return are shown but not available yet', async () => {
