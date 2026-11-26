@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import type { DemoService, ISalesService } from '../../services';
+import { ApiRequestError, type DemoService, type ISalesService } from '../../services';
 import { SampleSalesService } from '../../services/sample/SampleSalesService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { PosPage } from './PosPage';
+import { en } from '../../i18n/en';
+
+const EXCEEDS_DUE = en['payment.error.exceedsDue'];
 
 /** The Invoices half of Sales / POS (design/owner-dashboard/Sales.dc.html) over the sample, pinned to one day. */
 function renderInvoices(
@@ -108,10 +111,10 @@ describe('Invoices view', () => {
     let fail = true;
     const sales: ISalesService = {
       ...sample,
-      recordPayment: (id, payment, key) => {
+      recordPayment: (invoice, payment, key) => {
         keys.push(key);
         if (fail) return Promise.reject(new Error('timeout'));
-        return sample.recordPayment(id, payment, key);
+        return sample.recordPayment(invoice, payment, key);
       },
     };
     renderInvoices('en', sales);
@@ -128,6 +131,70 @@ describe('Invoices view', () => {
     expect(await screen.findByText('৳5,000 saved on C-000122.')).toBeInTheDocument();
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
+  });
+
+  it('Collect pays this invoice of this customer (POST /v1/payments needs both, ADR 0057)', async () => {
+    const sample = new SampleSalesService(0, '2026-11-12');
+    const paid: { id: string; partyId: string }[] = [];
+    const sales: ISalesService = {
+      ...sample,
+      recordPayment: (invoice, payment, key) => {
+        paid.push({ id: invoice.id, partyId: invoice.partyId });
+        return sample.recordPayment(invoice, payment, key);
+      },
+    };
+    renderInvoices('en', sales);
+    await open('C-000122');
+    fireEvent.change(await within(details()).findByLabelText('Amount in taka'), {
+      target: { value: '5000' },
+    });
+    fireEvent.click(within(details()).getByRole('button', { name: 'Save payment' }));
+    expect(await screen.findByText('৳5,000 saved on C-000122.')).toBeInTheDocument();
+    const c122 = (await sample.invoices()).find((i) => i.number === 'C-000122');
+    expect(paid).toEqual([{ id: c122?.id, partyId: c122?.partyId }]);
+  });
+
+  it('a refusal (409 payment.exceeds_due) is named like Record payment; the next save is a new attempt with a new key', async () => {
+    const sample = new SampleSalesService(0, '2026-11-12');
+    const keys: string[] = [];
+    let refuse = true;
+    let detailReads = 0;
+    const sales: ISalesService = {
+      ...sample,
+      invoice: (id) => {
+        detailReads += 1;
+        return sample.invoice(id);
+      },
+      recordPayment: (invoice, payment, key) => {
+        keys.push(key);
+        if (refuse)
+          return Promise.reject(
+            new ApiRequestError(409, {
+              code: 'CONFLICT',
+              message: 'More than is due',
+              fields: [{ path: 'amount', code: 'payment.exceeds_due', message: 'More than is due' }],
+              requestId: 'req-1',
+            }),
+          );
+        return sample.recordPayment(invoice, payment, key);
+      },
+    };
+    renderInvoices('en', sales);
+    await open('C-000122');
+    fireEvent.change(await within(details()).findByLabelText('Amount in taka'), {
+      target: { value: '5000' },
+    });
+    const readsBefore = detailReads;
+    fireEvent.click(within(details()).getByRole('button', { name: 'Save payment' }));
+    expect(await within(details()).findByRole('alert')).toHaveTextContent(EXCEEDS_DUE);
+    // What is due may have changed elsewhere: the invoice is read again.
+    await waitFor(() => expect(detailReads).toBeGreaterThan(readsBefore));
+    refuse = false;
+    fireEvent.click(within(details()).getByRole('button', { name: 'Save payment' }));
+    expect(await screen.findByText('৳5,000 saved on C-000122.')).toBeInTheDocument();
+    // A refusal recorded nothing, so the next attempt may take a new key; a retry after a timeout keeps it (above).
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(keys[1]);
   });
 
   it('a voided invoice (#221 status) says Voided, is left out of Due, and takes no payment', async () => {

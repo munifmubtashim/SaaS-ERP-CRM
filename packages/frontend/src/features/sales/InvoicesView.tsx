@@ -13,6 +13,7 @@ import { useI18n, type MessageKey } from '../../i18n';
 import type { PaymentDraft } from '../../services';
 import { takaInput } from './cart';
 import { canCollect, filterInvoices, paymentProblem, type InvoiceFilter } from './invoices';
+import { paymentRefusalOf } from './paymentRefusal';
 
 const FILTERS: InvoiceFilter[] = ['all', 'paid', 'partly_paid', 'due'];
 // The demo POS's methods (Munif, 24 Nov): cash and bKash; ADR 0016 keeps bank and card in the plan.
@@ -186,23 +187,35 @@ function Details({
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
   const { sales } = useServices();
+  const queryClient = useQueryClient();
   const [amountText, setAmountText] = useState('');
   const [method, setMethod] = useState<PaymentDraft['method']>('cash');
   const [reference, setReference] = useState('');
   const [problem, setProblem] = useState<ReturnType<typeof paymentProblem> | 'reference' | 'failed'>(null);
+  // A refusal from the API (ADR 0057 section 4), named as Record payment names it: a retry can't fix it.
+  const [refusal, setRefusal] = useState<MessageKey | null>(null);
   // One key per payment attempt: the same payment retried keeps its key; a changed one gets a new key.
   const attempt = useRef<{ payment: string; key: string } | null>(null);
   const save = useMutation({
     mutationFn: ({ payment, key }: { payment: PaymentDraft; key: string }) =>
-      sales.recordPayment(invoice.id, payment, key),
+      sales.recordPayment(invoice, payment, key),
     onSuccess: (updated, { payment }) => {
       attempt.current = null;
       setAmountText('');
       setReference('');
       setProblem(null);
+      setRefusal(null);
       onSaved(updated, payment.amount);
     },
-    onError: () => setProblem('failed'),
+    onError: (error) => {
+      const refused = paymentRefusalOf(error);
+      if (!refused) return setProblem('failed'); // a timeout or a 5xx: the retry keeps the same key
+      // Refused, so nothing was recorded: the next save is a new attempt. What is due may have changed: read it again.
+      attempt.current = null;
+      setRefusal(refused);
+      void queryClient.invalidateQueries({ queryKey: ['sales', 'invoice', invoice.id] });
+      void queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
+    },
   });
   const onSave = () => {
     const blocked = paymentProblem(amountText, invoice.due);
@@ -217,6 +230,7 @@ function Details({
     const text = JSON.stringify([invoice.id, payment]);
     if (attempt.current?.payment !== text) attempt.current = { payment: text, key: crypto.randomUUID() };
     setProblem(null);
+    setRefusal(null);
     save.mutate({ payment, key: attempt.current.key });
   };
   const collectable = canCollect(invoice);
@@ -321,11 +335,16 @@ function Details({
               />
             </label>
           )}
-          {problem && (
+          {(refusal ?? problem) && (
             <p role="alert" className="text-[13px] text-neg-text">
-              {t(problem === 'reference' ? 'pay.error.reference' : (`inv.error.${problem}` as MessageKey), {
-                balance: taka(invoice.due),
-              })}
+              {refusal
+                ? t(refusal)
+                : t(
+                    problem === 'reference' ? 'pay.error.reference' : (`inv.error.${problem}` as MessageKey),
+                    {
+                      balance: taka(invoice.due),
+                    },
+                  )}
             </p>
           )}
           <button

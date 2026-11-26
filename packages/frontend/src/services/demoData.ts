@@ -63,10 +63,10 @@ export const DEMO_CAPABLE: ReadonlySet<DemoService> = new Set<DemoService>([
 ]);
 
 /**
- * No API yet for the sample-by-default services: the invoices view's payment (sales.invoices, until Collect moves to
- * POST /v1/payments), the stock routes' screens, the model and unit routes (#105, #107), and every report call but the
- * owner dashboard. These routes exist, so they are real unless named: the owner dashboard (M6, #197), the POS
- * (sales.pos: GET /v1/stock/pos-catalog #199, POST /v1/invoices #191), customers (#209, #216), products (#131), dues
+ * No API yet for the sample-by-default services: the stock routes' screens, the model and unit routes (#105, #107),
+ * and every report call but the owner dashboard. These routes exist, so they are real unless named: the owner
+ * dashboard (M6, #197), the POS (sales.pos: GET /v1/stock/pos-catalog #199, POST /v1/invoices #191), the invoices view
+ * (sales.invoices: #221's reads, Collect through POST /v1/payments), customers (#209, #216), products (#131), dues
  * (F5, #220) and payments (ADR 0057), which pay the real open invoices that dues list (ADR 0059 section 4).
  */
 const REAL_BY_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>([
@@ -76,6 +76,8 @@ const REAL_BY_DEFAULT: ReadonlySet<DemoService> = new Set<DemoService>([
   'party.dues',
   'product.catalogue',
   'sales.payments',
+  // The invoices view: #221's reads, and Collect pays through POST /v1/payments (ADR 0057).
+  'sales.invoices',
 ]);
 export const DEMO_DEFAULT: ReadonlySet<DemoService> = new Set(
   [...DEMO_CAPABLE].filter((service) => !REAL_BY_DEFAULT.has(service)),

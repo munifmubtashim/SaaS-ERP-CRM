@@ -12,6 +12,10 @@ import {
   type SaleDraft,
 } from '@erp/shared';
 import type { IHttpClient } from './HttpClient';
+import type { ISalesPaymentService } from './salesPaymentService';
+
+/** The invoice a payment goes to: POST /v1/payments names the invoice and its customer (ADR 0057). */
+export type PayableInvoice = Pick<InvoiceSummary, 'id' | 'partyId'>;
 
 /**
  * What the POS screen needs from Sales (design/owner-dashboard/Sales.dc.html, selling half). Owner: Farhan.
@@ -30,10 +34,15 @@ export interface ISalesService {
   /** One invoice by its id, with its lines and payments (GET /v1/invoices/:id, #221). */
   invoice(id: string): Promise<InvoiceDetail>;
   /**
-   * Collect a payment on an invoice. Moves money, so it carries an Idempotency-Key (invariant 5): a retry with the
-   * same key answers the first result and collects nothing again. Never more than is due.
+   * Collect a payment on an invoice and answer the invoice as it is now. Moves money, so it carries an
+   * Idempotency-Key (invariant 5): a retry with the same key answers the first payment and collects nothing again.
+   * Never more than is due.
    */
-  recordPayment(invoiceId: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
+  recordPayment(
+    invoice: PayableInvoice,
+    payment: PaymentDraft,
+    idempotencyKey: string,
+  ): Promise<InvoiceDetail>;
 }
 
 /** A payment as the counter enters it (shared, provisional; ADR 0016 lines 20 and 36). */
@@ -46,14 +55,16 @@ export type { PaymentDraft } from '@erp/shared';
  *   The client sends no price, cost or date; a serial number becomes its unit id from the catalog. The answer is read
  *   back from GET /v1/invoices/:id, so it is #221's summary with nothing invented.
  * - The invoice reads are #221's routes; the list reads the first page only, until the view pages.
- * - recordPayment still calls a provisional path, so the invoices view stays on sample data (sales.invoices) until it
- *   moves to POST /v1/payments (ADR 0057).
+ * - Collect pays through POST /v1/payments (ADR 0057, the same call as Record payment), then reads the invoice back.
  */
 export class SalesService implements ISalesService {
   /** From the last catalog read: the walk-in party and each serial number's unit id. */
   private catalog: { walkInPartyId: string | null; unitIds: Map<string, string> } | null = null;
 
-  constructor(protected readonly http: IHttpClient) {}
+  constructor(
+    protected readonly http: IHttpClient,
+    private readonly payments: ISalesPaymentService,
+  ) {}
 
   posItems = async (): Promise<PosItem[]> => {
     const answer = await this.http.getJson('/v1/stock/pos-catalog', posCatalogSchema);
@@ -97,15 +108,24 @@ export class SalesService implements ISalesService {
 
   invoices = async () => (await this.http.getJson('/v1/invoices', invoiceListResponseSchema)).items;
   invoice = (id: string) => this.http.getJson(`/v1/invoices/${encodeURIComponent(id)}`, invoiceDetailSchema);
-  recordPayment = (invoiceId: string, payment: PaymentDraft, idempotencyKey: string) =>
-    this.http.postJson(
-      `/v1/invoices/${encodeURIComponent(invoiceId)}/payments`,
-      payment,
-      invoiceDetailSchema,
+  /**
+   * POST /v1/payments on this invoice, then GET /v1/invoices/:id for what is still due. If the read fails, a retry with
+   * the same Idempotency-Key answers the first payment and collects nothing again. A refusal is passed on as it is.
+   */
+  recordPayment = async (invoice: PayableInvoice, payment: PaymentDraft, idempotencyKey: string) => {
+    await this.payments.recordPayment(
       {
-        idempotencyKey,
+        partyId: invoice.partyId,
+        invoiceId: invoice.id,
+        method: payment.method,
+        amount: payment.amount,
+        externalRef: payment.externalRef,
+        note: null,
       },
+      idempotencyKey,
     );
+    return this.invoice(invoice.id);
+  };
 }
 
 export type SalesCall = keyof ISalesService;
@@ -124,6 +144,6 @@ export class SalesServiceSwitch implements ISalesService {
   completeSale = (draft: SaleDraft, key: string) => this.pick('completeSale').completeSale(draft, key);
   invoices = () => this.pick('invoices').invoices();
   invoice = (id: string) => this.pick('invoice').invoice(id);
-  recordPayment = (invoiceId: string, payment: PaymentDraft, key: string) =>
-    this.pick('recordPayment').recordPayment(invoiceId, payment, key);
+  recordPayment = (invoice: PayableInvoice, payment: PaymentDraft, key: string) =>
+    this.pick('recordPayment').recordPayment(invoice, payment, key);
 }

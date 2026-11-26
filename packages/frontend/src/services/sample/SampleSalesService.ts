@@ -14,7 +14,7 @@ import {
   type PosItem,
   type SaleDraft,
 } from '@erp/shared';
-import type { ISalesService, PaymentDraft } from '../salesService';
+import type { ISalesService, PayableInvoice, PaymentDraft } from '../salesService';
 
 /*
  * Invented POS items (no real brands, models, codes or prices). Serial-tracked items list their units' numbers;
@@ -295,13 +295,13 @@ export class SampleSalesService implements ISalesService {
   };
 
   recordPayment = (
-    invoiceId: string,
+    invoice: PayableInvoice,
     payment: PaymentDraft,
     idempotencyKey: string,
   ): Promise<InvoiceDetail> => {
     const first = this.paymentsAnswered.get(idempotencyKey);
     if (first) return this.later(first);
-    const found = this.details.find((d) => d.id === invoiceId);
+    const found = this.details.find((d) => d.id === invoice.id);
     if (!found) return Promise.reject(new Error('invoice.not_found'));
     const amount = parseMoney(payment.amount);
     if (compareMoney(amount, ZERO) <= 0) return Promise.reject(new Error('payment.not_positive'));
@@ -316,7 +316,7 @@ export class SampleSalesService implements ISalesService {
         { receivedAt: new Date().toISOString(), receiptNumber: receiptNo(this.nextReceipt++), ...payment },
       ],
     });
-    this.details = this.details.map((d) => (d.id === invoiceId ? updated : d));
+    this.details = this.details.map((d) => (d.id === invoice.id ? updated : d));
     this.paymentsAnswered.set(idempotencyKey, updated);
     return this.later(updated);
   };

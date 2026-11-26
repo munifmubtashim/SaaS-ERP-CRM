@@ -3,13 +3,42 @@ import {
   invoiceSummarySchema,
   posItemSchema,
   postInvoiceSchema,
+  type RecordPaymentInput,
   type SaleDraft,
+  type SalesPayment,
 } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 import type { IHttpClient } from './HttpClient';
+import type { ISalesPaymentService } from './salesPaymentService';
 import { SampleSalesService } from './sample/SampleSalesService';
 import { SalesService } from './salesService';
+
+/** For the calls that pay nothing: any payment is a test failure. */
+const noPayments: ISalesPaymentService = {
+  recordPayment: () => Promise.reject(new Error('This test recorded a payment it did not expect.')),
+};
+
+/** POST /v1/payments, recorded: answers one invented payment (ADR 0057). */
+class RecordingPayments implements ISalesPaymentService {
+  calls: { input: RecordPaymentInput; key: string }[] = [];
+  recordPayment = (input: RecordPaymentInput, key: string): Promise<SalesPayment> => {
+    this.calls.push({ input, key });
+    return Promise.resolve({
+      id: '0195f000-0000-7000-8000-0000000000e1',
+      receiptNumber: 'RC-SHW-000001',
+      partyId: input.partyId,
+      invoiceId: input.invoiceId,
+      branchId: '0195f000-0000-7000-8000-00000000b001',
+      method: input.method,
+      externalRef: input.externalRef ?? null,
+      amount: input.amount,
+      status: 'posted',
+      receivedAt: '2026-11-26T06:00:00.000Z',
+      note: null,
+    });
+  };
+}
 
 /** The POS calls: the counter's items, and Complete sale with an Idempotency-Key (one sale per key). */
 class RecordingHttp implements IHttpClient {
@@ -41,7 +70,7 @@ describe('SalesService (the API)', () => {
   it('invoices reads the first page of GET /v1/invoices (#221) and answers its items', async () => {
     const sample = (await new SampleSalesService(0, '2026-11-12').invoices()).slice(0, 2);
     const http = new RecordingHttp({ items: sample, nextCursor: null });
-    expect(await new SalesService(http).invoices()).toEqual(sample);
+    expect(await new SalesService(http, noPayments).invoices()).toEqual(sample);
     expect(http.gets).toEqual(['/v1/invoices']);
   });
 
@@ -50,23 +79,56 @@ describe('SalesService (the API)', () => {
     const [first] = await service.invoices();
     const detail = await service.invoice(first?.id ?? '');
     const http = new RecordingHttp(detail);
-    expect(await new SalesService(http).invoice(detail.id)).toEqual(detail);
+    expect(await new SalesService(http, noPayments).invoice(detail.id)).toEqual(detail);
     expect(http.gets).toEqual([`/v1/invoices/${detail.id}`]);
   });
 
-  it('recordPayment posts to the invoice’s payments, by its id, with its Idempotency-Key', async () => {
-    const http = new RecordingHttp();
-    const id = '0195f000-0000-7000-8000-000000000101';
-    await new SalesService(http)
-      .recordPayment(id, { method: 'bkash', amount: '500.00', externalRef: 'BK9' }, 'key-9')
-      .catch(() => undefined);
-    expect(http.posts).toEqual([
+  it('recordPayment sends POST /v1/payments for the invoice and its customer, with the Idempotency-Key, then reads the invoice back', async () => {
+    const sample = new SampleSalesService(0, '2026-11-12');
+    const [first] = await sample.invoices();
+    const detail = await sample.invoice(first?.id ?? '');
+    const http = new RecordingHttp(detail);
+    const payments = new RecordingPayments();
+    const answer = await new SalesService(http, payments).recordPayment(
+      detail,
+      { method: 'bkash', amount: '500.00', externalRef: 'BK9' },
+      'key-9',
+    );
+    // ADR 0057: one invoice of one customer; the server sets the branch, the receipt number and the date.
+    expect(payments.calls).toEqual([
       {
-        path: `/v1/invoices/${id}/payments`,
-        body: { method: 'bkash', amount: '500.00', externalRef: 'BK9' },
+        input: {
+          partyId: detail.partyId,
+          invoiceId: detail.id,
+          method: 'bkash',
+          amount: '500.00',
+          externalRef: 'BK9',
+          note: null,
+        },
         key: 'key-9',
       },
     ]);
+    expect(http.posts).toEqual([]); // never the old provisional /v1/invoices/:id/payments
+    expect(http.gets).toEqual([`/v1/invoices/${detail.id}`]);
+    expect(answer).toEqual(detail);
+  });
+
+  it('a refused payment is passed on as it is, and the invoice is not read', async () => {
+    const http = new RecordingHttp();
+    const refused = new Error('payment.exceeds_due');
+    const payments: ISalesPaymentService = { recordPayment: () => Promise.reject(refused) };
+    const invoice = {
+      id: '0195f000-0000-7000-8000-000000000101',
+      partyId: '0195f000-0000-7000-8000-00000000a001',
+    };
+    await expect(
+      new SalesService(http, payments).recordPayment(
+        invoice,
+        { method: 'cash', amount: '1.00', externalRef: null },
+        'k',
+      ),
+    ).rejects.toBe(refused);
+    expect(http.gets).toEqual([]);
   });
 });
 
@@ -150,19 +212,19 @@ describe('SampleSalesService invoices', () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', '100000.00'), 'key-1');
     const part = await service.recordPayment(
-      sold.id,
+      sold,
       { method: 'bkash', amount: '42000.00', externalRef: 'BK42' },
       'pay-1',
     );
     expect(part).toMatchObject({ paid: '142000.00', due: '100000.00', paymentStatus: 'partly_paid' });
     const again = await service.recordPayment(
-      sold.id,
+      sold,
       { method: 'bkash', amount: '42000.00', externalRef: 'BK42' },
       'pay-1',
     );
     expect(again.paid).toBe('142000.00');
     const full = await service.recordPayment(
-      sold.id,
+      sold,
       { method: 'cash', amount: '100000.00', externalRef: null },
       'pay-2',
     );
@@ -174,10 +236,10 @@ describe('SampleSalesService invoices', () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', null), 'key-1');
     await expect(
-      service.recordPayment(sold.id, { method: 'bkash', amount: '1000.00', externalRef: null }, 'p1'),
+      service.recordPayment(sold, { method: 'bkash', amount: '1000.00', externalRef: null }, 'p1'),
     ).rejects.toThrow('payment.reference_missing');
     const paid = await service.recordPayment(
-      sold.id,
+      sold,
       { method: 'bkash', amount: '1000.00', externalRef: 'BK7X2Q9' },
       'p2',
     );
@@ -196,7 +258,7 @@ describe('SampleSalesService invoices', () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', null), 'key-1');
     await expect(
-      service.recordPayment(sold.id, { method: 'cash', amount: '242000.01', externalRef: null }, 'p'),
+      service.recordPayment(sold, { method: 'cash', amount: '242000.01', externalRef: null }, 'p'),
     ).rejects.toThrow('payment.over_balance');
     await expect(service.invoice('0195f000-0000-7000-8000-999999999999')).rejects.toThrow(
       'invoice.not_found',
@@ -216,7 +278,7 @@ describe('SampleSalesService invoices', () => {
     expect(new Set(before).size).toBe(before.length);
     const sold = await service.completeSale(draft('VL3-000101', '100000.00'), 'key-1');
     const paid = await service.recordPayment(
-      sold.id,
+      sold,
       { method: 'cash', amount: '1000.00', externalRef: null },
       'p1',
     );
@@ -331,7 +393,7 @@ const realDraft = (paid: SaleDraft['payment']): SaleDraft => ({
 describe('SalesService: the POS on the real API (POST /v1/invoices, #191)', () => {
   it('posItems reads GET /v1/stock/pos-catalog: on hand, price, category (null kept), units by serial number', async () => {
     const http = new ApiHttp();
-    const items = await new SalesService(http).posItems();
+    const items = await new SalesService(http, noPayments).posItems();
     expect(http.gets).toEqual(['/v1/stock/pos-catalog']);
     expect(items).toEqual([
       {
@@ -358,7 +420,7 @@ describe('SalesService: the POS on the real API (POST /v1/invoices, #191)', () =
 
   it('completeSale posts #185 postInvoiceSchema to /v1/invoices (never /v1/sales) with the Idempotency-Key: walk-in party, unit ids, the one payment', async () => {
     const http = new ApiHttp(posted('100000.00', '142000.00'));
-    const service = new SalesService(http);
+    const service = new SalesService(http, noPayments);
     await service.posItems();
     const summary = await service.completeSale(
       realDraft({ method: 'bkash', amount: '100000.00', externalRef: 'BK7Q2' }),
@@ -397,7 +459,7 @@ describe('SalesService: the POS on the real API (POST /v1/invoices, #191)', () =
 
   it('nothing received is an empty payment list and a sale that is all due', async () => {
     const http = new ApiHttp(posted('0.00', '242000.00'));
-    const service = new SalesService(http);
+    const service = new SalesService(http, noPayments);
     await service.posItems();
     const summary = await service.completeSale(realDraft(null), 'key-2');
     expect((http.posts[0]?.body as { payments: unknown[] }).payments).toEqual([]);
@@ -406,7 +468,9 @@ describe('SalesService: the POS on the real API (POST /v1/invoices, #191)', () =
 
   it('refuses to post before the catalog is loaded (no walk-in party id yet)', async () => {
     const http = new ApiHttp();
-    await expect(new SalesService(http).completeSale(realDraft(null), 'key-3')).rejects.toThrow(/catalog/);
+    await expect(new SalesService(http, noPayments).completeSale(realDraft(null), 'key-3')).rejects.toThrow(
+      /catalog/,
+    );
     expect(http.posts).toEqual([]);
   });
 });
