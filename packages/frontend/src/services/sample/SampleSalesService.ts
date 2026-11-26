@@ -10,11 +10,12 @@ import {
   addDaysISO,
   ZERO,
   type InvoiceDetail,
+  type InvoiceListResponse,
   type InvoiceSummary,
   type PosItem,
   type SaleDraft,
 } from '@erp/shared';
-import type { ISalesService, PaymentDraft } from '../salesService';
+import type { ISalesService, PayableInvoice, PaymentDraft } from '../salesService';
 
 /*
  * Invented POS items (no real brands, models, codes or prices). Serial-tracked items list their units' numbers;
@@ -275,6 +276,8 @@ export class SampleSalesService implements ISalesService {
   constructor(
     private readonly delayMs = 300,
     today: string | null = null,
+    /** Invoices per page, like the API's cursor pages (25 by default); tests page with fewer. */
+    private readonly pageSize = 25,
   ) {
     this.details = seedInvoices(today ?? todayBD(new Date().toISOString()));
     const used = this.details.flatMap((d) => d.payments.map((p) => Number(p.receiptNumber.slice(2))));
@@ -287,7 +290,15 @@ export class SampleSalesService implements ISalesService {
 
   posItems = () => this.later(this.items);
 
-  invoices = () => this.later(this.details.map(summary));
+  /** A page of invoices, newest first. The cursor is the offset of the next page, as text (opaque to callers). */
+  invoices = (cursor: string | null): Promise<InvoiceListResponse> => {
+    const from = cursor === null ? 0 : Number(cursor);
+    const to = from + this.pageSize;
+    return this.later({
+      items: this.details.slice(from, to).map(summary),
+      nextCursor: to < this.details.length ? String(to) : null,
+    });
+  };
 
   invoice = (id: string) => {
     const found = this.details.find((d) => d.id === id);
@@ -295,13 +306,13 @@ export class SampleSalesService implements ISalesService {
   };
 
   recordPayment = (
-    invoiceId: string,
+    invoice: PayableInvoice,
     payment: PaymentDraft,
     idempotencyKey: string,
   ): Promise<InvoiceDetail> => {
     const first = this.paymentsAnswered.get(idempotencyKey);
     if (first) return this.later(first);
-    const found = this.details.find((d) => d.id === invoiceId);
+    const found = this.details.find((d) => d.id === invoice.id);
     if (!found) return Promise.reject(new Error('invoice.not_found'));
     const amount = parseMoney(payment.amount);
     if (compareMoney(amount, ZERO) <= 0) return Promise.reject(new Error('payment.not_positive'));
@@ -316,7 +327,7 @@ export class SampleSalesService implements ISalesService {
         { receivedAt: new Date().toISOString(), receiptNumber: receiptNo(this.nextReceipt++), ...payment },
       ],
     });
-    this.details = this.details.map((d) => (d.id === invoiceId ? updated : d));
+    this.details = this.details.map((d) => (d.id === invoice.id ? updated : d));
     this.paymentsAnswered.set(idempotencyKey, updated);
     return this.later(updated);
   };

@@ -110,10 +110,12 @@ export function createServices(
       ),
       (call) => demo.has(call === 'dues' ? 'party.dues' : 'party'),
     ),
-    // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
-    // The POS (sales.pos) and the invoices view (sales.invoices) are real or sample on their own keys.
-    sales: new SalesServiceSwitch(new SalesService(http), new SampleSalesService(), (call) =>
-      demo.has(call === 'posItems' || call === 'completeSale' ? 'sales.pos' : 'sales.invoices'),
+    // The POS (sales.pos) and the invoices view (sales.invoices) are real by default and sample only when named, each
+    // on its own key; Collect pays through POST /v1/payments (ADR 0057). A production build always calls the API.
+    sales: new SalesServiceSwitch(
+      new SalesService(http, new SalesPaymentService(http)),
+      new SampleSalesService(),
+      (call) => demo.has(call === 'posItems' || call === 'completeSale' ? 'sales.pos' : 'sales.invoices'),
     ),
     // POST /v1/payments (ADR 0057): real unless `sales.payments` is named; it pays the open invoices F5 lists (#220).
     salesPayments: demo.has('sales.payments')
