@@ -222,6 +222,7 @@ export const bn: Record<MessageKey, string> = {
   'inv.status.paid': 'পরিশোধিত',
   'inv.status.partly_paid': 'আংশিক পরিশোধিত',
   'inv.status.due': 'বাকি',
+  'inv.status.voided': 'বাতিলকৃত',
   'inv.col.invoice': 'ইনভয়েস',
   'inv.col.customer': 'গ্রাহক',
   'inv.col.total': 'মোট',

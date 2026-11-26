@@ -220,6 +220,7 @@ export const en = {
   'inv.status.paid': 'Paid',
   'inv.status.partly_paid': 'Partly paid',
   'inv.status.due': 'Due',
+  'inv.status.voided': 'Voided',
   'inv.col.invoice': 'Invoice',
   'inv.col.customer': 'Customer',
   'inv.col.total': 'Total',

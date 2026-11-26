@@ -1,9 +1,7 @@
 import {
-  compareMoney,
   invoiceDetailSchema,
+  invoiceListResponseSchema,
   invoiceSummarySchema,
-  isZero,
-  parseMoney,
   posCatalogSchema,
   postedInvoiceSchema,
   type PostInvoiceInput,
@@ -13,7 +11,6 @@ import {
   type PosItem,
   type SaleDraft,
 } from '@erp/shared';
-import { z } from 'zod';
 import type { IHttpClient } from './HttpClient';
 
 /**
@@ -28,15 +25,15 @@ export interface ISalesService {
    * same key answers the first invoice and sells nothing again.
    */
   completeSale(draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary>;
-  /** The active branch's invoices (the design's Invoices view). */
+  /** The scope's invoices, newest first (the design's Invoices view; GET /v1/invoices, #221). */
   invoices(): Promise<InvoiceSummary[]>;
-  /** One invoice with its lines, payments and balance. */
-  invoice(number: string): Promise<InvoiceDetail>;
+  /** One invoice by its id, with its lines and payments (GET /v1/invoices/:id, #221). */
+  invoice(id: string): Promise<InvoiceDetail>;
   /**
    * Collect a payment on an invoice. Moves money, so it carries an Idempotency-Key (invariant 5): a retry with the
-   * same key answers the first result and collects nothing again. Never more than the balance.
+   * same key answers the first result and collects nothing again. Never more than is due.
    */
-  recordPayment(number: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
+  recordPayment(invoiceId: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail>;
 }
 
 /** A payment as the counter enters it (shared, provisional; ADR 0016 lines 20 and 36). */
@@ -46,8 +43,11 @@ export type { PaymentDraft } from '@erp/shared';
  * Sales module: the API.
  * - The POS is real (Munif, 25 Nov): posItems reads GET /v1/stock/pos-catalog (#199) and completeSale posts #185's
  *   postInvoiceSchema to POST /v1/invoices (#191), selling to the catalog's walk-in party until customers exist (F2).
- *   The client sends no price, cost or date; a serial number becomes its unit id from the catalog.
- * - The invoices view's paths are still provisional (no routes yet), so it stays on sample data (sales.invoices).
+ *   The client sends no price, cost or date; a serial number becomes its unit id from the catalog. The answer is read
+ *   back from GET /v1/invoices/:id, so it is #221's summary with nothing invented.
+ * - The invoice reads are #221's routes; the list reads the first page only, until the view pages.
+ * - recordPayment still calls a provisional path, so the invoices view stays on sample data (sales.invoices) until it
+ *   moves to POST /v1/payments (ADR 0057).
  */
 export class SalesService implements ISalesService {
   /** From the last catalog read: the walk-in party and each serial number's unit id. */
@@ -72,6 +72,10 @@ export class SalesService implements ISalesService {
     }));
   };
 
+  /**
+   * POST /v1/invoices, then GET /v1/invoices/:id for #221's summary: the post answer has no branch or posting time.
+   * If the read fails, a retry with the same Idempotency-Key gets the first sale back and sells nothing again.
+   */
   completeSale = async (draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary> => {
     const catalog = this.catalog;
     if (!catalog?.walkInPartyId)
@@ -88,28 +92,20 @@ export class SalesService implements ISalesService {
       payments: draft.payment ? [draft.payment] : [],
     };
     const posted = await this.http.postJson('/v1/invoices', body, postedInvoiceSchema, { idempotencyKey });
-    const paid = parseMoney(posted.paid);
-    return {
-      number: posted.number,
-      issuedAt: new Date().toISOString(),
-      customerName: posted.customerName ?? '—',
-      total: posted.total,
-      paid: posted.paid,
-      status: isZero(parseMoney(posted.due))
-        ? 'paid'
-        : compareMoney(paid, parseMoney('0.00')) > 0
-          ? 'partly_paid'
-          : 'due',
-    };
+    return invoiceSummarySchema.parse(await this.invoice(posted.id));
   };
 
-  invoices = () => this.http.getJson('/v1/invoices', z.array(invoiceSummarySchema));
-  invoice = (number: string) =>
-    this.http.getJson(`/v1/invoices/${encodeURIComponent(number)}`, invoiceDetailSchema);
-  recordPayment = (number: string, payment: PaymentDraft, idempotencyKey: string) =>
-    this.http.postJson(`/v1/invoices/${encodeURIComponent(number)}/payments`, payment, invoiceDetailSchema, {
-      idempotencyKey,
-    });
+  invoices = async () => (await this.http.getJson('/v1/invoices', invoiceListResponseSchema)).items;
+  invoice = (id: string) => this.http.getJson(`/v1/invoices/${encodeURIComponent(id)}`, invoiceDetailSchema);
+  recordPayment = (invoiceId: string, payment: PaymentDraft, idempotencyKey: string) =>
+    this.http.postJson(
+      `/v1/invoices/${encodeURIComponent(invoiceId)}/payments`,
+      payment,
+      invoiceDetailSchema,
+      {
+        idempotencyKey,
+      },
+    );
 }
 
 export type SalesCall = keyof ISalesService;
@@ -127,7 +123,7 @@ export class SalesServiceSwitch implements ISalesService {
   posItems = () => this.pick('posItems').posItems();
   completeSale = (draft: SaleDraft, key: string) => this.pick('completeSale').completeSale(draft, key);
   invoices = () => this.pick('invoices').invoices();
-  invoice = (number: string) => this.pick('invoice').invoice(number);
-  recordPayment = (number: string, payment: PaymentDraft, key: string) =>
-    this.pick('recordPayment').recordPayment(number, payment, key);
+  invoice = (id: string) => this.pick('invoice').invoice(id);
+  recordPayment = (invoiceId: string, payment: PaymentDraft, key: string) =>
+    this.pick('recordPayment').recordPayment(invoiceId, payment, key);
 }

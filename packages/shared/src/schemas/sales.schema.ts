@@ -1,101 +1,8 @@
 import { z } from 'zod';
-import { moneySchema } from '../utils/money.js';
-import { quantityTextSchema } from './inventory.schema.js';
-
-/**
- * Sales module, Zod schemas shared by backend and frontend. Owner: Farhan.
- *
- * PROVISIONAL VIEW SHAPES for the Sales / POS screen (design/owner-dashboard/Sales.dc.html): what the screen shows and
- * sends. They don't decide how a sale posts (ADR 0022): no journal, stock movement or cost here. Replace them when
- * ADR 0022's sale API is agreed.
- */
-
-/** The plan's payment methods, all entered by hand (ADR 0016 lines 18 and 64). The demo POS offers cash and bKash. */
-export const paymentMethodSchema = z.enum(['cash', 'bank', 'bkash', 'card']);
-
-/**
- * A payment as the counter enters it: amount above zero, the method, and the external transaction id, which Bank,
- * bKash and Card need and Cash doesn't (ADR 0016 lines 20, 36 and 104).
- */
-export const paymentDraftSchema = z
-  .object({
-    method: paymentMethodSchema,
-    amount: moneySchema.refine(
-      (value) => !value.startsWith('-') && !/^0+\.00$/.test(value),
-      'More than zero',
-    ),
-    externalRef: z.string().trim().min(1).max(64).nullable(),
-  })
-  .refine((payment) => payment.method === 'cash' || payment.externalRef !== null, {
-    message: 'Bank, bKash and card payments need the transaction id.',
-    path: ['externalRef'],
-  });
-export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
-
-/** An item the counter can sell. Serial-tracked items list their available serial numbers. */
-export const posItemSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  /** The product's category; null when it has none (GET /v1/stock/pos-catalog). */
-  category: z.string().min(1).nullable(),
-  kind: z.enum(['serial', 'quantity']),
-  price: moneySchema,
-  available: quantityTextSchema,
-  serialNumbers: z.array(z.string().min(1)),
-});
-
-export const cartLineSchema = z.object({
-  itemId: z.string().min(1),
-  name: z.string().min(1),
-  unitPrice: moneySchema,
-  quantity: quantityTextSchema,
-  /** The unit sold, for a serial-tracked item; null for counted items. */
-  serialNumber: z.string().min(1).nullable(),
-});
-
-/** What Complete sale sends: the lines, a discount, and the payment received now (null: all due). */
-export const saleDraftSchema = z.object({
-  customerName: z.string().trim().min(1).max(200).nullable(),
-  lines: z.array(cartLineSchema).min(1),
-  discount: moneySchema,
-  payment: paymentDraftSchema.nullable(),
-});
-
-export const invoiceSummarySchema = z.object({
-  number: z.string().min(1),
-  issuedAt: z.iso.datetime(),
-  customerName: z.string().min(1),
-  total: moneySchema,
-  paid: moneySchema,
-  status: invoiceStatusSchema,
-});
-
-export const invoiceDetailSchema = invoiceSummarySchema.extend({
-  soldBy: z.string().min(1),
-  lines: z.array(
-    z.object({
-      description: z.string().min(1),
-      quantity: quantityTextSchema,
-      unitPrice: moneySchema,
-      amount: moneySchema,
-    }),
-  ),
-  discount: moneySchema,
-  payments: z.array(
-    z.object({
-      receivedAt: z.iso.datetime(),
-      /** The system receipt number every payment gets (ADR 0016 line 19; ADR 0015 numbers it per branch). */
-      receiptNumber: z.string().min(1),
-      method: paymentMethodSchema,
-      amount: moneySchema,
-      externalRef: z.string().min(1).nullable(),
-    }),
-  ),
-  balance: moneySchema,
-});
 import { MONEY_PATTERN, ZERO, moneySchema, parseMoney } from '../utils/money.js';
 import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
 import { quantitySchema } from '../utils/quantity.js';
+import { quantityTextSchema } from './inventory.schema.js';
 
 /**
  * Sales module, Zod schemas shared by backend and frontend. Owner: Farhan.
@@ -106,6 +13,9 @@ import { quantitySchema } from '../utils/quantity.js';
  * at sale time (P-07), the cost from the stock ledger, and the business date from the server clock in Asia/Dhaka.
  */
 export const salesSchema = z.object({});
+
+/** The plan's payment methods, all entered by hand (ADR 0016). The demo POS offers cash and bKash; "due" is none. */
+export const paymentMethodSchema = z.enum(['cash', 'bank', 'bkash', 'card']);
 
 /** A quantity sold: above zero, up to 3 decimals, as a string. */
 export const saleQuantitySchema = z
@@ -158,9 +68,7 @@ export const postInvoiceSchema = z
   })
   .strict();
 
-/** A posted invoice's document status (ADR 0022: posted or voided). Renamed in demo-local4 only: the UI's
- * provisional invoiceStatusSchema (paid, partly paid, due) uses the old name. */
-export const invoiceDocumentStatusSchema = z.enum(['posted', 'voided']);
+export const invoiceStatusSchema = z.enum(['posted', 'voided']);
 
 /** The answer to a posted sale. Never carries a unit cost (a hidden field, plan 2.5). */
 export const postedInvoiceSchema = z
@@ -175,7 +83,7 @@ export const postedInvoiceSchema = z
     total: moneySchema,
     paid: moneySchema,
     due: moneySchema,
-    status: invoiceDocumentStatusSchema,
+    status: invoiceStatusSchema,
     lines: z.array(
       z
         .object({
@@ -203,65 +111,6 @@ export const postedInvoiceSchema = z
   .strict();
 
 // Customer payments and dues (A15, #47): POST /v1/payments takes recordPaymentSchema (ADR 0057).
-export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
-/** An item the counter can sell. Serial-tracked items list their available serial numbers. */
-export const posItemSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  category: z.string().min(1),
-  kind: z.enum(['serial', 'quantity']),
-  price: moneySchema,
-  available: quantityTextSchema,
-  serialNumbers: z.array(z.string().min(1)),
-});
-export const cartLineSchema = z.object({
-  itemId: z.string().min(1),
-  name: z.string().min(1),
-  unitPrice: moneySchema,
-  quantity: quantityTextSchema,
-  /** The unit sold, for a serial-tracked item; null for counted items. */
-  serialNumber: z.string().min(1).nullable(),
-});
-/** What Complete sale sends: the lines, a discount, and the payment received now (null: all due). */
-export const saleDraftSchema = z.object({
-  customerName: z.string().trim().min(1).max(200).nullable(),
-  lines: z.array(cartLineSchema).min(1),
-  discount: moneySchema,
-  payment: paymentDraftSchema.nullable(),
-});
-export const invoiceSummarySchema = z.object({
-  number: z.string().min(1),
-  issuedAt: z.iso.datetime(),
-  customerName: z.string().min(1),
-  total: moneySchema,
-  paid: moneySchema,
-  status: invoiceStatusSchema,
-});
-export const invoiceDetailSchema = invoiceSummarySchema.extend({
-  soldBy: z.string().min(1),
-  lines: z.array(
-    z.object({
-      description: z.string().min(1),
-      quantity: quantityTextSchema,
-      unitPrice: moneySchema,
-      amount: moneySchema,
-    }),
-  ),
-  discount: moneySchema,
-  payments: z.array(
-    z.object({
-      receivedAt: z.iso.datetime(),
-      /** The system receipt number every payment gets (ADR 0016 line 19; ADR 0015 numbers it per branch). */
-      receiptNumber: z.string().min(1),
-      method: paymentMethodSchema,
-      amount: moneySchema,
-      externalRef: z.string().min(1).nullable(),
-    }),
-  ),
-  balance: moneySchema,
-});
-// Customer payments and dues (A15, #47): the API shapes for POST /v1/payments and the dues read (ADR 0057).
-export const salesSchema = z.object({});
 /** Every method except cash needs the external transaction id (ADR 0016 draft, Moto Mart decision). */
 const METHODS_WITHOUT_EXTERNAL_REF: ReadonlySet<string> = new Set(['cash']);
 
@@ -406,3 +255,51 @@ export const invoiceListQuerySchema = pageQuerySchema
   .strict();
 
 export const invoiceListResponseSchema = cursorPageSchema(invoiceSummarySchema);
+
+// Provisional POS view shapes (UI stack), kept beside the real ones on this local integration branch.
+/**
+ * A payment as the counter enters it: amount above zero, the method, and the external transaction id, which Bank,
+ * bKash and Card need and Cash doesn't (ADR 0016 lines 20, 36 and 104).
+ */
+export const paymentDraftSchema = z
+  .object({
+    method: paymentMethodSchema,
+    amount: moneySchema.refine(
+      (value) => !value.startsWith('-') && !/^0+\.00$/.test(value),
+      'More than zero',
+    ),
+    externalRef: z.string().trim().min(1).max(64).nullable(),
+  })
+  .refine((payment) => payment.method === 'cash' || payment.externalRef !== null, {
+    message: 'Bank, bKash and card payments need the transaction id.',
+    path: ['externalRef'],
+  });
+
+/** An item the counter can sell. Serial-tracked items list their available serial numbers. */
+export const posItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** The product's category; null when it has none (GET /v1/stock/pos-catalog, #205). */
+  category: z.string().min(1).nullable(),
+  kind: z.enum(['serial', 'quantity']),
+  price: moneySchema,
+  available: quantityTextSchema,
+  serialNumbers: z.array(z.string().min(1)),
+});
+
+export const cartLineSchema = z.object({
+  itemId: z.string().min(1),
+  name: z.string().min(1),
+  unitPrice: moneySchema,
+  quantity: quantityTextSchema,
+  /** The unit sold, for a serial-tracked item; null for counted items. */
+  serialNumber: z.string().min(1).nullable(),
+});
+
+/** What Complete sale sends: the lines, a discount, and the payment received now (null: all due). */
+export const saleDraftSchema = z.object({
+  customerName: z.string().trim().min(1).max(200).nullable(),
+  lines: z.array(cartLineSchema).min(1),
+  discount: moneySchema,
+  payment: paymentDraftSchema.nullable(),
+});

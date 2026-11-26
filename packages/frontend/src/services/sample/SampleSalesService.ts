@@ -1,6 +1,7 @@
 import {
   compareMoney,
   formatMoney,
+  invoiceSummarySchema,
   multiplyByQuantity,
   parseMoney,
   subtractMoney,
@@ -109,33 +110,62 @@ type Payment = InvoiceDetail['payments'][number];
 const FIRST_RECEIPT = 201;
 const receiptNo = (n: number) => `R-${String(n).padStart(6, '0')}`;
 
-/** A detail's paid, balance and status, from its total and payments. */
-function settle(invoice: Omit<InvoiceDetail, 'paid' | 'balance' | 'status'>): InvoiceDetail {
-  const total = parseMoney(invoice.total);
+/*
+ * Invented ids in #221's uuid shape. An invoice's id and its customer's id both follow from the invoice number
+ * (C-000123 gives …-000000000123), so a sample invoice opens by id the way the real GET /v1/invoices/:id does.
+ */
+const SAMPLE_BRANCH_ID = '0195f000-0000-7000-8000-00000000b001';
+const WALK_IN_PARTY_ID = '0195f000-0000-7000-8000-00000000a000';
+const sampleId = (group: string, number: string) =>
+  `0195f000-0000-7000-${group}-${number.replace(/\D/g, '').padStart(12, '0')}`;
+
+/** A typed quantity ("2", "1.5") as #221's three-decimal string ("2.000", "1.500"), by text rules, never a float. */
+const quantity3 = (typed: string) => {
+  const [whole = '0', fraction = ''] = typed.split('.');
+  return `${whole}.${fraction.padEnd(3, '0')}`;
+};
+
+type Unsettled = Omit<InvoiceDetail, 'subtotal' | 'total' | 'paid' | 'due' | 'paymentStatus'>;
+
+/** A detail's subtotal, total, paid, due and payment status, from its lines, discount and payments. */
+function settle(invoice: Unsettled): InvoiceDetail {
+  const subtotal = sumMoney(invoice.lines.map((l) => parseMoney(l.amount)));
+  const total = subtractMoney(subtotal, parseMoney(invoice.discount));
   const paid = sumMoney(invoice.payments.map((p) => parseMoney(p.amount)));
   return {
     ...invoice,
+    subtotal: formatMoney(subtotal),
+    total: formatMoney(total),
     paid: formatMoney(paid),
-    balance: formatMoney(subtractMoney(total, paid)),
-    status: compareMoney(paid, total) >= 0 ? 'paid' : compareMoney(paid, ZERO) > 0 ? 'partly_paid' : 'due',
+    due: formatMoney(subtractMoney(total, paid)),
+    paymentStatus:
+      compareMoney(paid, total) >= 0 ? 'paid' : compareMoney(paid, ZERO) > 0 ? 'partly_paid' : 'due',
   };
 }
 
-const summary = ({ number, issuedAt, customerName, total, paid, status }: InvoiceDetail): InvoiceSummary => ({
-  number,
-  issuedAt,
-  customerName,
-  total,
-  paid,
-  status,
-});
+/** The header the sample builds a detail from: the ids and dates #221 adds, for a posted invoice. */
+function header(number: string, issuedAt: string, customerName: string, walkIn: boolean) {
+  return {
+    id: sampleId('8000', number),
+    number,
+    branchId: SAMPLE_BRANCH_ID,
+    partyId: walkIn ? WALK_IN_PARTY_ID : sampleId('8001', number),
+    invoiceDate: todayBD(issuedAt),
+    issuedAt,
+    customerName,
+    status: 'posted' as const,
+  };
+}
+
+/** The list row of a detail: #221's summary schema drops the detail's keys, as the API does. */
+const summary = (detail: InvoiceDetail): InvoiceSummary => invoiceSummarySchema.parse(detail);
 
 /** Invented invoices around `today` (Dhaka, "YYYY-MM-DD"): names, items and amounts are made up. */
 function seedInvoices(today: string): InvoiceDetail[] {
   const at = (daysAgo: number, time: string) => `${addDaysISO(today, -daysAgo)}T${time}:00.000Z`;
   const line = (description: string, quantity: string, unitPrice: string) => ({
     description,
-    quantity,
+    quantity: quantity3(quantity),
     unitPrice,
     amount: formatMoney(multiplyByQuantity(parseMoney(unitPrice), quantity)),
   });
@@ -163,15 +193,10 @@ function seedInvoices(today: string): InvoiceDetail[] {
     payments: Payment[],
   ) =>
     settle({
-      number,
-      issuedAt,
-      customerName,
+      ...header(number, issuedAt, customerName, customerName === 'Walk-in customer'),
       soldBy: 'Sample Cashier',
       lines,
       discount,
-      total: formatMoney(
-        subtractMoney(sumMoney(lines.map((l) => parseMoney(l.amount))), parseMoney(discount)),
-      ),
       payments,
     });
   return [
@@ -264,21 +289,25 @@ export class SampleSalesService implements ISalesService {
 
   invoices = () => this.later(this.details.map(summary));
 
-  invoice = (number: string) => {
-    const found = this.details.find((d) => d.number === number);
+  invoice = (id: string) => {
+    const found = this.details.find((d) => d.id === id);
     return found ? this.later(found) : Promise.reject(new Error('invoice.not_found'));
   };
 
-  recordPayment = (number: string, payment: PaymentDraft, idempotencyKey: string): Promise<InvoiceDetail> => {
+  recordPayment = (
+    invoiceId: string,
+    payment: PaymentDraft,
+    idempotencyKey: string,
+  ): Promise<InvoiceDetail> => {
     const first = this.paymentsAnswered.get(idempotencyKey);
     if (first) return this.later(first);
-    const found = this.details.find((d) => d.number === number);
+    const found = this.details.find((d) => d.id === invoiceId);
     if (!found) return Promise.reject(new Error('invoice.not_found'));
     const amount = parseMoney(payment.amount);
     if (compareMoney(amount, ZERO) <= 0) return Promise.reject(new Error('payment.not_positive'));
     if (payment.method !== 'cash' && !payment.externalRef)
       return Promise.reject(new Error('payment.reference_missing'));
-    if (compareMoney(amount, parseMoney(found.balance)) > 0)
+    if (compareMoney(amount, parseMoney(found.due)) > 0)
       return Promise.reject(new Error('payment.over_balance'));
     const updated = settle({
       ...found,
@@ -287,7 +316,7 @@ export class SampleSalesService implements ISalesService {
         { receivedAt: new Date().toISOString(), receiptNumber: receiptNo(this.nextReceipt++), ...payment },
       ],
     });
-    this.details = this.details.map((d) => (d.number === number ? updated : d));
+    this.details = this.details.map((d) => (d.id === invoiceId ? updated : d));
     this.paymentsAnswered.set(idempotencyKey, updated);
     return this.later(updated);
   };
@@ -303,11 +332,10 @@ export class SampleSalesService implements ISalesService {
     }
     const lines = draft.lines.map((l) => ({
       description: l.serialNumber ? `${l.name}, ${l.serialNumber}` : l.name,
-      quantity: l.quantity,
+      quantity: quantity3(l.quantity),
       unitPrice: l.unitPrice,
       amount: formatMoney(multiplyByQuantity(parseMoney(l.unitPrice), l.quantity)),
     }));
-    const total = subtractMoney(sumMoney(lines.map((l) => parseMoney(l.amount))), parseMoney(draft.discount));
     this.items = this.items.map((item) => {
       const sold = draft.lines.filter((l) => l.itemId === item.id);
       if (sold.length === 0) return item;
@@ -320,13 +348,15 @@ export class SampleSalesService implements ISalesService {
     });
     const now = new Date().toISOString();
     const detail = settle({
-      number: `C-${String(this.next).padStart(6, '0')}`,
-      issuedAt: now,
-      customerName: draft.customerName ?? 'Walk-in customer',
+      ...header(
+        `C-${String(this.next).padStart(6, '0')}`,
+        now,
+        draft.customerName ?? 'Walk-in customer',
+        draft.customerName === null,
+      ),
       soldBy: 'Sample Cashier',
       lines,
       discount: draft.discount,
-      total: formatMoney(total),
       payments: draft.payment
         ? [{ receivedAt: now, receiptNumber: receiptNo(this.nextReceipt++), ...draft.payment }]
         : [],
