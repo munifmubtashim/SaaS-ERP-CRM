@@ -1,4 +1,10 @@
-import { AppError, permissionCodeSchema, type PermissionCode, type TenantScope } from '@erp/shared';
+import {
+  AppError,
+  permissionCodeSchema,
+  type MyBusinessesResponse,
+  type PermissionCode,
+  type TenantScope,
+} from '@erp/shared';
 import type { IAuthQuery, LoginUser } from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
@@ -156,6 +162,27 @@ export class AuthManager {
       permissions: grant.permissions.filter(
         (code): code is PermissionCode => permissionCodeSchema.safeParse(code).success,
       ),
+    };
+  }
+
+  /**
+   * GET /v1/me/businesses (ADR 0060): what the business switcher offers. Read on the "me" path, before any business
+   * is chosen; only ids, names and short codes, never roles or costs.
+   */
+  async myBusinesses(
+    session: Pick<AuthenticatedSession, 'userId' | 'organizationId'>,
+  ): Promise<MyBusinessesResponse> {
+    const businesses = await this.query.myBusinesses(session.userId, session.organizationId);
+    return {
+      items: businesses.map((business) => ({
+        id: business.id,
+        name: business.name,
+        branches: business.branches.map((branch) => ({
+          id: branch.id,
+          name: branch.name,
+          shortCode: branch.shortCode,
+        })),
+      })),
     };
   }
 

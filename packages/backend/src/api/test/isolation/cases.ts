@@ -9,6 +9,14 @@ export interface IsolationCase {
 }
 
 export const ISOLATION_CASES: Record<string, IsolationCase> = {
+  // Run by me.isolation.test.ts against real Postgres (ADR 0060): a signed-in user route, no business scope.
+  'GET /v1/me/businesses': {
+    attempts: [
+      "organization A's Owner lists businesses: never organization B's",
+      'a Cashier of X1 sends X-Business-Id of Y: ignored, still only X with X1',
+      'no session: 401',
+    ],
+  },
   // Run by products.isolation.test.ts against real Postgres.
   'GET /v1/products': {
     attempts: [

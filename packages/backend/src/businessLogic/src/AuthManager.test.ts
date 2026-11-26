@@ -1,7 +1,14 @@
 import { AppError } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import { AuthManager, type SessionLifetimes } from './AuthManager.js';
-import type { ActiveSession, IAuthQuery, LoginUser, NewSession, ScopeGrant } from './contracts/IAuthQuery.js';
+import type {
+  ActiveSession,
+  IAuthQuery,
+  LoginUser,
+  MyBusiness,
+  NewSession,
+  ScopeGrant,
+} from './contracts/IAuthQuery.js';
 import type { IClock } from './contracts/IClock.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
 import type { ISessionTokens } from './contracts/ISessionTokens.js';
@@ -59,9 +66,16 @@ class FakeAuthQuery implements IAuthQuery {
   sessions = new Map<string, NewSession & { id: string; lastSeenAt: Date; revokedAt: Date | null }>();
   /** What scopeFor answers; null is "not found or not allowed". */
   grant: ScopeGrant | null = null;
+  /** What myBusinesses answers, and who it was asked for. */
+  businesses: MyBusiness[] = [];
+  askedFor: { userId: string; organizationId: string }[] = [];
   constructor(private readonly user: LoginUser | null) {}
   async scopeFor(): Promise<ScopeGrant | null> {
     return this.grant;
+  }
+  async myBusinesses(userId: string, organizationId: string): Promise<MyBusiness[]> {
+    this.askedFor.push({ userId, organizationId });
+    return this.businesses;
   }
   async createSession(session: NewSession): Promise<string> {
     const id = `session-${this.sessions.size + 1}`;
@@ -393,5 +407,32 @@ describe('AuthManager.resolveScope (ADR 0051)', () => {
       LIFETIMES,
     );
     await expect(manager.resolveScope(session, requested)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('AuthManager.myBusinesses (ADR 0060)', () => {
+  it("asks for the session's own user and organization, and answers id, name and branches only", async () => {
+    const query = new FakeAuthQuery(null);
+    const extra = { cost: '1.00', role: 'owner' };
+    query.businesses = [
+      {
+        id: 'b1',
+        name: 'Sample Business',
+        branches: [{ id: 'br1', name: 'Sample Branch', shortCode: 'SB', ...extra }],
+        ...extra,
+      } as MyBusiness,
+    ];
+    const manager = new AuthManager(query, new FakeHasher(), clock, tokens, LIFETIMES);
+    const answer = await manager.myBusinesses({ userId: 'u1', organizationId: 'o1' });
+    expect(query.askedFor).toEqual([{ userId: 'u1', organizationId: 'o1' }]);
+    expect(answer).toEqual({
+      items: [
+        {
+          id: 'b1',
+          name: 'Sample Business',
+          branches: [{ id: 'br1', name: 'Sample Branch', shortCode: 'SB' }],
+        },
+      ],
+    });
   });
 });

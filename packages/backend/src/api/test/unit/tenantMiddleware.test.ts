@@ -32,6 +32,9 @@ class FakeAuth implements IAuthManager {
   login = () => Promise.reject(new Error('not used'));
   logout = () => Promise.resolve();
   authenticate = async () => ({ userId: USER, organizationId: ORG, sessionId: USER });
+  myBusinesses = async (): Promise<never> => {
+    throw new Error('not used here');
+  };
   resolveScope = async (_session: unknown, requested: { businessId: string; branchId: string }) => {
     this.calls.push(requested);
     if (!this.allowed) throw new AppError('NOT_FOUND', 'Business or branch not found.');

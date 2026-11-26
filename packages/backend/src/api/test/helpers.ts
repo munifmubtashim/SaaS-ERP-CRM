@@ -34,6 +34,8 @@ export const unusedAuth: IAuthManager = {
   authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
   logout: () => Promise.resolve(),
   resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
+  myBusinesses: () =>
+    Promise.reject(new AppError('INTERNAL_ERROR', 'This test did not expect GET /v1/me/businesses.')),
 };
 
 const unexpected = (what: string) => () =>

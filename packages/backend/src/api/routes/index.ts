@@ -1,6 +1,7 @@
 import type { Controllers } from '../controllers/index.js';
 import { healthRoutes } from './HealthRoutes.js';
 import { authRoutes } from './AuthRoutes.js';
+import { meRoutes } from './MeRoutes.js';
 import { organizationRoutes } from './OrganizationRoutes.js';
 import { productRoutes } from './ProductRoutes.js';
 import { inventoryRoutes } from './InventoryRoutes.js';
@@ -27,6 +28,7 @@ export function buildRoutes(
   return [
     healthRoutes(c.health, wrap),
     authRoutes(c.auth, wrap, loginRateLimit(loginRateLimiter)),
+    meRoutes(c.auth, wrap),
     organizationRoutes(c.organization),
     productRoutes(c.product, wrap),
     inventoryRoutes(c.inventory, wrap),
