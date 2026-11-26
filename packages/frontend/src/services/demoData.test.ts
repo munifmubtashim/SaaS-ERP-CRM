@@ -19,6 +19,13 @@ describe('parseDemoData', () => {
     // GET /v1/reports/owner-dashboard exists (M6, #197): real by default, sample only when named.
     expect(DEMO_DEFAULT.has('report.ownerDashboard')).toBe(false);
     expect(DEMO_CAPABLE.has('report.ownerDashboard')).toBe(true);
+    // The POS routes exist (#191, #199): sales.pos is real by default; the invoices view (sales.invoices) is not.
+    expect(DEMO_DEFAULT.has('sales.pos')).toBe(false);
+    expect(DEMO_DEFAULT.has('sales.invoices')).toBe(true);
+    expect([...parseDemoData('sales', { production: false })].sort()).toEqual([
+      'sales.invoices',
+      'sales.pos',
+    ]);
     // POST /v1/payments (ADR 0057) pays the real open invoices that F5 lists (#220): real by default (ADR 0059 s. 4).
     expect(DEMO_CAPABLE.has('sales.payments')).toBe(true);
     expect(DEMO_DEFAULT.has('sales.payments')).toBe(false);

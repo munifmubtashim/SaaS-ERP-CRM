@@ -11,9 +11,9 @@ import { ReportService, ReportServiceSwitch, type IReportService } from './repor
 import { SampleInventoryService } from './sample/SampleInventoryService';
 import { SampleProductService } from './sample/SampleProductService';
 import { SampleReportService } from './sample/SampleReportService';
+import { SalesService, SalesServiceSwitch, type ISalesService } from './salesService';
 import { PartyService, PartyServiceSwitch, type IPartyService } from './partyService';
 import { SalesPaymentService, type ISalesPaymentService } from './salesPaymentService';
-import { SalesService, type ISalesService } from './salesService';
 import { SampleSalesService } from './sample/SampleSalesService';
 import { SamplePartyService } from './sample/SamplePartyService';
 import { MockPartyService } from './mock/MockPartyService';
@@ -111,7 +111,10 @@ export function createServices(
       (call) => demo.has(call === 'dues' ? 'party.dues' : 'party'),
     ),
     // Sample until the POS routes exist (ADR 0022); a production build always calls the API.
-    sales: demo.has('sales') ? new SampleSalesService() : new SalesService(http),
+    // The POS (sales.pos) and the invoices view (sales.invoices) are real or sample on their own keys.
+    sales: new SalesServiceSwitch(new SalesService(http), new SampleSalesService(), (call) =>
+      demo.has(call === 'posItems' || call === 'completeSale' ? 'sales.pos' : 'sales.invoices'),
+    ),
     // POST /v1/payments (ADR 0057): real unless `sales.payments` is named; it pays the open invoices F5 lists (#220).
     salesPayments: demo.has('sales.payments')
       ? new SampleSalesPaymentService()

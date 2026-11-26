@@ -200,6 +200,12 @@ export const en = {
   'pos.error.empty': 'Add a bike or a part first.',
   'pos.error.chassis': 'Pick a chassis number for this bike.',
   'pos.error.failed': 'The sale was not saved. Try again.',
+  'pos.error.stock': 'Not enough stock for one of these items. Lower the quantity and try again.',
+  'pos.error.forbidden': 'You may not record sales at this branch.',
+  'pos.error.unit': 'One of these units is no longer in stock. Pick another.',
+  'pos.error.dueNeedsCustomer':
+    'A sale that leaves a due needs a named customer. Take the full amount for now.',
+  'pos.error.check': 'Check the sale:',
   'pos.complete': 'Complete sale · {total}',
   'pos.note': 'Prices include VAT. The invoice is numbered when you complete the sale.',
   'pos.saved': 'Invoice {number} saved. {paid} received.',

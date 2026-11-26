@@ -2,14 +2,15 @@ import {
   invoiceDetailSchema,
   invoiceListResponseSchema,
   invoiceSummarySchema,
-  posItemSchema,
+  posCatalogSchema,
+  postedInvoiceSchema,
+  type PostInvoiceInput,
   type InvoiceDetail,
   type InvoiceSummary,
   type PaymentDraft,
   type PosItem,
   type SaleDraft,
 } from '@erp/shared';
-import { z } from 'zod';
 import type { IHttpClient } from './HttpClient';
 
 /**
@@ -39,15 +40,61 @@ export interface ISalesService {
 export type { PaymentDraft } from '@erp/shared';
 
 /**
- * Sales module: the API. The invoice reads are #221's routes. The list reads the first page only, until the view
- * pages. posItems, completeSale and recordPayment still call provisional paths: #205 moves the sale, and the
- * payment moves to POST /v1/payments (ADR 0057).
+ * Sales module: the API.
+ * - The POS is real (Munif, 25 Nov): posItems reads GET /v1/stock/pos-catalog (#199) and completeSale posts #185's
+ *   postInvoiceSchema to POST /v1/invoices (#191), selling to the catalog's walk-in party until customers exist (F2).
+ *   The client sends no price, cost or date; a serial number becomes its unit id from the catalog. The answer is read
+ *   back from GET /v1/invoices/:id, so it is #221's summary with nothing invented.
+ * - The invoice reads are #221's routes; the list reads the first page only, until the view pages.
+ * - recordPayment still calls a provisional path, so the invoices view stays on sample data (sales.invoices) until it
+ *   moves to POST /v1/payments (ADR 0057).
  */
 export class SalesService implements ISalesService {
+  /** From the last catalog read: the walk-in party and each serial number's unit id. */
+  private catalog: { walkInPartyId: string | null; unitIds: Map<string, string> } | null = null;
+
   constructor(protected readonly http: IHttpClient) {}
-  posItems = () => this.http.getJson('/v1/pos/items', z.array(posItemSchema));
-  completeSale = (draft: SaleDraft, idempotencyKey: string) =>
-    this.http.postJson('/v1/sales', draft, invoiceSummarySchema, { idempotencyKey });
+
+  posItems = async (): Promise<PosItem[]> => {
+    const answer = await this.http.getJson('/v1/stock/pos-catalog', posCatalogSchema);
+    this.catalog = {
+      walkInPartyId: answer.walkInPartyId,
+      unitIds: new Map(answer.items.flatMap((item) => item.units.map((u) => [u.serialNo, u.id] as const))),
+    };
+    return answer.items.map((item) => ({
+      id: item.productId,
+      name: item.name,
+      category: item.category,
+      kind: item.tracking,
+      price: item.sellPrice,
+      available: item.onHand,
+      serialNumbers: item.units.map((u) => u.serialNo),
+    }));
+  };
+
+  /**
+   * POST /v1/invoices, then GET /v1/invoices/:id for #221's summary: the post answer has no branch or posting time.
+   * If the read fails, a retry with the same Idempotency-Key gets the first sale back and sells nothing again.
+   */
+  completeSale = async (draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary> => {
+    const catalog = this.catalog;
+    if (!catalog?.walkInPartyId)
+      throw new Error('The POS catalog (with the walk-in party) is not loaded yet.');
+    const body: PostInvoiceInput = {
+      partyId: catalog.walkInPartyId,
+      customerName: draft.customerName,
+      lines: draft.lines.map((line) => ({
+        productId: line.itemId,
+        serialUnitId: line.serialNumber ? (catalog.unitIds.get(line.serialNumber) ?? null) : null,
+        qty: line.quantity,
+      })),
+      discount: draft.discount,
+      payments: draft.payment ? [draft.payment] : [],
+    };
+    const posted = await this.http.postJson('/v1/invoices', body, postedInvoiceSchema, { idempotencyKey });
+    return invoiceSummarySchema.parse(await this.invoice(posted.id));
+  };
+
   invoices = async () => (await this.http.getJson('/v1/invoices', invoiceListResponseSchema)).items;
   invoice = (id: string) => this.http.getJson(`/v1/invoices/${encodeURIComponent(id)}`, invoiceDetailSchema);
   recordPayment = (invoiceId: string, payment: PaymentDraft, idempotencyKey: string) =>
@@ -55,6 +102,28 @@ export class SalesService implements ISalesService {
       `/v1/invoices/${encodeURIComponent(invoiceId)}/payments`,
       payment,
       invoiceDetailSchema,
-      { idempotencyKey },
+      {
+        idempotencyKey,
+      },
     );
+}
+
+export type SalesCall = keyof ISalesService;
+
+/** Sends each call to the sample or the real service, by its own key. Built only in createServices. */
+export class SalesServiceSwitch implements ISalesService {
+  constructor(
+    private readonly real: ISalesService,
+    private readonly sample: ISalesService,
+    private readonly useSample: (call: SalesCall) => boolean,
+  ) {}
+  private pick(call: SalesCall): ISalesService {
+    return this.useSample(call) ? this.sample : this.real;
+  }
+  posItems = () => this.pick('posItems').posItems();
+  completeSale = (draft: SaleDraft, key: string) => this.pick('completeSale').completeSale(draft, key);
+  invoices = () => this.pick('invoices').invoices();
+  invoice = (id: string) => this.pick('invoice').invoice(id);
+  recordPayment = (invoiceId: string, payment: PaymentDraft, key: string) =>
+    this.pick('recordPayment').recordPayment(invoiceId, payment, key);
 }
