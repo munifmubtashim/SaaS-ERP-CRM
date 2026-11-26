@@ -1,4 +1,4 @@
-import { loginRequestSchema, type Session } from '@erp/shared';
+import { AppError, loginRequestSchema, type MyBusinessesResponse, type Session } from '@erp/shared';
 import type { Request } from 'express';
 import {
   clearedSessionCookie,
@@ -40,5 +40,12 @@ export class AuthController extends BaseController {
     const token = readSessionToken(this.cookie, req.headers.cookie);
     if (token) await this.manager.logout(token);
     return { status: 204, body: undefined, headers: { 'Set-Cookie': clearedSessionCookie(this.cookie) } };
+  }
+
+  /** GET /v1/me/businesses (ADR 0060): signed in, no business scope; X-Business-Id is not read. */
+  async myBusinesses(req: Request): Promise<HttpResult<MyBusinessesResponse>> {
+    const session = req.auth;
+    if (!session) throw new AppError('UNAUTHENTICATED', 'Sign in to continue.');
+    return { status: 200, body: await this.manager.myBusinesses(session) };
   }
 }

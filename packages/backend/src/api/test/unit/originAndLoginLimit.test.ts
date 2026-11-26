@@ -25,6 +25,7 @@ const refuseAll: IAuthManager = {
   authenticate: () => Promise.reject(new AppError('UNAUTHENTICATED', 'Sign in again.')),
   logout: () => Promise.resolve(),
   resolveScope: () => Promise.reject(new AppError('NOT_FOUND', 'Business or branch not found.')),
+  myBusinesses: () => Promise.resolve({ items: [] }),
 };
 
 function appWith(clock = { now: 0 }) {

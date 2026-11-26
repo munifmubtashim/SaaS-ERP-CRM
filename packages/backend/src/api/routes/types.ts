@@ -2,9 +2,11 @@ import type { Router } from 'express';
 
 /**
  * public: no tenant data and no login (health checks, login itself). Each public route must be on PUBLIC_ROUTES.
+ * user: signed in, no business scope (/v1/me/..., ADR 0007 section 2, ADR 0060). Reads only the caller's own rows,
+ * ignores X-Business-Id, and needs a case in test/isolation/cases.ts too.
  * tenant: reads or writes business-owned data. Each route needs a case in test/isolation/cases.ts.
  */
-export type RouteScope = 'public' | 'tenant';
+export type RouteScope = 'public' | 'user' | 'tenant';
 
 /** What every <Module>Routes.ts returns. app.ts mounts `router` at `basePath`. */
 export interface ModuleRoutes {

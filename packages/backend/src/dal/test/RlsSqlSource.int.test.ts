@@ -14,11 +14,12 @@ const source = functionsIn(readFileSync(SOURCE, 'utf8'));
 const migrated = latestMigrationFunctions();
 
 describe('dal/sql/rls/tenancy.sql matches the migrations', () => {
-  it('the source defines the three RLS scope functions, the login key and the session key', () => {
+  it('the source defines the three RLS scope functions, the login key, the session key and the "me" user', () => {
     expect([...source.keys()].sort()).toEqual([
       'app_branch_ids',
       'app_business_ids',
       'app_login_key',
+      'app_me_user_id',
       'app_organization_id',
       'app_session_key',
     ]);

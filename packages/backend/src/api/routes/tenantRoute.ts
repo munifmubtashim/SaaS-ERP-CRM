@@ -26,6 +26,8 @@ export interface TenantRouteOptions extends RouteAccess {
 export interface RouteWrappers {
   tenant(handler: RouteHandler, options?: TenantRouteOptions): RequestHandler;
   public(handler: RouteHandler): RequestHandler;
+  /** A signed-in user route (ADR 0060): no session is a 401; no tenant transaction; the Query opens its own. */
+  user(handler: RouteHandler): RequestHandler;
 }
 
 /**
@@ -83,6 +85,14 @@ export function createRouteWrappers(runner: ITenantScopeRunner, idempotency?: II
     },
     public: (handler) => async (req, res, next) => {
       try {
+        send(res, await handler(req));
+      } catch (err) {
+        next(err);
+      }
+    },
+    user: (handler) => async (req, res, next) => {
+      try {
+        if (!req.auth) throw new AppError('UNAUTHENTICATED', 'Sign in to continue.');
         send(res, await handler(req));
       } catch (err) {
         next(err);

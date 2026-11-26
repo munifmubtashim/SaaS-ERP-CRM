@@ -1,4 +1,4 @@
-import type { PermissionCode, TenantHeaders, TenantScope } from '@erp/shared';
+import type { MyBusinessesResponse, PermissionCode, TenantHeaders, TenantScope } from '@erp/shared';
 
 /** A successful login, as AuthController needs it. The token goes into the cookie only, never the body. */
 export interface LoginOutcome {
@@ -30,6 +30,10 @@ export interface IAuthManager {
    * ADR 0051: the business and branch a tenant request names, verified against the user's scopes. Throws 404
    * NOT_FOUND, the same for every refusal.
    */
+  /** GET /v1/me/businesses (ADR 0060): the businesses and branches the user's own scopes cover. */
+  myBusinesses(
+    session: Pick<AuthenticatedSession, 'userId' | 'organizationId'>,
+  ): Promise<MyBusinessesResponse>;
   resolveScope(
     session: Pick<AuthenticatedSession, 'userId' | 'organizationId'>,
     requested: TenantHeaders,

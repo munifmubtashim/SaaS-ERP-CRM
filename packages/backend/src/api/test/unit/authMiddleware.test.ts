@@ -33,6 +33,9 @@ class FakeAuthManager implements IAuthManager {
   async login(): Promise<never> {
     throw new AppError('INTERNAL_ERROR', 'not used here');
   }
+  async myBusinesses(): Promise<never> {
+    throw new Error('not used here');
+  }
   async resolveScope(): Promise<never> {
     throw new AppError('INTERNAL_ERROR', 'not used here');
   }

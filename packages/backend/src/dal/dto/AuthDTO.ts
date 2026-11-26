@@ -103,3 +103,48 @@ export class ScopeDTO {
     );
   }
 }
+
+/** One row of GET /v1/me/businesses before grouping: an active business and one of its active branches (ADR 0060). */
+export interface MyBranchRow {
+  businessId: string;
+  businessName: string;
+  branchId: string;
+  branchName: string;
+  shortCode: string;
+}
+
+/** A branch the user may use: id, name and short code only. */
+export class MyBranchDTO {
+  private constructor(
+    readonly id: string,
+    readonly name: string,
+    readonly shortCode: string,
+  ) {}
+
+  static fromRow(row: MyBranchRow): MyBranchDTO {
+    return new MyBranchDTO(row.branchId, row.branchName, row.shortCode);
+  }
+}
+
+/** A business the user may use, with its branches: id and name only, no role, cost or other column (ADR 0060). */
+export class MyBusinessDTO {
+  private constructor(
+    readonly id: string,
+    readonly name: string,
+    readonly branches: MyBranchDTO[],
+  ) {}
+
+  /** Groups rows already ordered by business, then branch; a business with no visible branch never appears. */
+  static fromRows(rows: readonly MyBranchRow[]): MyBusinessDTO[] {
+    const byBusiness = new Map<string, MyBusinessDTO>();
+    for (const row of rows) {
+      let business = byBusiness.get(row.businessId);
+      if (!business) {
+        business = new MyBusinessDTO(row.businessId, row.businessName, []);
+        byBusiness.set(row.businessId, business);
+      }
+      business.branches.push(MyBranchDTO.fromRow(row));
+    }
+    return [...byBusiness.values()];
+  }
+}
