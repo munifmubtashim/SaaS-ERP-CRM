@@ -3,8 +3,12 @@ import { takaInput } from './cart';
 
 export type InvoiceFilter = 'all' | InvoicePaymentStatus;
 
+/** Descending order of ISO dates or instants, compared as text (they sort as text). */
+const newestFirst = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
+
 /**
- * The design's status filter (All, Paid, Partly paid, Due), newest invoice first. The filter reads #221's
+ * The design's status filter (All, Paid, Partly paid, Due), newest first: by business date (invoiceDate), then by
+ * posting time within a day. The filter reads #221's
  * `paymentStatus`; a voided invoice shows under All only, since it owes nothing.
  */
 export function filterInvoices(list: readonly InvoiceSummary[], filter: InvoiceFilter): InvoiceSummary[] {
@@ -12,7 +16,7 @@ export function filterInvoices(list: readonly InvoiceSummary[], filter: InvoiceF
     .filter(
       (invoice) => filter === 'all' || (invoice.status === 'posted' && invoice.paymentStatus === filter),
     )
-    .sort((a, b) => (a.issuedAt < b.issuedAt ? 1 : a.issuedAt > b.issuedAt ? -1 : 0));
+    .sort((a, b) => newestFirst(a.invoiceDate, b.invoiceDate) || newestFirst(a.issuedAt, b.issuedAt));
 }
 
 /** A payment can be collected on a posted invoice with something still due, never on a voided one. */
