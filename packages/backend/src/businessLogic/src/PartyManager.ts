@@ -1,6 +1,7 @@
 import {
   AppError,
   hasPermission,
+  type CustomerDues,
   toE164,
   type Party,
   type PartyDetail,
@@ -16,7 +17,15 @@ import type {
   PartyRecord,
   PartyRecordChanges,
 } from './contracts/IPartyQuery.js';
+import type { IOpenInvoiceQuery } from './contracts/IOpenInvoiceQuery.js';
 import type { INumberSeries } from './contracts/provided/INumberSeries.js';
+import type { IPartyLedger } from './contracts/provided/IPartyLedger.js';
+
+/** What the dues read needs (ADR 0059 section 1): the ledger's totals and the documents' open invoices. */
+export interface PartyDuesSources {
+  ledger: IPartyLedger;
+  openInvoices: IOpenInvoiceQuery;
+}
 
 /**
  * What a create carries: phones as typed. No code (the party_code series, ADR 0056), business id, creator or branch:
@@ -60,7 +69,7 @@ const ERRORS = {
   'party.not_found': ['NOT_FOUND', 'id', 'Customer or supplier not found.'],
   'party.phone_invalid': ['VALIDATION_FAILED', 'phone', 'Enter a Bangladesh mobile number or +country code.'],
   'party.version_conflict': ['CONFLICT', 'version', 'Changed by someone else. Reload and try again.'],
-  'party.walk_in_locked': ['CONFLICT', 'id', 'The walk-in customer cannot be deactivated.'],
+  'party.walk_in_locked': ['CONFLICT', 'id', 'The walk-in customer cannot be changed.'],
   'party.inactive': ['CONFLICT', 'partyId', 'This customer or supplier is inactive.'],
   'party.supplier_forbidden': ['FORBIDDEN', 'isSupplier', 'You may not add suppliers.'],
   'page.cursor_invalid': ['VALIDATION_FAILED', 'cursor', 'Start the list again from the first page.'],
@@ -172,6 +181,7 @@ export class PartyManager {
   constructor(
     private readonly query: IPartyQuery,
     private readonly numberSeries: INumberSeries,
+    private readonly duesSources: PartyDuesSources,
   ) {}
 
   /**
@@ -220,6 +230,24 @@ export class PartyManager {
     };
   }
 
+  /**
+   * GET /v1/parties/:id/dues (ADR 0059 section 1, ADR 0026 section 3). The totals come from the ledger (invariant 1),
+   * the open invoices from the documents; with only sales and payments posted they agree, and if a manual journal moves
+   * the receivable the ledger total wins. Same 404 as get for anything that isn't a customer of the scope.
+   */
+  async dues(id: string): Promise<CustomerDues> {
+    const row = await this.findCustomer(id);
+    // One after the other: both run in the request's one transaction, on one connection.
+    const balances = await this.duesSources.ledger.balances(row.id);
+    const openInvoices = await this.duesSources.openInvoices.openInvoices(row.id);
+    return {
+      partyId: row.id,
+      totalDue: balances.receivable,
+      advance: balances.customerAdvance,
+      openInvoices,
+    };
+  }
+
   /** One page of customers, by name, with an opaque cursor (one extra row says whether another page exists). */
   async list(request: Pick<PartyListQuery, 'limit'> & Partial<PartyListQuery>): Promise<PartyListResponse> {
     const after = request.cursor === undefined ? undefined : decodeCursor(request.cursor);
@@ -240,6 +268,8 @@ export class PartyManager {
 
   async edit(id: string, edit: PartyEdit, actor: PartyActor): Promise<Party> {
     const current = await this.findCustomer(id);
+    // ADR 0059 section 3: the business's trigger made it (ADR 0055) and the POS relies on its name and code.
+    if (current.isWalkIn) throw fail('party.walk_in_locked');
     // Adding the supplier role needs that role's create code (ADR 0006 section 8).
     if (edit.isSupplier === true && !current.isSupplier) this.requireSupplierCreate(actor);
     const changes = changesOf(edit);
@@ -254,7 +284,7 @@ export class PartyManager {
     return toParty(await this.write(id, edit.version, changes));
   }
 
-  /** ADR 0006 section 6: the walk-in party is never deactivated. */
+  /** ADR 0006 section 6: the walk-in party is never deactivated (nor edited, see edit). */
   async deactivate(id: string, version: number): Promise<Party> {
     const row = await this.findCustomer(id);
     if (row.isWalkIn) throw fail('party.walk_in_locked');

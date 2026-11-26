@@ -106,7 +106,10 @@ const setup = (rows: PartyRecord[] = []) => {
   const query = new FakePartyQuery();
   query.rows = rows;
   const series = new FakeNumberSeries('C-');
-  return { query, series, manager: new PartyManager(query, series) };
+  // These tests never read dues (PartyManager.dues.test.ts does): a read here is a test bug.
+  const unused = () => Promise.reject(new Error('dues read in a test that does not expect it'));
+  const dues = { ledger: { balances: unused }, openInvoices: { openInvoices: unused } };
+  return { query, series, manager: new PartyManager(query, series, dues) };
 };
 
 const errorOf = async (promise: Promise<unknown>) => {
@@ -183,6 +186,22 @@ describe('edit (ADR 0019 test 13)', () => {
         fields: ['id party.not_found'],
       });
     }
+  });
+});
+
+describe('the walk-in party is not edited (ADR 0059 section 3)', () => {
+  it('an edit of the walk-in party is 409 party.walk_in_locked, and nothing is written', async () => {
+    const { query, manager } = setup([record({ isWalkIn: true })]);
+    expect(await errorOf(manager.edit(ID, { version: 1, name: 'Renamed' }, actor))).toEqual({
+      code: 'CONFLICT',
+      fields: ['id party.walk_in_locked'],
+    });
+    expect(query.edits).toEqual([]);
+  });
+
+  it('a named customer is still edited', async () => {
+    const { manager } = setup([record()]);
+    expect(await manager.edit(ID, { version: 1, name: 'Renamed' }, actor)).toMatchObject({ name: 'Renamed' });
   });
 });
 

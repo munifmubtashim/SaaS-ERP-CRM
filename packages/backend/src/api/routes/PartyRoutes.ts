@@ -18,6 +18,10 @@ export function partyRoutes(controller: PartyController, wrap: RouteWrappers): M
     '/:id',
     wrap.tenant((req) => controller.get(req), { permission: 'party.customer.view' }),
   );
+  router.get(
+    '/:id/dues',
+    wrap.tenant((req) => controller.dues(req), { permission: 'party.customer.view' }),
+  );
   router.post(
     '/',
     wrap.tenant((req) => controller.create(req), { permission: 'party.customer.create' }),

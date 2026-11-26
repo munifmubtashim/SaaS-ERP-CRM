@@ -1,5 +1,6 @@
 import type {
   CreatePartyBody,
+  CustomerDues,
   Party,
   PartyDetail,
   PartyListQuery,
@@ -19,6 +20,8 @@ export interface PartyCaller {
 export interface IPartyManager {
   list(query: PartyListQuery): Promise<PartyListResponse>;
   get(id: string): Promise<PartyDetail>;
+  /** GET /v1/parties/:id/dues (ADR 0059 section 1). */
+  dues(id: string): Promise<CustomerDues>;
   create(input: CreatePartyBody, caller: PartyCaller): Promise<Party>;
   edit(id: string, edit: UpdatePartyBody, caller: PartyCaller): Promise<Party>;
   deactivate(id: string, version: number): Promise<Party>;
