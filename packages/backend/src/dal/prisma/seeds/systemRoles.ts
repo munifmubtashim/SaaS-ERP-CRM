@@ -27,6 +27,13 @@ const PERMISSION_DESCRIPTIONS = {
   'report.profit.view': 'See profit and margin figures in reports and screens',
   'accounting.salary.view': 'See salary entries and amounts',
   'sales.invoice.post': 'Post a sale at the counter, with its payments',
+  // Party, release 1 (ADR 0006 section 8, ADR 0056 section 2).
+  'party.customer.view': 'List, search and open customers',
+  'party.customer.create': 'Add a customer',
+  'party.customer.edit': "Edit a customer's details",
+  'party.customer.deactivate': 'Deactivate a customer',
+  'party.supplier.view': 'List, search and open suppliers',
+  'party.supplier.create': 'Add a supplier',
 } as const satisfies Record<PermissionCode, string>;
 
 /** The global permission catalogue: every code in permissions.ts, once. No RLS on `permission`. */
