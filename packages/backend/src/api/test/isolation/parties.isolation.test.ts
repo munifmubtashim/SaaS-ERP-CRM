@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createManagers, DenyAllRoleSource } from '@erp/business-logic';
+import { partyDetailSchema } from '@erp/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { createApp, DEV_APP_ORIGIN } from '../../app.js';
@@ -78,7 +79,8 @@ async function created(who: Who = 'managerX', place = X, overrides: object = {})
   return res.body as Created;
 }
 
-const NID_KEY = /"nid(_ciphertext|_hash)?"|"nid[A-Z]/;
+/** ADR 0019 test 17: the stored NID's keys. The profile's masked nidLast4 (#47) is checked on its own below. */
+const NID_KEY = /"(nid|nid_ciphertext|nid_hash)"/;
 
 describe('create, read, edit and deactivate (ADR 0056 section 4)', () => {
   it('a cashier creates a customer: 201, Location, a C- code from the series, version 1, the phone in E.164', async () => {
@@ -150,6 +152,24 @@ describe('create, read, edit and deactivate (ADR 0056 section 4)', () => {
     expect(one.status).toBe(200);
     expect(one.body).toMatchObject({ id: party.id, code: party.code });
   });
+
+  it('get answers the profile shape: credit limit, pay terms, walk-in flag, no hold, no NID yet (task 4)', async () => {
+    const party = await created('managerX', X, { creditLimit: '25000.00', payTermDays: 15 });
+    const one = await as('cashierX1', X).get(`/v1/parties/${party.id}`);
+    expect(partyDetailSchema.safeParse(one.body).success).toBe(true);
+    expect(one.body).toMatchObject({
+      creditLimit: '25000.00',
+      payTermDays: 15,
+      isWalkIn: false,
+      onCreditHold: false,
+      nidLast4: null,
+    });
+    const walkIn = await as('cashierX1', X).get('/v1/parties?search=walk-in');
+    const walkInId = (walkIn.body.items as { id: string; code: string }[]).find(
+      (p) => p.code === 'WALK-IN',
+    )?.id;
+    expect((await as('cashierX1', X).get(`/v1/parties/${walkInId}`)).body.isWalkIn).toBe(true);
+  });
 });
 
 describe('ADR 0019 test 15: business Y gets 404 for business X, never 403, on every route', () => {
@@ -201,6 +221,9 @@ describe('ADR 0019 tests 17 and 18', () => {
     const one = await as('managerX', X).get(`/v1/parties/${party.id}`);
     expect(JSON.stringify(list.body)).not.toMatch(NID_KEY);
     expect(JSON.stringify(one.body)).not.toMatch(NID_KEY);
+    // The list never carries the masked last four; the profile's is null while no NID is stored (step 7).
+    expect(JSON.stringify(list.body)).not.toContain('nidLast4');
+    expect(one.body.nidLast4).toBeNull();
   });
 
   it('18. a cashier gets 403 on PATCH; a branch manager gets 403 on deactivate (ADR 0006 section 8)', async () => {
