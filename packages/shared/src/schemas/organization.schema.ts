@@ -4,9 +4,18 @@ import { z } from 'zod';
  * Organization module, Zod schemas shared by backend and frontend. Owner: Munif.
  * The businesses and branches a user may work in, and the active one (spec O-04, task M2).
  */
+
+/**
+ * A branch's short code (ADR 0009): 2 to 6 characters, a letter first, then uppercase letters or digits. The same
+ * rule as the database CHECK. Lower case is refused, never changed: the branch form upper-cases as you type.
+ */
+export const branchShortCodeSchema = z.string().regex(/^[A-Z][A-Z0-9]{1,5}$/);
+
+/** A branch the user may use, as GET /v1/me/businesses lists it: id, name and short code only (ADR 0060). */
 export const branchSummarySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1).max(200),
+  shortCode: branchShortCodeSchema,
 });
 
 export const businessSummarySchema = z.object({
@@ -26,12 +35,6 @@ export const activeScopeSchema = z.object({
   businessId: z.uuid(),
   branchId: z.uuid(),
 });
-
-/**
- * A branch's short code (ADR 0009): 2 to 6 characters, a letter first, then uppercase letters or digits. The same
- * rule as the database CHECK. Lower case is refused, never changed: the branch form upper-cases as you type.
- */
-export const branchShortCodeSchema = z.string().regex(/^[A-Z][A-Z0-9]{1,5}$/);
 
 /**
  * POST /v1/businesses (ADR 0010). There is no organizationId: the organization always comes from the caller's
