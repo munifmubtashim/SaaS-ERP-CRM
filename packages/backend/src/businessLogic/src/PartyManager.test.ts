@@ -1,18 +1,24 @@
-import { AppError } from '@erp/shared';
+import { AppError, DEFAULT_ROLE_PERMISSIONS, type PermissionCode } from '@erp/shared';
 import { describe, expect, it } from 'vitest';
 import type {
   IPartyQuery,
   NewPartyRecord,
+  PartyListFilter,
+  PartyPhoneMatch,
   PartyRecord,
   PartyRecordChanges,
 } from './contracts/IPartyQuery.js';
 import { PartyManager, type PartyCreate } from './PartyManager.js';
+import { FakeNumberSeries } from './test/FakeNumberSeries.js';
 
 /** ADR 0019 tests 10, 13 and 14 and ADR 0006 test 17, over a fake Query (the real one is PartyQuery.int.test.ts). */
 const ID = '0196f000-0000-7000-8000-000000000401';
 const USER = '0196f000-0000-7000-8000-0000000000b1';
 const BRANCH = '0196f000-0000-7000-8000-0000000000c1';
-const actor = { userId: USER, branchId: BRANCH };
+/** The cashier's codes (ADR 0006 section 8): view and create customers and suppliers, no edit or deactivate. */
+const CASHIER: readonly PermissionCode[] = DEFAULT_ROLE_PERMISSIONS.cashier;
+const OWNER: readonly PermissionCode[] = DEFAULT_ROLE_PERMISSIONS.owner;
+const actor = { userId: USER, branchId: BRANCH, permissions: OWNER };
 
 const record = (overrides: Partial<PartyRecord> = {}): PartyRecord => ({
   id: ID,
@@ -42,8 +48,29 @@ class FakePartyQuery implements IPartyQuery {
   rows: PartyRecord[] = [];
   created: NewPartyRecord[] = [];
   edits: { id: string; version: number; changes: PartyRecordChanges }[] = [];
+  lists: PartyListFilter[] = [];
+  phoneLookups: { phones: string[]; exceptId: string | null }[] = [];
+  matches: PartyPhoneMatch[] = [];
   async find(id: string) {
     return this.rows.find((row) => row.id === id) ?? null;
+  }
+  /** Like the real list: customers only, by name then id, after the cursor, up to the limit. */
+  async list(filter: PartyListFilter) {
+    this.lists.push(filter);
+    return this.rows
+      .filter((row) => row.isCustomer)
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+      .filter(
+        (row) =>
+          !filter.after ||
+          row.name > filter.after.name ||
+          (row.name === filter.after.name && row.id > filter.after.id),
+      )
+      .slice(0, filter.limit);
+  }
+  async findByPhones(phones: string[], exceptId: string | null) {
+    this.phoneLookups.push({ phones, exceptId });
+    return this.matches;
   }
   async create(input: NewPartyRecord) {
     this.created.push(input);
@@ -60,7 +87,6 @@ class FakePartyQuery implements IPartyQuery {
 }
 
 const input = (overrides: Partial<PartyCreate> = {}): PartyCreate => ({
-  code: 'C-000001',
   name: 'Rahim Uddin',
   nameBn: null,
   kind: 'person',
@@ -79,7 +105,8 @@ const input = (overrides: Partial<PartyCreate> = {}): PartyCreate => ({
 const setup = (rows: PartyRecord[] = []) => {
   const query = new FakePartyQuery();
   query.rows = rows;
-  return { query, manager: new PartyManager(query) };
+  const series = new FakeNumberSeries('C-');
+  return { query, series, manager: new PartyManager(query, series) };
 };
 
 const errorOf = async (promise: Promise<unknown>) => {
@@ -126,7 +153,11 @@ describe('create (ADR 0019 test 10)', () => {
 describe('edit (ADR 0019 test 13)', () => {
   it('sends the version read and only the changed fields, with phones normalised', async () => {
     const { query, manager } = setup([record()]);
-    const party = await manager.edit(ID, { version: 1, name: 'Rahim Uddin Ahmed', phone: '01812345678' });
+    const party = await manager.edit(
+      ID,
+      { version: 1, name: 'Rahim Uddin Ahmed', phone: '01812345678' },
+      actor,
+    );
     expect(query.edits[0]).toEqual({
       id: ID,
       version: 1,
@@ -137,7 +168,7 @@ describe('edit (ADR 0019 test 13)', () => {
 
   it('a stale version is 409 party.version_conflict, and the party is unchanged', async () => {
     const { query, manager } = setup([record({ version: 3 })]);
-    expect(await errorOf(manager.edit(ID, { version: 2, name: 'Stale' }))).toEqual({
+    expect(await errorOf(manager.edit(ID, { version: 2, name: 'Stale' }, actor))).toEqual({
       code: 'CONFLICT',
       fields: ['version party.version_conflict'],
     });
@@ -147,7 +178,7 @@ describe('edit (ADR 0019 test 13)', () => {
   it('a party the request cannot see, or an id that is not a UUID, is 404 party.not_found', async () => {
     const { manager } = setup();
     for (const id of [ID, 'not-a-uuid']) {
-      expect(await errorOf(manager.edit(id, { version: 1, name: 'X' }))).toEqual({
+      expect(await errorOf(manager.edit(id, { version: 1, name: 'X' }, actor))).toEqual({
         code: 'NOT_FOUND',
         fields: ['id party.not_found'],
       });
@@ -189,5 +220,153 @@ describe('requireActive: a deactivated party cannot be picked on a new document 
       fields: ['partyId party.inactive'],
     });
     expect((await errorOf(setup().manager.requireActive(ID))).fields).toEqual(['id party.not_found']);
+  });
+});
+
+describe('the code comes from the party_code series (ADR 0056 section 4)', () => {
+  it('takes the business-wide number, never a code from the body', async () => {
+    const { manager, series, query } = setup();
+    const body = { ...input(), code: 'X-HACKED' } as PartyCreate;
+    const party = await manager.create(body, actor);
+    expect(series.taken).toEqual([{ kind: 'party_code', branchId: null, number: 'C-000001' }]);
+    expect(query.created[0]?.code).toBe('C-000001');
+    expect(party.code).toBe('C-000001');
+  });
+});
+
+describe('the duplicate-phone warning (ADR 0019 test 11, ADR 0056 section 3)', () => {
+  const match = { id: '0196f000-0000-7000-8000-000000000402', code: 'C-000007', name: 'Sample Customer' };
+
+  it('a phone already on an active party is 409, one field error per match, and nothing is created', async () => {
+    const { manager, query, series } = setup();
+    query.matches = [
+      { ...match, phoneE164: '+8801712345678', altPhoneE164: null },
+      {
+        ...match,
+        id: '0196f000-0000-7000-8000-000000000403',
+        code: 'C-000009',
+        name: 'Other Customer',
+        phoneE164: '+8801500000000',
+        altPhoneE164: '+8801712345678',
+      },
+    ];
+    const error = await manager.create(input(), actor).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).code).toBe('CONFLICT');
+    expect((error as AppError).fields).toEqual([
+      { path: 'phone', code: 'party.possible_duplicate', message: 'C-000007 Sample Customer' },
+      { path: 'phone', code: 'party.possible_duplicate', message: 'C-000009 Other Customer' },
+    ]);
+    expect(query.created).toEqual([]);
+    expect(series.taken).toEqual([]);
+  });
+
+  it('checks both phones, in E.164, and names the field that matched', async () => {
+    const { manager, query } = setup();
+    query.matches = [{ ...match, phoneE164: '+8801900000000', altPhoneE164: '+8801912345678' }];
+    const fields = (await errorOf(manager.create(input({ altPhone: '01912345678' }), actor))).fields;
+    expect(query.phoneLookups).toEqual([{ phones: ['+8801712345678', '+8801912345678'], exceptId: null }]);
+    expect(fields).toEqual(['altPhone party.possible_duplicate']);
+  });
+
+  it('confirmDuplicate: true creates the party anyway', async () => {
+    const { manager, query } = setup();
+    query.matches = [{ ...match, phoneE164: '+8801712345678', altPhoneE164: null }];
+    await expect(manager.create(input({ confirmDuplicate: true }), actor)).resolves.toMatchObject({
+      code: 'C-000001',
+    });
+  });
+
+  it('an edit that changes a phone is checked too, leaving the party itself out', async () => {
+    const { manager, query } = setup([record()]);
+    query.matches = [{ ...match, phoneE164: '+8801812345678', altPhoneE164: null }];
+    expect((await errorOf(manager.edit(ID, { version: 1, phone: '01812345678' }, actor))).fields).toEqual([
+      'phone party.possible_duplicate',
+    ]);
+    expect(query.phoneLookups).toEqual([{ phones: ['+8801812345678'], exceptId: ID }]);
+    expect(query.edits).toEqual([]);
+  });
+
+  it('an edit that changes no phone does not look', async () => {
+    const { manager, query } = setup([record()]);
+    await manager.edit(ID, { version: 1, name: 'Renamed Customer' }, actor);
+    expect(query.phoneLookups).toEqual([]);
+  });
+});
+
+describe('the per-kind codes (ADR 0006 section 8, ADR 0056 section 4)', () => {
+  it('a supplier needs party.supplier.create; without it, 403 and nothing is created', async () => {
+    const { manager, query, series } = setup();
+    const noSupplier = { ...actor, permissions: CASHIER.filter((c) => c !== 'party.supplier.create') };
+    expect(await errorOf(manager.create(input({ isSupplier: true }), noSupplier))).toEqual({
+      code: 'FORBIDDEN',
+      fields: ['isSupplier party.supplier_forbidden'],
+    });
+    expect(query.created).toEqual([]);
+    expect(series.taken).toEqual([]);
+    await expect(
+      manager.create(input({ isSupplier: true }), { ...actor, permissions: CASHIER }),
+    ).resolves.toBeDefined();
+  });
+
+  it('making a customer also a supplier needs party.supplier.create too', async () => {
+    const { manager, query } = setup([record()]);
+    const noSupplier = { ...actor, permissions: OWNER.filter((c) => c !== 'party.supplier.create') };
+    expect((await errorOf(manager.edit(ID, { version: 1, isSupplier: true }, noSupplier))).code).toBe(
+      'FORBIDDEN',
+    );
+    expect(query.edits).toEqual([]);
+  });
+
+  it('the customer routes do not reach a supplier-only party: 404 on get, edit and deactivate', async () => {
+    const supplierOnly = record({ isCustomer: false, isSupplier: true });
+    const { manager } = setup([supplierOnly]);
+    expect((await errorOf(manager.get(ID))).fields).toEqual(['id party.not_found']);
+    expect((await errorOf(manager.edit(ID, { version: 1, name: 'X' }, actor))).fields).toEqual([
+      'id party.not_found',
+    ]);
+    expect((await errorOf(manager.deactivate(ID, 1))).fields).toEqual(['id party.not_found']);
+  });
+});
+
+describe('get and list (ADR 0056 section 4)', () => {
+  it('get returns the customer; an unknown or malformed id is 404', async () => {
+    const { manager } = setup([record()]);
+    expect(await manager.get(ID)).toMatchObject({ id: ID, code: 'C-000001', phone: '+8801712345678' });
+    expect((await errorOf(manager.get('not-a-uuid'))).fields).toEqual(['id party.not_found']);
+  });
+
+  const many = ['Babul', 'Anwar', 'Chandan'].map((name, i) =>
+    record({ id: `0196f000-0000-7000-8000-00000000050${i}`, name, code: `C-00000${i + 1}` }),
+  );
+
+  it('asks for one row more than the page, and returns a cursor only when another page exists', async () => {
+    const { manager, query } = setup(many);
+    const first = await manager.list({ limit: 2 });
+    expect(query.lists[0]).toMatchObject({ limit: 3 });
+    expect(first.items.map((p) => p.name)).toEqual(['Anwar', 'Babul']);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await manager.list({ limit: 2, cursor: first.nextCursor ?? undefined });
+    expect(second.items.map((p) => p.name)).toEqual(['Chandan']);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it('passes the search and the filters through, and lists list-item fields only', async () => {
+    const { manager, query } = setup(many);
+    const page = await manager.list({ limit: 25, search: '0171', status: 'active', role: 'supplier' });
+    expect(query.lists[0]).toMatchObject({ search: '0171', status: 'active', alsoSupplier: true });
+    expect(Object.keys(page.items[0] ?? {}).sort()).toEqual(
+      ['area', 'code', 'id', 'isCustomer', 'isSupplier', 'kind', 'name', 'nameBn', 'phone', 'status'].sort(),
+    );
+  });
+
+  it('a cursor it did not make is 400 page.cursor_invalid', async () => {
+    const { manager } = setup(many);
+    expect((await errorOf(manager.list({ limit: 2, cursor: 'garbage' }))).fields).toEqual([
+      'cursor page.cursor_invalid',
+    ]);
   });
 });
