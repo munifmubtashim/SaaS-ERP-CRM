@@ -68,6 +68,18 @@ export function parseMoney(amount: string): Paisa {
   return inRange(negative ? -magnitude : magnitude);
 }
 
+/**
+ * What a person typed in an amount box, as a money string: "1850" -> "1850.00", "1850.5" -> "1850.50", grouping
+ * commas and spaces dropped ("2,45,000" -> "245000.00"). Text only, no arithmetic. Anything else comes back as typed,
+ * so `moneySchema` refuses it and the form can say so.
+ */
+export function moneyFromTyped(typed: string): string {
+  const s = typed.replace(/[,\s]/g, '');
+  if (/^\d+$/.test(s)) return `${s}.00`;
+  if (/^\d+\.\d$/.test(s)) return `${s}0`;
+  return s;
+}
+
 /** Paisa -> "12500.00". Canonical: no leading zeros, never "-0.00". */
 export function formatMoney(amount: Paisa): string {
   const magnitude = amount < 0n ? -amount : amount;
