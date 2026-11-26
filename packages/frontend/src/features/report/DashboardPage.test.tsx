@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
 import type { DemoService, IReportService } from '../../services';
 import { SampleReportService } from '../../services/sample/SampleReportService';
+import { activeScopeStore } from '../../store/activeScopeStore';
 import { preferencesStore } from '../../store/preferencesStore';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { DashboardPage } from './DashboardPage';
@@ -14,6 +15,12 @@ const STORY_DAY = '2026-11-12';
 
 /** The dashboard summary (design/owner-dashboard/Main.dc.html): greeting, VAT alert and the five key figures. */
 const NOW = new Date('2026-11-12T03:00:00.000Z'); // 9:00 AM in Dhaka
+
+/** Obviously fake ids: the business and branch chosen in the switcher. */
+const SCOPE = {
+  businessId: '0196f000-0000-7000-8000-0000000000a1',
+  branchId: '0196f000-0000-7000-8000-0000000000b1',
+};
 
 function renderPage({
   report = new SampleReportService(0, STORY_DAY),
@@ -25,8 +32,16 @@ function renderPage({
     'report.bankFeed',
   ]),
   locale = 'en' as 'en' | 'bn',
-}: { report?: IReportService; demo?: ReadonlySet<DemoService>; locale?: 'en' | 'bn' } = {}) {
+  scope = SCOPE as typeof SCOPE | null,
+}: {
+  report?: IReportService;
+  demo?: ReadonlySet<DemoService>;
+  locale?: 'en' | 'bn';
+  scope?: typeof SCOPE | null;
+} = {}) {
   vi.setSystemTime(NOW);
+  if (scope) activeScopeStore.set(scope);
+  else activeScopeStore.clear();
   const services = fakeServices(new FakeHealthService(new Error('unused')), { report, demo });
   return render(
     <ServicesContext.Provider value={services}>
@@ -40,7 +55,35 @@ function renderPage({
 }
 
 describe('DashboardPage summary', () => {
-  afterEach(() => preferencesStore.set({ density: 'compact' }));
+  afterEach(() => {
+    preferencesStore.set({ density: 'compact' });
+    activeScopeStore.clear();
+  });
+
+  it('sends no report request until a business is chosen, then loads for that business', async () => {
+    const calls: string[] = [];
+    const sample = new SampleReportService(0, STORY_DAY);
+    const counting = new Proxy(sample, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== 'function') return value;
+        return (...args: unknown[]) => {
+          calls.push(String(key));
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
+    renderPage({ report: counting, scope: null });
+    expect(await screen.findByText('Choose a business to see its figures.')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(calls).toEqual([]);
+
+    act(() => activeScopeStore.set(SCOPE));
+    const figures = await screen.findByRole('region', { name: 'Key figures' });
+    expect(await within(figures).findByText('৳1,40,59,500')).toBeInTheDocument();
+    expect(calls).toContain('ownerDashboard');
+    expect(screen.queryByText('Choose a business to see its figures.')).not.toBeInTheDocument();
+  });
 
   it('greets by the time of day in Dhaka and shows the long date', async () => {
     renderPage();

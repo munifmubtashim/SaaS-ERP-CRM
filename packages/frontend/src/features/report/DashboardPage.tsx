@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { formatLongDateBD, formatTimeBD, hourInDhaka } from '@erp/shared';
 import { useI18n } from '../../i18n';
+import { useActiveScope } from '../../store/activeScopeStore';
 import { useSession } from '../../store/sessionStore';
 import { MonthlyChart, RevenueByBusiness } from './Charts';
 import { KpiRow } from './KpiRow';
@@ -19,6 +20,7 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
   const session = useSession();
+  const scope = useActiveScope();
   const queryClient = useQueryClient();
   const bankFeed = useReport('bankFeed');
   const hour = hourInDhaka(now);
@@ -55,6 +57,15 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
           </button>
         </div>
       </header>
+      {scope ? <Figures now={now} /> : <p className="text-[13px] text-text2">{t('dash.chooseBusiness')}</p>}
+    </div>
+  );
+}
+
+/** Every figure card; rendered only once a business is chosen, and each query waits for it too (useReport). */
+function Figures({ now }: { now: string }) {
+  return (
+    <>
       <VatAlert now={now} />
       <KpiRow />
       <div className="grid gap-3 lg:grid-cols-[2fr_3fr]">
@@ -74,6 +85,6 @@ export function DashboardPage({ now = new Date().toISOString(), name }: { now?: 
         <DayCloseCard />
         <UnitStockCard />
       </div>
-    </div>
+    </>
   );
 }

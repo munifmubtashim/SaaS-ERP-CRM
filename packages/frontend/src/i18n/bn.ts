@@ -43,6 +43,7 @@ export const bn: Record<MessageKey, string> = {
   'dash.bankFeed': 'ব্যাংক ফিড {time}',
   'dash.refresh': 'হিসাব নতুন করে আনুন',
   'dash.export': 'এক্সপোর্ট',
+  'dash.chooseBusiness': 'হিসাব দেখতে একটি ব্যবসা বেছে নিন।',
   'dash.vat.aria': 'ভ্যাট সতর্কতা',
   'dash.vat.dueIn': 'ভ্যাট রিটার্ন জমার শেষ দিন {date}, আর {days} দিন বাকি',
   'dash.vat.dueToday': 'ভ্যাট রিটার্ন জমার শেষ দিন আজ, {date}',

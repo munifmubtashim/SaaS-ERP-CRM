@@ -11,10 +11,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useServices } from '../../app/servicesContext';
 import { useI18n } from '../../i18n';
+import { useActiveScope } from '../../store/activeScopeStore';
 import { agingBuckets, targetProgress, type AgedEntry, type Share } from './derive';
 import { forecastWeeks } from './forecast';
 import { ReportCard } from './ReportCard';
-import { useReport } from './useReport';
+import { reportKey, useReport } from './useReport';
 
 /** A bar's width (0 to 100) for a share: display only, through the shared ratio helper. */
 const width = (share: Share | null) =>
@@ -170,10 +171,14 @@ export function CashCard() {
   const signed = (amount: string) => (amount.startsWith('-') ? `−${taka(amount)}` : taka(amount));
   const { report } = useServices();
   const [weeks, setWeeks] = useState<ForecastWeeks>(4);
+  const scope = useActiveScope();
   const forecast = useQuery({
-    queryKey: ['report', 'cashForecast', weeks],
+    queryKey: reportKey(scope?.businessId, 'cashForecast', weeks),
     queryFn: () => report.cashForecast(weeks),
-    placeholderData: (previous) => previous,
+    // Keep the last weeks' figures while another span loads, but never another business's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === (scope?.businessId ?? null) ? previous : undefined,
+    enabled: scope !== null,
   });
   const customers = useReport('customerDues');
   const suppliers = useReport('supplierDues');

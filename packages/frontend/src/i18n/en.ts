@@ -38,6 +38,7 @@ export const en = {
   'dash.bankFeed': 'Bank feed {time}',
   'dash.refresh': 'Refresh the figures',
   'dash.export': 'Export',
+  'dash.chooseBusiness': 'Choose a business to see its figures.',
   'dash.vat.aria': 'VAT alert',
   'dash.vat.dueIn': 'The VAT return is due on {date}, in {days} days',
   'dash.vat.dueToday': 'The VAT return is due today, {date}',
