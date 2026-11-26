@@ -12,13 +12,30 @@ const BIZ = '0196f000-0000-7000-8000-0000000000a1';
 const BRANCH = '0196f000-0000-7000-8000-0000000000a2';
 
 describe('organization schemas', () => {
-  const business = { id: BIZ, name: 'Demo Motors', branches: [{ id: BRANCH, name: 'Demo Branch North' }] };
+  const business = {
+    id: BIZ,
+    name: 'Demo Motors',
+    branches: [{ id: BRANCH, name: 'Demo Branch North', shortCode: 'NTH' }],
+  };
 
   it('lists the businesses a user may use, each with at least one branch', () => {
     expect(myBusinessesResponseSchema.safeParse({ items: [business] }).success).toBe(true);
     expect(myBusinessesResponseSchema.safeParse({ items: [{ ...business, branches: [] }] }).success).toBe(
       false,
     );
+  });
+
+  it('each branch carries its short code, by the branch code rule; nothing else of the branch is kept', () => {
+    const [branch] = business.branches;
+    const withCode = (shortCode: unknown) => ({
+      items: [{ ...business, branches: [{ ...branch, shortCode }] }],
+    });
+    expect(myBusinessesResponseSchema.safeParse(withCode('nth')).success).toBe(false);
+    expect(myBusinessesResponseSchema.safeParse(withCode(undefined)).success).toBe(false);
+    const parsed = myBusinessesResponseSchema.parse({
+      items: [{ ...business, isActive: true, branches: [{ ...branch, address: 'x', costCentre: 'y' }] }],
+    });
+    expect(parsed.items[0]).toEqual(business);
   });
 
   it('an active scope is one business and one branch', () => {
