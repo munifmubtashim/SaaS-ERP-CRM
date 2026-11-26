@@ -58,3 +58,10 @@ export {
   type DemoOwner,
 } from './prisma/seeds/demoOrganization.js';
 export { DEMO_LOGINS, seedDemoBusiness, type DemoLogin } from './prisma/seeds/demoBusiness.js';
+export { demoOpeningParts, seedDemoCatalogue } from './prisma/seeds/demoCatalogue.js';
+export { demoUnits, seedDemoVehicles } from './prisma/seeds/demoVehicle.js';
+export {
+  DEMO_OPENING_SOURCE,
+  demoOpeningStockDone,
+  seedDemoOpeningJournals,
+} from './prisma/seeds/demoOpening.js';

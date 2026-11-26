@@ -37,6 +37,7 @@ import { PurchaseManager } from './PurchaseManager.js';
 import { ServiceManager } from './ServiceManager.js';
 import { CrmManager } from './CrmManager.js';
 import { SystemClock } from './SystemClock.js';
+import type { IClock } from './contracts/IClock.js';
 import { NumberSeries } from './NumberSeries.js';
 import { IdempotencyGuard } from './IdempotencyGuard.js';
 import { StockService } from './StockService.js';
@@ -158,6 +159,11 @@ export const DEFAULT_SESSION_LIFETIMES: SessionLifetimes = {
 };
 
 export interface ManagerConfig {
+  /**
+   * The clock that dates stock movements, sales and payments (ADR 0058 section 3). Leave it out (SystemClock): only the
+   * demo seed passes one, to date its opening stock and sales over past weeks.
+   */
+  clock?: IClock;
   /** Application role URL (NOSUPERUSER, NOBYPASSRLS). */
   databaseUrl: string;
   version: string;
@@ -218,8 +224,11 @@ export function createManagers(config: ManagerConfig): {
   const numberSeries = new NumberSeries(new NumberSeriesQuery());
   const stockQuery = new StockQuery();
   const stock = new StockService(stockQuery);
+  // ADR 0058: one clock for everything that dates money and stock. The api never passes one (SystemClock); the demo
+  // seed passes its own, so its opening and its sales carry past business dates.
+  const clock = config.clock ?? new SystemClock();
+  const stock = new StockService(new StockQuery(), clock);
   const posting = new PostingService(new JournalQuery(), numberSeries);
-  const clock = new SystemClock();
   // ADR 0016 section 3: the release 1 methods; the demo POS shows cash and bKash.
   const salesPayments = new SalesPaymentRecorder(new SalesPaymentQuery(), posting, numberSeries, clock, [
     new CashPayment(),

@@ -1,5 +1,21 @@
-import { AppError, loginRequestSchema } from '@erp/shared';
-import { createDbClient, seedDemoBusiness, seedDemoOrganization, DEMO_IDS, type DemoIds } from '@erp/dal';
+import { AppError, businessDateInDhaka, loginRequestSchema } from '@erp/shared';
+import {
+  createDbClient,
+  DEMO_IDS,
+  DEMO_OPENING_SOURCE,
+  demoOpeningParts,
+  demoOpeningStockDone,
+  demoUnits,
+  seedDemoBusiness,
+  seedDemoCatalogue,
+  seedDemoOpeningJournals,
+  seedDemoOrganization,
+  seedDemoVehicles,
+  type DemoIds,
+} from '@erp/dal';
+import type { IClock } from './contracts/IClock.js';
+import type { ITenantScope } from './contracts/ITenantScope.js';
+import type { IStockService } from './contracts/provided/IStockService.js';
 import type { IPasswordHasher } from './contracts/IPasswordHasher.js';
 
 /** What the demo seed needs, read from the environment by scripts/seedDemo.ts. */
@@ -17,6 +33,8 @@ export interface DemoSeedInput {
   usersPassword?: string;
   /** The four logins' email domain; default sample-motors.invalid. Tests pass their own. */
   usersEmailDomain?: string;
+  /** The app's URL (DATABASE_URL) the caller built `paths` on; checked by the same guard, before anything is written. */
+  appDatabaseUrl?: string;
   /** NODE_ENV: the demo seed refuses to run in production. */
   nodeEnv: string | undefined;
 }
@@ -29,6 +47,17 @@ const loginSchema = loginRequestSchema.shape.login;
 const passwordSchema = loginRequestSchema.shape.password;
 
 /**
+ * The real paths the Manager-driven steps go through (ADR 0058 section 2), built by the caller with createManagers on
+ * DATABASE_URL and the seed's own clock (scripts/seedDemo.ts, or a test): businessLogic's classes are wired only there.
+ * The opening is dated `clock.now()`.
+ */
+export interface DemoSeedPaths {
+  stock: IStockService;
+  tenantScope: ITenantScope;
+  clock: IClock;
+}
+
+/**
  * Seeds the demo organization and its owner (dal's seedDemoOrganization), then its series, chart, staff and the four
  * other logins (dal's seedDemoBusiness, ADR 0058 S1), after hashing the owner's password with
  * the given hasher (Argon2PasswordHasher in the script). Validates both values first, so nothing is written for a
@@ -38,12 +67,15 @@ export async function runDemoSeed(
   input: DemoSeedInput,
   hasher: IPasswordHasher,
   ids: DemoIds = DEMO_IDS,
+  paths?: DemoSeedPaths,
 ): Promise<{ organizationId: string; ownerUserId: string }> {
   if (input.nodeEnv === 'production') {
     throw new AppError('FORBIDDEN', 'The demo seed never runs with NODE_ENV=production.');
   }
-  if (!LOCAL_HOSTS.has(new URL(input.migrationDatabaseUrl).hostname)) {
-    throw new AppError('FORBIDDEN', 'The demo seed runs only against a database on localhost.');
+  for (const url of [input.migrationDatabaseUrl, input.appDatabaseUrl]) {
+    if (url !== undefined && !LOCAL_HOSTS.has(new URL(url).hostname)) {
+      throw new AppError('FORBIDDEN', 'The demo seed runs only against a database on localhost.');
+    }
   }
   const email = input.ownerEmail.trim();
   if (!email.includes('@') || !loginSchema.safeParse(email).success) {
@@ -65,8 +97,52 @@ export async function runDemoSeed(
       ids,
       usersHash === null ? null : { passwordHash: usersHash, emailDomain: input.usersEmailDomain },
     );
+    await seedDemoCatalogue(db, ids);
+    await seedDemoVehicles(db, ids);
+    if (paths) {
+      if (!(await demoOpeningStockDone(db, ids))) await moveOpeningStock(paths, ids);
+      await seedDemoOpeningJournals(db, ids, businessDateInDhaka(paths.clock.now()));
+    }
     return seeded;
   } finally {
     await db.$disconnect();
   }
+}
+
+/**
+ * Step 4 (spec section 2): the parts by quantity, then each chassis unit, into the Showroom through the real stock
+ * path (IStockService.move, kind opening, invariant 3), in one transaction as erp_app, dated by the paths' clock.
+ * Parts and units each carry their own cost (invariant 7).
+ */
+async function moveOpeningStock({ stock, tenantScope }: DemoSeedPaths, ids: DemoIds): Promise<void> {
+  const showroom = ids.branchIds[0];
+  const source = { type: DEMO_OPENING_SOURCE, id: ids.businessId };
+  await tenantScope.run(
+    {
+      organizationId: ids.organizationId,
+      businessIds: [ids.businessId],
+      branchIds: [showroom],
+      branchId: showroom,
+    },
+    () =>
+      stock.move([
+        ...demoOpeningParts(ids).map((part) => ({
+          productId: part.productId,
+          branchId: showroom,
+          qtyDelta: part.qty,
+          unitCost: part.unitCost,
+          kind: 'opening' as const,
+          source,
+        })),
+        ...demoUnits(ids).map((unit) => ({
+          productId: unit.productId,
+          branchId: showroom,
+          qtyDelta: '1.000',
+          unitId: unit.unitId,
+          unitCost: unit.unitCost,
+          kind: 'opening' as const,
+          source,
+        })),
+      ]),
+  );
 }
