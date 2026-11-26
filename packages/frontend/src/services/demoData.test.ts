@@ -26,6 +26,9 @@ describe('parseDemoData', () => {
       'sales.invoices',
       'sales.pos',
     ]);
+    // POST /v1/payments exists (ADR 0057), but the screens pay sample invoices until invoice reads exist.
+    expect(DEMO_CAPABLE.has('sales.payments')).toBe(true);
+    expect(DEMO_DEFAULT.has('sales.payments')).toBe(true);
   });
 
   it('a comma list picks services; "all" is every service that has a sample; "none" is real everywhere', () => {

@@ -13,7 +13,10 @@ import { SampleProductService } from './sample/SampleProductService';
 import { SampleReportService } from './sample/SampleReportService';
 import { PartyService, type IPartyService } from './partyService';
 import { SalesService, SalesServiceSwitch, type ISalesService } from './salesService';
+import { SalesPaymentService, type ISalesPaymentService } from './salesPaymentService';
+import { SalesService, type ISalesService } from './salesService';
 import { SampleSalesService } from './sample/SampleSalesService';
+import { SampleSalesPaymentService } from './sample/SampleSalesPaymentService';
 import { SampleVehicleService } from './sample/SampleVehicleService';
 import { PurchaseService, type IPurchaseService } from './purchaseService';
 import { ServiceService, type IServiceService } from './serviceService';
@@ -27,6 +30,7 @@ export type { IOrganizationService } from './organizationService';
 export type { DemoService } from './demoData';
 export type { IReportService, ReportCall } from './reportService';
 export type { ISalesService, PaymentDraft } from './salesService';
+export type { ISalesPaymentService } from './salesPaymentService';
 export type { IInventoryService } from './inventoryService';
 export type { IProductService } from './productService';
 export type { IVehicleService } from './vehicleService';
@@ -43,6 +47,7 @@ export interface Services {
   report: IReportService;
   party: IPartyService;
   sales: ISalesService;
+  salesPayments: ISalesPaymentService;
   purchase: IPurchaseService;
   service: IServiceService;
   crm: ICrmService;
@@ -85,6 +90,11 @@ export function createServices(
     sales: new SalesServiceSwitch(new SalesService(http), new SampleSalesService(), (call) =>
       demo.has(call === 'posItems' || call === 'completeSale' ? 'sales.pos' : 'sales.invoices'),
     ),
+    sales: demo.has('sales') ? new SampleSalesService() : new SalesService(http),
+    // POST /v1/payments exists (ADR 0057); sample by default until invoice reads exist (demoData.ts).
+    salesPayments: demo.has('sales.payments')
+      ? new SampleSalesPaymentService()
+      : new SalesPaymentService(http),
     purchase: new PurchaseService(http),
     service: new ServiceService(http),
     crm: new CrmService(http),

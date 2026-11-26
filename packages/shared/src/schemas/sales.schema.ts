@@ -202,6 +202,65 @@ export const postedInvoiceSchema = z
   .strict();
 
 // Customer payments and dues (A15, #47): POST /v1/payments takes recordPaymentSchema (ADR 0057).
+export const invoiceStatusSchema = z.enum(['paid', 'partly_paid', 'due']);
+/** An item the counter can sell. Serial-tracked items list their available serial numbers. */
+export const posItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  category: z.string().min(1),
+  kind: z.enum(['serial', 'quantity']),
+  price: moneySchema,
+  available: quantityTextSchema,
+  serialNumbers: z.array(z.string().min(1)),
+});
+export const cartLineSchema = z.object({
+  itemId: z.string().min(1),
+  name: z.string().min(1),
+  unitPrice: moneySchema,
+  quantity: quantityTextSchema,
+  /** The unit sold, for a serial-tracked item; null for counted items. */
+  serialNumber: z.string().min(1).nullable(),
+});
+/** What Complete sale sends: the lines, a discount, and the payment received now (null: all due). */
+export const saleDraftSchema = z.object({
+  customerName: z.string().trim().min(1).max(200).nullable(),
+  lines: z.array(cartLineSchema).min(1),
+  discount: moneySchema,
+  payment: paymentDraftSchema.nullable(),
+});
+export const invoiceSummarySchema = z.object({
+  number: z.string().min(1),
+  issuedAt: z.iso.datetime(),
+  customerName: z.string().min(1),
+  total: moneySchema,
+  paid: moneySchema,
+  status: invoiceStatusSchema,
+});
+export const invoiceDetailSchema = invoiceSummarySchema.extend({
+  soldBy: z.string().min(1),
+  lines: z.array(
+    z.object({
+      description: z.string().min(1),
+      quantity: quantityTextSchema,
+      unitPrice: moneySchema,
+      amount: moneySchema,
+    }),
+  ),
+  discount: moneySchema,
+  payments: z.array(
+    z.object({
+      receivedAt: z.iso.datetime(),
+      /** The system receipt number every payment gets (ADR 0016 line 19; ADR 0015 numbers it per branch). */
+      receiptNumber: z.string().min(1),
+      method: paymentMethodSchema,
+      amount: moneySchema,
+      externalRef: z.string().min(1).nullable(),
+    }),
+  ),
+  balance: moneySchema,
+});
+// Customer payments and dues (A15, #47): the API shapes for POST /v1/payments and the dues read (ADR 0057).
+export const salesSchema = z.object({});
 /** Every method except cash needs the external transaction id (ADR 0016 draft, Moto Mart decision). */
 const METHODS_WITHOUT_EXTERNAL_REF: ReadonlySet<string> = new Set(['cash']);
 

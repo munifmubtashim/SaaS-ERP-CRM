@@ -21,6 +21,10 @@ import type {
 
 /** Sales types: z.infer of the shared schemas (provisional view shapes, see the schema file). */
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
+/** Sales types: z.infer of the shared schemas. Owner: Farhan. */
+export type Sales = z.infer<typeof salesSchema>;
+
+/** Provisional view shapes for the POS screen (see the schema file). */
 export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
 export type PosItem = z.infer<typeof posItemSchema>;
 export type CartLine = z.infer<typeof cartLineSchema>;
@@ -39,6 +43,8 @@ export type PostInvoiceInput = z.infer<typeof postInvoiceSchema>;
 export type PostedInvoice = z.infer<typeof postedInvoiceSchema>;
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 /** `POST /v1/payments` (ADR 0057): what the payment form sends (before trimming). */
+/** Customer payments and dues (#47): POST /v1/payments and the dues read (ADR 0057). */
+/** What the payment form sends (before trimming). */
 export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
 /** What the server works with after parsing. */
 export type RecordPayment = z.infer<typeof recordPaymentSchema>;
