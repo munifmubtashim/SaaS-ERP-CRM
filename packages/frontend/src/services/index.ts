@@ -1,5 +1,5 @@
 import { HealthService, type IHealthService } from './healthService';
-import { HttpClient, type IHttpClient } from './HttpClient';
+import { HttpClient, type IHttpClient, type IHttpPatch } from './HttpClient';
 import { AuthService, type IAuthService } from './authService';
 import { OrganizationService, type IOrganizationService } from './organizationService';
 import { MockOrganizationService } from './mock/MockOrganizationService';
@@ -29,7 +29,7 @@ import { ServiceService, type IServiceService } from './serviceService';
 import { CrmService, type ICrmService } from './crmService';
 import { parseDemoData, type DemoService } from './demoData';
 
-export { ApiRequestError, HttpClient, type IHttpClient } from './HttpClient';
+export { ApiRequestError, HttpClient, type IHttpClient, type IHttpPatch } from './HttpClient';
 export type { IHealthService } from './healthService';
 export type { IAuthService } from './authService';
 export type { IOrganizationService } from './organizationService';
@@ -78,7 +78,7 @@ export interface CreateServicesOptions {
 /** Frontend composition root: the ONLY place services are constructed (lint-enforced). */
 export function createServices(
   // The tab's active business and branch travel on every call (ADR 0007).
-  http: IHttpClient = new HttpClient('/api', () => activeScopeStore.get()),
+  http: IHttpClient & IHttpPatch = new HttpClient('/api', () => activeScopeStore.get()),
   {
     demo = parseDemoData(import.meta.env.VITE_DEMO_DATA, { production: import.meta.env.PROD }),
   }: CreateServicesOptions = {},

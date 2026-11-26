@@ -17,6 +17,8 @@ const amountCell =
 
 const actionLink =
   'inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:brightness-110';
+const quietLink =
+  'inline-flex min-h-11 items-center justify-center rounded-md border border-card-border bg-chip px-4 font-semibold text-text hover:border-accent';
 
 /**
  * Customer profile: what does this customer owe, and how do I reach them? Next action: record a payment.
@@ -93,12 +95,17 @@ function CustomerDetail({ id }: { id: string }) {
             )}
           </div>
         </div>
-        {/* The walk-in customer never owes (a sale with a due names its customer) and can't pay an advance (ADR 0057). */}
-        {!customer.isWalkIn && (
-          <Link to={`/customers/${customer.id}/payment`} className={`${actionLink} self-start`}>
-            {t('customer.recordPayment')}
+        <div className="flex gap-2 self-start">
+          <Link to={`/customers/${customer.id}/edit`} className={quietLink}>
+            {t('customer.edit')}
           </Link>
-        )}
+          {/* The walk-in customer never owes (a sale with a due names its customer) and can't pay an advance (ADR 0057). */}
+          {!customer.isWalkIn && (
+            <Link to={`/customers/${customer.id}/payment`} className={actionLink}>
+              {t('customer.recordPayment')}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">

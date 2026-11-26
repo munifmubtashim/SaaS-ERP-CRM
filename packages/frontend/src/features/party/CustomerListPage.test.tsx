@@ -5,7 +5,13 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
-import { ApiRequestError, type IHttpClient, type DemoService, type IPartyService } from '../../services';
+import {
+  ApiRequestError,
+  type IHttpPatch,
+  type IHttpClient,
+  type DemoService,
+  type IPartyService,
+} from '../../services';
 import { PartyService } from '../../services/partyService';
 import { activeBusinessStore } from '../../store/activeBusinessStore';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
@@ -66,6 +72,8 @@ function renderPage(
     list: (query) => customers.list(query),
     get: (id) => customers.get(id),
     dues: () => Promise.reject(new Error('The customer list never asks for dues.')),
+    create: () => Promise.reject(new Error('This test never adds a customer.')),
+    update: () => Promise.reject(new Error('This test never edits a customer.')),
   };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -113,7 +121,7 @@ describe('CustomerListPage (F1b, mock data)', () => {
     // A fake API that wrongly sends NID fields. The real PartyService checks the reply with the shared
     // list schema, which drops every field that is not a list field.
     const nid = '0000000000123';
-    const http: IHttpClient = {
+    const http: IHttpClient & IHttpPatch = {
       getJson: async (_path, schema) =>
         schema.parse({
           items: [{ ...customer(1), nid, nationalId: nid, nidCiphertext: nid }],
@@ -121,6 +129,7 @@ describe('CustomerListPage (F1b, mock data)', () => {
         }),
       postJson: () => Promise.reject(new Error('not used')),
       post: () => Promise.reject(new Error('not used')),
+      patchJson: () => Promise.reject(new Error('not used')),
     };
     const party = new PartyService(http);
     const [row] = (await party.list({ role: 'customer' })).items;
@@ -284,5 +293,15 @@ describe('the Demo data badge (task 4, frontend-wiring.md)', () => {
     renderPage(new FakePartyService({ [BIZ_A]: [customer(1)] }));
     await screen.findByRole('heading', { name: 'Customers' });
     expect(screen.queryByText('Demo data')).not.toBeInTheDocument();
+  });
+});
+
+describe('adding a customer from the list (task 4 T3)', () => {
+  it('offers "Add customer", which opens the form', async () => {
+    renderPage(new FakePartyService({ [BIZ_A]: [customer(1)] }));
+    expect(await screen.findByRole('link', { name: 'Add customer' })).toHaveAttribute(
+      'href',
+      '/customers/new',
+    );
   });
 });

@@ -36,7 +36,12 @@ export interface IHttpClient {
  * browser sends the HttpOnly session cookie and the app's Origin itself (ADR 0018 section 2). No token is ever read,
  * stored or sent by this code; there is no Authorization header.
  */
-export class HttpClient implements IHttpClient {
+/** PATCH, for the few routes that edit in place (PATCH /v1/parties/:id). Its own interface, so only they depend on it. */
+export interface IHttpPatch {
+  patchJson<T extends z.ZodType>(path: string, body: unknown, schema: T): Promise<z.infer<T>>;
+}
+
+export class HttpClient implements IHttpClient, IHttpPatch {
   /**
    * `scope` is the tab's active business and branch (activeScopeStore, ADR 0007): tenantMiddleware reads them from
    * X-Business-Id and X-Branch-Id. Null before one is chosen (the login and the business switcher), and then neither
@@ -80,12 +85,24 @@ export class HttpClient implements IHttpClient {
     return schema.parse(json);
   }
 
+  async patchJson<T extends z.ZodType>(path: string, body: unknown, schema: T): Promise<z.infer<T>> {
+    const res = await this.send(path, body, undefined, 'PATCH');
+    const json: unknown = await res.json().catch(() => null);
+    if (!res.ok) throw toError(res.status, json);
+    return schema.parse(json);
+  }
+
   async post(path: string, body?: unknown): Promise<void> {
     const res = await this.send(path, body);
     if (!res.ok) throw toError(res.status, await res.json().catch(() => null));
   }
 
-  private send(path: string, body: unknown, idempotencyKey?: string): Promise<Response> {
+  private send(
+    path: string,
+    body: unknown,
+    idempotencyKey?: string,
+    method: 'POST' | 'PATCH' = 'POST',
+  ): Promise<Response> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -93,7 +110,7 @@ export class HttpClient implements IHttpClient {
     };
     if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     return fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
+      method,
       credentials: 'same-origin',
       headers,
       body: JSON.stringify(body ?? {}),

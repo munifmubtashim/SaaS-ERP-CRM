@@ -23,7 +23,7 @@ import {
 } from '@erp/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { DemoService } from './demoData';
-import type { IHttpClient } from './HttpClient';
+import type { IHttpClient, IHttpPatch } from './HttpClient';
 import { createServices } from './index';
 import { targetProgress } from '../features/report/derive';
 import { ReportService } from './reportService';
@@ -33,7 +33,8 @@ import { REPORT_CALLS, SampleReportService } from './sample/SampleReportService'
 const STORY_DAY = '2026-11-12';
 
 /** Every report call answers from the API or from sample data on its own key (VITE_DEMO_DATA), one at a time. */
-class RecordingHttp implements IHttpClient {
+class RecordingHttp implements IHttpClient, IHttpPatch {
+  patchJson = () => Promise.reject(new Error('unused'));
   paths: string[] = [];
   getJson = (path: string) => {
     this.paths.push(path);
