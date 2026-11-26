@@ -1,7 +1,21 @@
 import { AppError } from '@erp/shared';
-import { LoginUserDTO, ScopeDTO, SessionDTO, type ScopeRow, type SessionRow } from '../dto/AuthDTO.js';
+import {
+  LoginUserDTO,
+  MyBusinessDTO,
+  ScopeDTO,
+  SessionDTO,
+  type MyBranchRow,
+  type ScopeRow,
+  type SessionRow,
+} from '../dto/AuthDTO.js';
 import type { TxClient } from '../config/tenantScope.js';
 import { UnscopedQuery } from './UnscopedQuery.js';
+
+/**
+ * The "me" path's marker (ADR 0060): app.business_ids and app.branch_ids both set to the nil UUID, with
+ * app.me_user_id, open the two SELECT-only "me" policies on business and branch, and match no row of any other policy.
+ */
+const ME_MARKER = '00000000-0000-0000-0000-000000000000';
 
 /** Lockout (ADR 0018 section 4, U-04): 5 wrong passwords lock the account for 15 minutes. */
 const MAX_FAILED_ATTEMPTS = 5;
@@ -255,6 +269,31 @@ export class AuthQuery extends UnscopedQuery {
          ORDER BY r.code`;
       return rows.length > 0 ? ScopeDTO.fromRows(rows) : null;
     });
+  }
+
+  /**
+   * GET /v1/me/businesses (ADR 0060): the active businesses and active branches the user's own active scopes cover,
+   * in their organization. One short READ ONLY transaction on the "me" path; the policies decide what is visible
+   * (group scope: every business; a business scope: that business and all its branches; a branch scope: the
+   * business and that branch). Ordered by business name, then branch short code.
+   */
+  async myBusinesses(userId: string, organizationId: string): Promise<MyBusinessDTO[]> {
+    const rows = await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+      await tx.$queryRaw`
+        SELECT set_config('app.organization_id', ${organizationId}, true),
+               set_config('app.me_user_id', ${userId}, true),
+               set_config('app.business_ids', ${ME_MARKER}, true),
+               set_config('app.branch_ids', ${ME_MARKER}, true)`;
+      return tx.$queryRaw<MyBranchRow[]>`
+        SELECT bu.id::text AS "businessId", bu.name AS "businessName",
+               br.id::text AS "branchId", br.name AS "branchName", br.short_code AS "shortCode"
+          FROM business bu
+          JOIN branch br ON br.business_id = bu.id
+         WHERE bu.organization_id = ${organizationId}::uuid AND bu.is_active AND br.is_active
+         ORDER BY bu.name, bu.id, br.short_code`;
+    });
+    return MyBusinessDTO.fromRows(rows);
   }
 
   /** One short transaction with only app.session_key set (transaction-local): the session path (ADR 0050 §6). */

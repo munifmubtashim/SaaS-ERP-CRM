@@ -85,3 +85,18 @@ CREATE FUNCTION public.app_session_key() RETURNS bytea
 AS $$
   SELECT decode(nullif(current_setting('app.session_key', true), ''), 'hex')
 $$;
+
+-- The "me" path's user (ADR 0060). Shipped in migration me_businesses. Like app_login_key() it returns NULL instead
+-- of raising, and it returns the user only when app.business_ids and app.branch_ids are both the nil marker, so a
+-- normal tenant transaction (real ids) never opens the "me" policies (rls/me_businesses.sql). AuthQuery sets
+-- app.me_user_id, with set_config(..., true), only in its own myBusinesses transaction.
+CREATE FUNCTION public.app_me_user_id() RETURNS uuid
+  LANGUAGE sql STABLE PARALLEL SAFE
+  SET search_path = pg_catalog
+AS $$
+  SELECT CASE
+    WHEN current_setting('app.business_ids', true) = '00000000-0000-0000-0000-000000000000'
+     AND current_setting('app.branch_ids', true) = '00000000-0000-0000-0000-000000000000'
+    THEN nullif(current_setting('app.me_user_id', true), '')::uuid
+  END
+$$;

@@ -20,6 +20,8 @@ const DEFINITIONS = [
   'sql/rls/auth_access.sql',
   'sql/triggers/user_scope.sql',
   'sql/rls/auth_session.sql',
+  // The "me" policies on business and branch read the caller's own user_scope rows (ADR 0060).
+  'sql/rls/me_businesses.sql',
   // The seed (ADR 0009 part 4) writes roles and their permissions as the migration owner, outside any request.
   'prisma/seeds/systemRoles.ts',
   // The demo organization seed writes the owner user and its group scope, as the migration owner.

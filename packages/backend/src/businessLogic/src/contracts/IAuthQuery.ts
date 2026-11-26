@@ -40,6 +40,13 @@ export interface ActiveSession {
 
 /** What AuthManager needs from the database. Owned by businessLogic; dal's AuthQuery satisfies it. */
 /** A user's roles in one business and branch, and their active permission codes (ADR 0051). */
+/** A business the user may use, with its branches (ADR 0060): id, name and short code only. */
+export interface MyBusiness {
+  id: string;
+  name: string;
+  branches: { id: string; name: string; shortCode: string }[];
+}
+
 export interface ScopeGrant {
   roles: string[];
   permissions: string[];
@@ -47,6 +54,8 @@ export interface ScopeGrant {
 
 export interface IAuthQuery {
   /** Null when the business or branch is missing, inactive, another organization's, or not in the user's scopes. */
+  /** The active businesses and branches the user's own active scopes cover, in their organization (ADR 0060). */
+  myBusinesses(userId: string, organizationId: string): Promise<MyBusiness[]>;
   scopeFor(
     userId: string,
     organizationId: string,

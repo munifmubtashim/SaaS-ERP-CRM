@@ -55,8 +55,8 @@ describe('route coverage for tenant isolation', () => {
     expect(unexpected.map((r) => r.key)).toEqual([]);
   });
 
-  it('has an isolation case for every tenant-scoped route', () => {
-    const missing = routes.filter((r) => r.scope === 'tenant' && !(r.key in ISOLATION_CASES));
+  it('has an isolation case for every tenant-scoped and every signed-in user route', () => {
+    const missing = routes.filter((r) => r.scope !== 'public' && !(r.key in ISOLATION_CASES));
     expect(
       missing.map((r) => r.key),
       'Add a cross-tenant case to test/isolation/cases.ts',
@@ -69,6 +69,13 @@ describe('route coverage for tenant isolation', () => {
       open.map((r) => r.key),
       'Build tenant routes with wrap.tenant(handler, { permission } or { roles })',
     ).toEqual([]);
+  });
+
+  it('ADR 0060: a signed-in user route lives under /v1/me and is never public', () => {
+    const user = routes.filter((r) => r.scope === 'user');
+    expect(user.map((r) => r.key)).toContain('GET /v1/me/businesses');
+    expect(user.filter((r) => !r.key.split(' ')[1]?.startsWith('/v1/me/')).map((r) => r.key)).toEqual([]);
+    expect(user.filter((r) => PUBLIC_ROUTES.has(r.key)).map((r) => r.key)).toEqual([]);
   });
 
   it('keeps every business module under /v1', () => {
