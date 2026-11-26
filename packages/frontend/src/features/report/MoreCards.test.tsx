@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ServicesContext } from '../../app/servicesContext';
 import { I18nProvider } from '../../i18n';
 import { SampleReportService } from '../../services/sample/SampleReportService';
 import { FakeHealthService, fakeServices } from '../../test/fakeServices';
 import { BranchCards, CustomerCard, DayCloseCard, NeedsActionCard, UnitStockCard } from './MoreCards';
+import { activeScopeStore } from '../../store/activeScopeStore';
 
 /** The sample's own day (12 November 2026), so these tests never move with the calendar. */
 const STORY_DAY = '2026-11-12';
@@ -32,6 +33,15 @@ function renderCards(locale: 'en' | 'bn' = 'en') {
 }
 
 const card = async (title: string) => (await screen.findByText(title)).closest('article') as HTMLElement;
+
+// The report cards load only once a business is chosen (useReport); obviously fake ids.
+beforeEach(() =>
+  activeScopeStore.set({
+    businessId: '0196f000-0000-7000-8000-0000000000a1',
+    branchId: '0196f000-0000-7000-8000-0000000000b1',
+  }),
+);
+afterEach(() => activeScopeStore.clear());
 
 describe('branch cards', () => {
   it('revenue by branch: one bar per branch, each named with its business and amount, not colour-only', async () => {
