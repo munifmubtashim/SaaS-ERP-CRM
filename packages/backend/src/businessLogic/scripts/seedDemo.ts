@@ -22,14 +22,17 @@ if (missing.length > 0) {
 }
 
 // The seed's opening day: 42 days ago (ADR 0058 section 3). Opening stock and the opening journal carry its date.
-const fixedOpening = new Date(Date.now() - 42 * 86_400_000);
-const { provided, tenantScope, close } = createManagers({
+const opening = new Date(Date.now() - 42 * 86_400_000);
+let now = opening;
+// The seed steps this clock a day at a time for its sales (S3), and puts it back on the opening day after.
+const clock = { now: () => now, set: (at: Date) => (now = at) };
+const { managers, provided, tenantScope, close } = createManagers({
   databaseUrl: process.env.DATABASE_URL ?? '',
   version: 'demo-seed',
   dbPoolMax: 1,
   dbTxTimeoutMs: 60_000,
   roleSource: new DenyAllRoleSource(),
-  clock: { now: () => fixedOpening },
+  clock,
 });
 
 try {
@@ -44,7 +47,7 @@ try {
     },
     new Argon2PasswordHasher(),
     undefined,
-    { stock: provided.stock, tenantScope, clock: { now: () => fixedOpening } },
+    { stock: provided.stock, tenantScope, clock, party: managers.party, sales: managers.sales },
   );
   console.log(
     `Demo organization seeded: organization ${result.organizationId}, owner user ${result.ownerUserId}.`,

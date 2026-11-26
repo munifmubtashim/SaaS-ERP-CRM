@@ -12,6 +12,9 @@ import { seedDemoLogins, type DemoIds } from './demoOrganization.js';
  * ON CONFLICT DO NOTHING. created_by is NULL on every row ("seeded", ADR 0008 section 5).
  */
 
+/** The user id of the demo login `key` (manager, accounts, service.manager, sales) in that business. */
+export const demoLoginUserId = (businessId: string, key: string) => demoId(businessId, `user:${key}`);
+
 /** A fixed id for `name` in the business `idSeed`: the same business and name always give the same uuid. */
 export function demoId(idSeed: string, name: string): string {
   const hex = createHash('sha256').update(`${idSeed}:${name}`).digest('hex');
