@@ -223,11 +223,10 @@ export function createManagers(config: ManagerConfig): {
   });
   const numberSeries = new NumberSeries(new NumberSeriesQuery());
   const stockQuery = new StockQuery();
-  const stock = new StockService(stockQuery);
   // ADR 0058: one clock for everything that dates money and stock. The api never passes one (SystemClock); the demo
   // seed passes its own, so its opening and its sales carry past business dates.
   const clock = config.clock ?? new SystemClock();
-  const stock = new StockService(new StockQuery(), clock);
+  const stock = new StockService(stockQuery, clock);
   const posting = new PostingService(new JournalQuery(), numberSeries);
   // ADR 0016 section 3: the release 1 methods; the demo POS shows cash and bKash.
   const salesPayments = new SalesPaymentRecorder(new SalesPaymentQuery(), posting, numberSeries, clock, [
@@ -253,8 +252,6 @@ export function createManagers(config: ManagerConfig): {
     accounting: new AccountingManager(new AccountingQuery()),
     vehicle: new VehicleManager(new VehicleQuery()),
     report: new ReportManager(new ReportQuery(), clock),
-    party: new PartyManager(new PartyQuery(), numberSeries),
-    report: new ReportManager(new ReportQuery()),
     // ADR 0059: dues read the ledger's totals and the documents' open invoices.
     party: new PartyManager(new PartyQuery(), numberSeries, {
       ledger,

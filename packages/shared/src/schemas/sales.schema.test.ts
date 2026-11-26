@@ -9,6 +9,9 @@ import {
   saleDraftSchema,
   postedInvoiceSchema,
   postInvoiceSchema,
+  recordPaymentSchema,
+  salesPaymentListResponseSchema,
+  salesPaymentSchema,
 } from './sales.schema.js';
 
 // Synthetic sample only. Provisional view shapes for the Sales / POS screen.
@@ -110,11 +113,6 @@ describe('Sales / POS view shapes (provisional)', () => {
     expect(paymentDraftSchema.safeParse({ ...cash, amount: '0.00' }).success).toBe(false);
   });
 });
-  customerDuesSchema,
-  recordPaymentSchema,
-  saleDraftSchema,
-  salesPaymentListResponseSchema,
-  salesPaymentSchema,
 
 /**
  * The invoice posting payload and answer (ADR 0022 sections 1 and 2; ADR 0016 for payments at the sale). Money and
