@@ -114,6 +114,13 @@ export default async function setup({
   /** A customer, or the business's walk-in party (ADR 0019); invented values. */
   async function party(org: string, business: string, branch: string, walkIn = false): Promise<string> {
     return inOrg(org, [business], [branch], async (tx) => {
+      // ADR 0055: the business's trigger already made its one walk-in party; read it instead of adding a second.
+      if (walkIn) {
+        const [found] = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id::text FROM party WHERE business_id = ${business}::uuid AND is_walk_in`;
+        if (!found) throw new Error('no walk-in party');
+        return found.id;
+      }
       const [row] = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO party (business_id, code, name, kind, is_customer, is_supplier, phone_e164, is_walk_in, created_by)
         VALUES (${business}::uuid, ${`CU-${randomBytes(4).toString('hex')}`},
