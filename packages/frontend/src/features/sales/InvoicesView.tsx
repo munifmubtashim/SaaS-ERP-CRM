@@ -1,11 +1,12 @@
 import {
   formatDateTimeBD,
+  formatLongDateBD,
   formatQuantityBD,
   formatTaka,
   type InvoiceDetail,
   type InvoiceSummary,
 } from '@erp/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useServices } from '../../app/servicesContext';
 import { DemoBadge } from '../../components/ui';
@@ -39,18 +40,26 @@ export function InvoicesView() {
   const { t, locale } = useI18n();
   const loc = locale === 'bn' ? 'bn-BD' : 'en-BD';
   const taka = (amount: string) => `৳${formatTaka(amount, loc)}`;
+  // The business date (#221 invoiceDate, Asia/Dhaka), not the posting time: noon in Dhaka keeps the day.
+  const businessDate = (date: string) => formatLongDateBD(`${date}T06:00:00.000Z`, loc);
   const { sales } = useServices();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<InvoiceFilter>('all');
   const [picked, setPicked] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const list = useQuery({ queryKey: ['sales', 'invoices'], queryFn: () => sales.invoices() });
+  // #221's cursor pages: the newest page first, and Load more for the older ones until nextCursor is null.
+  const list = useInfiniteQuery({
+    queryKey: ['sales', 'invoices'],
+    queryFn: ({ pageParam }) => sales.invoices(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+  });
   const detail = useQuery({
     queryKey: ['sales', 'invoice', picked],
     queryFn: () => sales.invoice(picked ?? ''),
     enabled: picked !== null,
   });
-  const all = list.data ?? [];
+  const all = list.data?.pages.flatMap((page) => page.items) ?? [];
   const shown = filterInvoices(all, filter);
   const status = (invoice: InvoiceSummary) => {
     const s = invoice.status === 'voided' ? 'voided' : invoice.paymentStatus;
@@ -75,7 +84,10 @@ export function InvoicesView() {
               <h2 className="font-semibold">{t('inv.title')}</h2>
               {list.data && (
                 <p className="text-[13px] text-text2">
-                  {t('inv.caption', { shown: shown.length, total: all.length })}
+                  {t(list.hasNextPage ? 'inv.captionMore' : 'inv.caption', {
+                    shown: shown.length,
+                    total: all.length,
+                  })}
                 </p>
               )}
             </div>
@@ -126,7 +138,7 @@ export function InvoicesView() {
                   >
                     <span className="flex flex-col">
                       <b>{invoice.number}</b>
-                      <span className="text-xs text-muted">{formatDateTimeBD(invoice.issuedAt, loc)}</span>
+                      <span className="text-xs text-muted">{businessDate(invoice.invoiceDate)}</span>
                     </span>
                     <span className="hidden truncate sm:block">{invoice.customerName}</span>
                     <span className="num text-right">{taka(invoice.total)}</span>
@@ -136,6 +148,16 @@ export function InvoicesView() {
                 </li>
               ))}
             </ul>
+          )}
+          {list.hasNextPage && (
+            <button
+              type="button"
+              disabled={list.isFetchingNextPage}
+              onClick={() => void list.fetchNextPage()}
+              className="min-h-11 self-center rounded-xl border border-row-border px-4 text-[13px] text-text2 disabled:opacity-60"
+            >
+              {t(list.isFetchingNextPage ? 'inv.loadingMore' : 'inv.loadMore')}
+            </button>
           )}
         </section>
         <section aria-label={t('inv.details')} className={card}>
@@ -156,7 +178,7 @@ export function InvoicesView() {
             <Details
               invoice={detail.data}
               taka={taka}
-              when={formatDateTimeBD(detail.data.issuedAt, loc)}
+              when={businessDate(detail.data.invoiceDate)}
               status={status(detail.data)}
               onSaved={(updated, amount) => {
                 queryClient.setQueryData(['sales', 'invoice', updated.id], updated);

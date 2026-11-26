@@ -67,16 +67,18 @@ const draft = (serial: string | null, paid: string | null): SaleDraft => ({
 });
 
 describe('SalesService (the API)', () => {
-  it('invoices reads the first page of GET /v1/invoices (#221) and answers its items', async () => {
-    const sample = (await new SampleSalesService(0, '2026-11-12').invoices()).slice(0, 2);
-    const http = new RecordingHttp({ items: sample, nextCursor: null });
-    expect(await new SalesService(http, noPayments).invoices()).toEqual(sample);
-    expect(http.gets).toEqual(['/v1/invoices']);
+  it('invoices reads one page of GET /v1/invoices (#221), and passes the cursor for the next', async () => {
+    const items = (await new SampleSalesService(0, '2026-11-12').invoices(null)).items.slice(0, 2);
+    const http = new RecordingHttp({ items, nextCursor: 'next-1' });
+    const service = new SalesService(http, noPayments);
+    expect(await service.invoices(null)).toEqual({ items, nextCursor: 'next-1' });
+    await service.invoices('next-1');
+    expect(http.gets).toEqual(['/v1/invoices', '/v1/invoices?cursor=next-1']);
   });
 
   it('invoice reads GET /v1/invoices/:id by the invoice id (#221)', async () => {
     const service = new SampleSalesService(0, '2026-11-12');
-    const [first] = await service.invoices();
+    const [first] = (await service.invoices(null)).items;
     const detail = await service.invoice(first?.id ?? '');
     const http = new RecordingHttp(detail);
     expect(await new SalesService(http, noPayments).invoice(detail.id)).toEqual(detail);
@@ -85,7 +87,7 @@ describe('SalesService (the API)', () => {
 
   it('recordPayment sends POST /v1/payments for the invoice and its customer, with the Idempotency-Key, then reads the invoice back', async () => {
     const sample = new SampleSalesService(0, '2026-11-12');
-    const [first] = await sample.invoices();
+    const [first] = (await sample.invoices(null)).items;
     const detail = await sample.invoice(first?.id ?? '');
     const http = new RecordingHttp(detail);
     const payments = new RecordingPayments();
@@ -170,7 +172,7 @@ describe('SampleSalesService invoices', () => {
   const sample = () => new SampleSalesService(0, '2026-11-12');
 
   it('lists invented invoices in the #221 shape, dated around the given day, every payment status present', async () => {
-    const list = await sample().invoices();
+    const list = (await sample().invoices(null)).items;
     expect(list.length).toBeGreaterThanOrEqual(6);
     for (const invoice of list) expect(invoiceSummarySchema.parse(invoice)).toEqual(invoice);
     expect(new Set(list.map((i) => i.paymentStatus))).toEqual(new Set(['paid', 'partly_paid', 'due']));
@@ -179,9 +181,26 @@ describe('SampleSalesService invoices', () => {
     expect(new Set(list.map((i) => i.id)).size).toBe(list.length);
   });
 
+  it('pages its invoices newest first: every one reachable through nextCursor, none twice', async () => {
+    const paged = new SampleSalesService(0, '2026-11-12', 3);
+    const all = (await new SampleSalesService(0, '2026-11-12').invoices(null)).items;
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const page = await paged.invoices(cursor);
+      expect(page.items.length).toBeLessThanOrEqual(3);
+      seen.push(...page.items.map((i) => i.id));
+      cursor = page.nextCursor;
+      pages += 1;
+    } while (cursor !== null && pages < 10);
+    expect(seen).toEqual(all.map((i) => i.id));
+    expect(pages).toBe(Math.ceil(all.length / 3));
+  });
+
   it('opens an invoice by its id, with its lines, payments, subtotal and due', async () => {
     const service = sample();
-    const [first] = await service.invoices();
+    const [first] = (await service.invoices(null)).items;
     const detail = await service.invoice(first?.id ?? '');
     expect(invoiceDetailSchema.parse(detail)).toEqual(detail);
     expect(detail.lines.length).toBeGreaterThan(0);
@@ -191,7 +210,7 @@ describe('SampleSalesService invoices', () => {
   it('a completed sale appears in the list and opens with its lines', async () => {
     const service = sample();
     const sold = await service.completeSale(draft('VL3-000101', '100000.00'), 'key-1');
-    expect((await service.invoices()).map((i) => i.id)).toContain(sold.id);
+    expect((await service.invoices(null)).items.map((i) => i.id)).toContain(sold.id);
     const detail = await service.invoice(sold.id);
     expect(detail.lines.map((l) => l.description)).toEqual([
       'Velo 150 V3, VL3-000101',
@@ -229,7 +248,7 @@ describe('SampleSalesService invoices', () => {
       'pay-2',
     );
     expect(full).toMatchObject({ paid: '242000.00', due: '0.00', paymentStatus: 'paid' });
-    expect((await service.invoices()).find((i) => i.id === sold.id)?.paymentStatus).toBe('paid');
+    expect((await service.invoices(null)).items.find((i) => i.id === sold.id)?.paymentStatus).toBe('paid');
   });
 
   it('a bKash payment keeps its transaction id; without one it is refused (ADR 0016 lines 20 and 104)', async () => {
@@ -249,7 +268,7 @@ describe('SampleSalesService invoices', () => {
   it('the invented invoices are paid in cash or bKash only, as the demo POS offers', async () => {
     const service = sample();
     const methods = new Set<string>();
-    for (const invoice of await service.invoices())
+    for (const invoice of (await service.invoices(null)).items)
       for (const p of (await service.invoice(invoice.id)).payments) methods.add(p.method);
     expect([...methods].sort()).toEqual(['bkash', 'cash']);
   });
@@ -269,7 +288,7 @@ describe('SampleSalesService invoices', () => {
     const service = sample();
     const receipts = async () => {
       const all: string[] = [];
-      for (const invoice of await service.invoices())
+      for (const invoice of (await service.invoices(null)).items)
         for (const p of (await service.invoice(invoice.id)).payments) all.push(p.receiptNumber);
       return all;
     };

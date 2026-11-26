@@ -150,7 +150,7 @@ describe('Invoices view', () => {
     });
     fireEvent.click(within(details()).getByRole('button', { name: 'Save payment' }));
     expect(await screen.findByText('৳5,000 saved on C-000122.')).toBeInTheDocument();
-    const c122 = (await sample.invoices()).find((i) => i.number === 'C-000122');
+    const c122 = (await sample.invoices(null)).items.find((i) => i.number === 'C-000122');
     expect(paid).toEqual([{ id: c122?.id, partyId: c122?.partyId }]);
   });
 
@@ -203,7 +203,10 @@ describe('Invoices view', () => {
       i.number === 'C-000120' ? { ...i, status: 'voided' } : i;
     const sales: ISalesService = {
       ...sample,
-      invoices: async () => (await sample.invoices()).map(voided),
+      invoices: async (cursor) => {
+        const page = await sample.invoices(cursor);
+        return { ...page, items: page.items.map(voided) };
+      },
       invoice: async (id) => voided(await sample.invoice(id)),
     };
     renderInvoices('en', sales);
@@ -218,6 +221,54 @@ describe('Invoices view', () => {
     await open('C-000120');
     expect(await within(details()).findByText('Chain and sprocket kit')).toBeInTheDocument();
     expect(within(details()).queryByRole('button', { name: 'Save payment' })).toBeNull();
+  });
+
+  it('pages through the list: Load more invoices adds the older ones until every invoice is reachable', async () => {
+    renderInvoices('en', new SampleSalesService(0, '2026-11-12', 3));
+    const rows = () => within(list()).getAllByRole('button', { name: /^C-0001/ });
+    await within(list()).findAllByRole('button', { name: /^C-0001/ });
+    expect(rows()).toHaveLength(3);
+    // Older invoices exist: the caption must not read as if these were all of them.
+    expect(
+      within(list()).getByText('Showing 3 of the 3 newest invoices. Older ones load below.'),
+    ).toBeInTheDocument();
+    fireEvent.click(within(list()).getByRole('button', { name: 'Load more invoices' }));
+    await waitFor(() => expect(rows()).toHaveLength(6));
+    fireEvent.click(within(list()).getByRole('button', { name: 'Load more invoices' }));
+    await waitFor(() => expect(rows()).toHaveLength(7));
+    // The last page has no next cursor: nothing more to load.
+    expect(within(list()).queryByRole('button', { name: 'Load more invoices' })).toBeNull();
+    expect(within(list()).getByText('Showing 7 of 7 invoices, newest first.')).toBeInTheDocument();
+    expect(rows().map((r) => r.textContent?.slice(0, 8))).toEqual([
+      'C-000123',
+      'C-000122',
+      'C-000121',
+      'C-000120',
+      'C-000119',
+      'C-000118',
+      'C-000117',
+    ]);
+  });
+
+  it('shows the business date (invoiceDate), not the posting time, in the list and the details', async () => {
+    const sample = new SampleSalesService(0, '2026-11-12');
+    // Posted on 12 Nov, but its business date is 20 Oct (a back-dated seed sale, say).
+    const backDated = <T extends { number: string; invoiceDate: string }>(i: T): T =>
+      i.number === 'C-000122' ? { ...i, invoiceDate: '2026-10-20' } : i;
+    const sales: ISalesService = {
+      ...sample,
+      invoices: async (cursor) => {
+        const page = await sample.invoices(cursor);
+        return { ...page, items: page.items.map(backDated) };
+      },
+      invoice: async (id) => backDated(await sample.invoice(id)),
+    };
+    renderInvoices('en', sales);
+    const row = await within(list()).findByRole('button', { name: /C-000122/ });
+    expect(row).toHaveTextContent('Tuesday 20 October 2026');
+    expect(row).not.toHaveTextContent('12/11/2026');
+    await open('C-000122');
+    expect(await within(details()).findByText('Tuesday 20 October 2026')).toBeInTheDocument();
   });
 
   it('print and return are shown but not available yet', async () => {

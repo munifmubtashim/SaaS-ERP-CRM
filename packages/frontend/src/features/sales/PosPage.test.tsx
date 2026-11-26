@@ -93,7 +93,7 @@ describe('PosPage', () => {
     fireEvent.change(within(sale()).getByLabelText('bKash transaction ID'), { target: { value: 'BK7X2Q9' } });
     fireEvent.click(within(sale()).getByRole('button', { name: /Complete sale/ }));
     expect(await screen.findByRole('status')).toHaveTextContent('Invoice C-000124 saved.');
-    const sold = (await sample.invoices()).find((i) => i.number === 'C-000124');
+    const sold = (await sample.invoices(null)).items.find((i) => i.number === 'C-000124');
     const detail = await sample.invoice(sold?.id ?? '');
     expect(detail.payments).toEqual([expect.objectContaining({ method: 'bkash', externalRef: 'BK7X2Q9' })]);
   });

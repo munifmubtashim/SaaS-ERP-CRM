@@ -10,6 +10,7 @@ import {
   addDaysISO,
   ZERO,
   type InvoiceDetail,
+  type InvoiceListResponse,
   type InvoiceSummary,
   type PosItem,
   type SaleDraft,
@@ -275,6 +276,8 @@ export class SampleSalesService implements ISalesService {
   constructor(
     private readonly delayMs = 300,
     today: string | null = null,
+    /** Invoices per page, like the API's cursor pages (25 by default); tests page with fewer. */
+    private readonly pageSize = 25,
   ) {
     this.details = seedInvoices(today ?? todayBD(new Date().toISOString()));
     const used = this.details.flatMap((d) => d.payments.map((p) => Number(p.receiptNumber.slice(2))));
@@ -287,7 +290,15 @@ export class SampleSalesService implements ISalesService {
 
   posItems = () => this.later(this.items);
 
-  invoices = () => this.later(this.details.map(summary));
+  /** A page of invoices, newest first. The cursor is the offset of the next page, as text (opaque to callers). */
+  invoices = (cursor: string | null): Promise<InvoiceListResponse> => {
+    const from = cursor === null ? 0 : Number(cursor);
+    const to = from + this.pageSize;
+    return this.later({
+      items: this.details.slice(from, to).map(summary),
+      nextCursor: to < this.details.length ? String(to) : null,
+    });
+  };
 
   invoice = (id: string) => {
     const found = this.details.find((d) => d.id === id);

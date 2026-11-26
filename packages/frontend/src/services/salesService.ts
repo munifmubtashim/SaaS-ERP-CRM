@@ -6,6 +6,7 @@ import {
   postedInvoiceSchema,
   type PostInvoiceInput,
   type InvoiceDetail,
+  type InvoiceListResponse,
   type InvoiceSummary,
   type PaymentDraft,
   type PosItem,
@@ -29,8 +30,11 @@ export interface ISalesService {
    * same key answers the first invoice and sells nothing again.
    */
   completeSale(draft: SaleDraft, idempotencyKey: string): Promise<InvoiceSummary>;
-  /** The scope's invoices, newest first (the design's Invoices view; GET /v1/invoices, #221). */
-  invoices(): Promise<InvoiceSummary[]>;
+  /**
+   * One page of the scope's invoices, newest first (the design's Invoices view; GET /v1/invoices, #221). Null starts
+   * at the newest; pass the page's nextCursor for the next one. A null nextCursor means there is nothing older.
+   */
+  invoices(cursor: string | null): Promise<InvoiceListResponse>;
   /** One invoice by its id, with its lines and payments (GET /v1/invoices/:id, #221). */
   invoice(id: string): Promise<InvoiceDetail>;
   /**
@@ -54,7 +58,7 @@ export type { PaymentDraft } from '@erp/shared';
  *   postInvoiceSchema to POST /v1/invoices (#191), selling to the catalog's walk-in party until customers exist (F2).
  *   The client sends no price, cost or date; a serial number becomes its unit id from the catalog. The answer is read
  *   back from GET /v1/invoices/:id, so it is #221's summary with nothing invented.
- * - The invoice reads are #221's routes; the list reads the first page only, until the view pages.
+ * - The invoice reads are #221's routes; the list is paged by its opaque cursor.
  * - Collect pays through POST /v1/payments (ADR 0057, the same call as Record payment), then reads the invoice back.
  */
 export class SalesService implements ISalesService {
@@ -106,7 +110,11 @@ export class SalesService implements ISalesService {
     return invoiceSummarySchema.parse(await this.invoice(posted.id));
   };
 
-  invoices = async () => (await this.http.getJson('/v1/invoices', invoiceListResponseSchema)).items;
+  invoices = (cursor: string | null) =>
+    this.http.getJson(
+      cursor === null ? '/v1/invoices' : `/v1/invoices?cursor=${encodeURIComponent(cursor)}`,
+      invoiceListResponseSchema,
+    );
   invoice = (id: string) => this.http.getJson(`/v1/invoices/${encodeURIComponent(id)}`, invoiceDetailSchema);
   /**
    * POST /v1/payments on this invoice, then GET /v1/invoices/:id for what is still due. If the read fails, a retry with
@@ -142,7 +150,7 @@ export class SalesServiceSwitch implements ISalesService {
   }
   posItems = () => this.pick('posItems').posItems();
   completeSale = (draft: SaleDraft, key: string) => this.pick('completeSale').completeSale(draft, key);
-  invoices = () => this.pick('invoices').invoices();
+  invoices = (cursor: string | null) => this.pick('invoices').invoices(cursor);
   invoice = (id: string) => this.pick('invoice').invoice(id);
   recordPayment = (invoice: PayableInvoice, payment: PaymentDraft, key: string) =>
     this.pick('recordPayment').recordPayment(invoice, payment, key);

@@ -51,6 +51,22 @@ describe('filterInvoices', () => {
   });
 });
 
+describe('filterInvoices order (the business date first)', () => {
+  it('sorts by invoiceDate, newest first, then by posting time: a back-dated invoice sits on its own day', () => {
+    const backDated = {
+      ...invoice('C-000105', 'due', '2026-11-12T09:00:00.000Z'),
+      invoiceDate: '2026-11-09',
+    };
+    expect(filterInvoices([...LIST, backDated], 'all').map((i) => i.number)).toEqual([
+      'C-000104',
+      'C-000103',
+      'C-000102',
+      'C-000101',
+      'C-000105',
+    ]);
+  });
+});
+
 describe('canCollect', () => {
   it('a posted invoice with something still due can take a payment; a paid or voided one cannot', () => {
     const [paid, due, partly, voided] = LIST;
