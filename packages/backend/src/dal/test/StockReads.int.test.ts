@@ -5,7 +5,6 @@ import { runInTenantScope } from '../config/tenantScope.js';
 import { InventoryQuery } from '../query/InventoryQuery.js';
 import { StockQuery } from '../query/StockQuery.js';
 import { addBranch, createTree, setScope, type Tree } from './support/orgTree.js';
-import { addParty } from './support/party.js';
 
 /**
  * The stock reads (Munif, 24 Nov), as erp_app under RLS:
@@ -185,9 +184,11 @@ describe('StockQuery.posCatalogItems (GET /v1/stock/pos-catalog)', () => {
 });
 
 describe('InventoryQuery.walkInPartyId', () => {
-  it('null until the business has a walk-in party, then its id', async () => {
-    expect(await asApp(() => inventory.walkInPartyId())).toBeNull();
-    const walkIn = await addParty(owner, x, { walkIn: true });
-    expect(await asApp(() => inventory.walkInPartyId())).toBe(walkIn);
+  // ADR 0055: a trigger on business creates its walk-in party, so a new business has one from the start.
+  it('is the walk-in party the business trigger created, from the start (ADR 0055)', async () => {
+    const [created] = await owner.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM party WHERE business_id = ${x.businessId}::uuid AND is_walk_in`;
+    expect(created?.id).toBeDefined();
+    expect(await asApp(() => inventory.walkInPartyId())).toBe(created?.id);
   });
 });
