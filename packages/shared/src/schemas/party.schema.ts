@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { moneySchema } from '../utils/money.js';
+import { MONEY_PATTERN, ZERO, moneySchema, parseMoney } from '../utils/money.js';
 import { cursorPageSchema, pageQuerySchema } from '../utils/pagination.js';
 import { toE164 } from '../utils/phone.js';
 
@@ -7,7 +7,8 @@ import { toE164 } from '../utils/phone.js';
  * Party module, Zod schemas shared by backend and frontend. Owner: Farhan.
  * One party is a customer, a supplier or both, and belongs to one business (ADR 0006 draft).
  * Read shapes (task F1), and the create and edit payloads (F2, ADR 0056 section 3).
- * Never add the national ID here: it has its own restricted route and schema (ADR 0001 row 2).
+ * The national ID appears here only as its last four digits (`nidLast4` on the profile); the full NID has its
+ * own restricted route and schema (ADR 0001 row 2).
  */
 export const partyKindSchema = z.enum(['person', 'company']);
 export const partyStatusSchema = z.enum(['active', 'inactive']);
@@ -43,10 +44,45 @@ export const partyBaseSchema = z.object({
   version: z.number().int().min(1),
 });
 
-export const partySchema = partyBaseSchema.refine((p) => p.isCustomer || p.isSupplier, {
+/** Object-level rule shared by every full party shape. */
+const isCustomerOrSupplier = (p: { isCustomer: boolean; isSupplier: boolean }) =>
+  p.isCustomer || p.isSupplier;
+const customerOrSupplierIssue = {
   message: 'A party must be a customer, a supplier or both.',
   path: ['isCustomer'],
-});
+};
+
+export const partySchema = partyBaseSchema.refine(isCustomerOrSupplier, customerOrSupplierIssue);
+
+/**
+ * A credit limit: a money string of zero or more. Null means no limit is set, so no check (C17).
+ * The refusal carries the stable code `credit.limit_invalid` in the issue's `params.code`.
+ */
+const creditLimitSchema = moneySchema.refine(
+  // Zod runs a refine even when the regex failed, so the pattern is checked first.
+  (amount) => MONEY_PATTERN.test(amount) && parseMoney(amount) >= ZERO,
+  { message: 'A credit limit cannot be negative', params: { code: 'credit.limit_invalid' } },
+);
+
+/**
+ * GET /v1/parties/:id, the customer profile (ADR 0006). The national ID appears only as its last four
+ * digits; the full NID has its own restricted route. Balance and dues are not here: they come from the
+ * ledger, through the dues route (`customerDuesSchema` in sales).
+ */
+export const partyDetailSchema = partyBaseSchema
+  .extend({
+    nidLast4: z
+      .string()
+      .regex(/^\d{4}$/)
+      .nullable(),
+    creditLimit: creditLimitSchema.nullable(),
+    /** Days a customer has to pay an invoice; null means the business default. */
+    payTermDays: z.number().int().min(0).max(365).nullable(),
+    onCreditHold: z.boolean(),
+    /** The business's walk-in customer (ADR 0006): no advance, credit limit or dues. */
+    isWalkIn: z.boolean(),
+  })
+  .refine(isCustomerOrSupplier, customerOrSupplierIssue);
 
 /** One row of a party list. Unknown keys are stripped, so nothing extra (such as an NID) can leak through. */
 export const partyListItemSchema = partyBaseSchema.pick({
