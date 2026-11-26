@@ -40,6 +40,18 @@ export const ISOLATION_CASES: Record<string, IsolationCase> = {
       'Accountant, Branch Manager and Cashier: 403',
     ],
   },
+  // Run by parties.isolation.test.ts against real Postgres (ADR 0056 section 4, ADR 0019 test 15).
+  'GET /v1/parties': {
+    attempts: ["list and search in business Y for X's party: never shown"],
+  'GET /v1/parties/:id': {
+    attempts: ["read X's party from Y: 404, the same as a guessed id"],
+  'POST /v1/parties': {
+      'send businessId, code or status in the body: 400, nothing created',
+      "use X's phone in Y: no duplicate warning, so nothing of X leaks",
+  'PATCH /v1/parties/:id': {
+    attempts: ["edit X's party from Y: 404, and X's party is unchanged"],
+  'POST /v1/parties/:id/deactivate': {
+    attempts: ["deactivate X's party from Y: 404, and it stays active"],
   // Run by invoices.isolation.test.ts against real Postgres (item 3b).
   'POST /v1/invoices': {
     attempts: [

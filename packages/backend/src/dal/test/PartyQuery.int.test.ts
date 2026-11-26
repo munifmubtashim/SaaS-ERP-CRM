@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbClient, type DbClient } from '../config/db.js';
 import { runInTenantScope } from '../config/tenantScope.js';
 import { PartyQuery, type NewParty } from '../query/PartyQuery.js';
-import { createTree, type Tree } from './support/orgTree.js';
+import { addBranch, createTree, type Tree } from './support/orgTree.js';
 
 /**
  * PartyQuery (ADR 0019 section 5: create, find, edit with the version check), as erp_app inside the request's
@@ -216,5 +216,19 @@ describe('PartyQuery.findByPhones (ADR 0019 tests 11 and 12)', () => {
 
   it("does not see another business's phone, so nothing leaks (ADR 0019 test 12)", async () => {
     expect(await inRequest(tree, () => query.findByPhones(['+8801722000003'], null))).toEqual([]);
+  });
+});
+
+describe('ADR 0019 test 16: a party is business-wide, so every branch of the business lists it', () => {
+  it('a party created at branch 2 is listed in a request scoped to branch 1 only', async () => {
+    const tree = await createTree(owner);
+    const branch2 = await addBranch(owner, tree.organizationId, tree.businessId, 'BR2');
+    const made = await runInTenantScope(
+      app,
+      { organizationId: tree.organizationId, businessIds: [tree.businessId], branchIds: [branch2] },
+      () => query.create(party(tree, { name: 'Branch Two Customer', createdBranchId: branch2 })),
+    );
+    const listed = await inRequest(tree, () => query.list({ limit: 10, search: 'branch two' }));
+    expect(listed.map((r) => r.id)).toEqual([made.id]);
   });
 });
