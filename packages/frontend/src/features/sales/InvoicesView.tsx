@@ -1,4 +1,10 @@
-import { formatDateTimeBD, formatTaka, type InvoiceDetail } from '@erp/shared';
+import {
+  formatDateTimeBD,
+  formatQuantityBD,
+  formatTaka,
+  type InvoiceDetail,
+  type InvoiceSummary,
+} from '@erp/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useServices } from '../../app/servicesContext';
@@ -6,15 +12,17 @@ import { DemoBadge } from '../../components/ui';
 import { useI18n, type MessageKey } from '../../i18n';
 import type { PaymentDraft } from '../../services';
 import { takaInput } from './cart';
-import { filterInvoices, paymentProblem, type InvoiceFilter } from './invoices';
+import { canCollect, filterInvoices, paymentProblem, type InvoiceFilter } from './invoices';
 
 const FILTERS: InvoiceFilter[] = ['all', 'paid', 'partly_paid', 'due'];
 // The demo POS's methods (Munif, 24 Nov): cash and bKash; ADR 0016 keeps bank and card in the plan.
 const METHODS: PaymentDraft['method'][] = ['cash', 'bkash'];
+// #221: the pill shows how much is paid (paymentStatus), or Voided for a voided invoice (status).
 const STATUS_TONE = {
   paid: 'bg-pos-bg text-pos-text',
   partly_paid: 'bg-warn-bg text-warn-text',
   due: 'bg-neg-bg text-neg-text',
+  voided: 'bg-chip text-muted',
 };
 const pill =
   'min-h-10 rounded-full px-4 text-[13px] text-text2 aria-pressed:bg-accent-soft aria-pressed:font-semibold aria-pressed:text-accent-text';
@@ -43,11 +51,14 @@ export function InvoicesView() {
   });
   const all = list.data ?? [];
   const shown = filterInvoices(all, filter);
-  const status = (s: InvoiceDetail['status']) => (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[s]}`}>
-      {t(`inv.status.${s}` as MessageKey)}
-    </span>
-  );
+  const status = (invoice: InvoiceSummary) => {
+    const s = invoice.status === 'voided' ? 'voided' : invoice.paymentStatus;
+    return (
+      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_TONE[s]}`}>
+        {t(`inv.status.${s}` as MessageKey)}
+      </span>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -105,11 +116,11 @@ export function InvoicesView() {
                 <span className="w-24">{t('inv.col.status')}</span>
               </li>
               {shown.map((invoice) => (
-                <li key={invoice.number}>
+                <li key={invoice.id}>
                   <button
                     type="button"
-                    aria-current={picked === invoice.number}
-                    onClick={() => setPicked(invoice.number)}
+                    aria-current={picked === invoice.id}
+                    onClick={() => setPicked(invoice.id)}
                     className="grid w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-t border-row-border px-2 py-3 text-left text-[13px] hover:bg-nav-hover aria-[current=true]:bg-nav-active sm:grid-cols-[1.2fr_1.4fr_1fr_1fr_auto]"
                   >
                     <span className="flex flex-col">
@@ -119,7 +130,7 @@ export function InvoicesView() {
                     <span className="hidden truncate sm:block">{invoice.customerName}</span>
                     <span className="num text-right">{taka(invoice.total)}</span>
                     <span className="num hidden text-right text-text2 sm:block">{taka(invoice.paid)}</span>
-                    <span className="col-span-2 sm:col-span-1 sm:w-24">{status(invoice.status)}</span>
+                    <span className="col-span-2 sm:col-span-1 sm:w-24">{status(invoice)}</span>
                   </button>
                 </li>
               ))}
@@ -145,9 +156,9 @@ export function InvoicesView() {
               invoice={detail.data}
               taka={taka}
               when={formatDateTimeBD(detail.data.issuedAt, loc)}
-              status={status(detail.data.status)}
+              status={status(detail.data)}
               onSaved={(updated, amount) => {
-                queryClient.setQueryData(['sales', 'invoice', updated.number], updated);
+                queryClient.setQueryData(['sales', 'invoice', updated.id], updated);
                 void queryClient.invalidateQueries({ queryKey: ['sales', 'invoices'] });
                 setToast(t('inv.saved', { amount: taka(amount), number: updated.number }));
               }}
@@ -183,7 +194,7 @@ function Details({
   const attempt = useRef<{ payment: string; key: string } | null>(null);
   const save = useMutation({
     mutationFn: ({ payment, key }: { payment: PaymentDraft; key: string }) =>
-      sales.recordPayment(invoice.number, payment, key),
+      sales.recordPayment(invoice.id, payment, key),
     onSuccess: (updated, { payment }) => {
       attempt.current = null;
       setAmountText('');
@@ -194,7 +205,7 @@ function Details({
     onError: () => setProblem('failed'),
   });
   const onSave = () => {
-    const blocked = paymentProblem(amountText, invoice.balance);
+    const blocked = paymentProblem(amountText, invoice.due);
     if (blocked) return setProblem(blocked);
     // Bank, bKash and card need the external transaction id (ADR 0016 line 20).
     if (method !== 'cash' && reference.trim() === '') return setProblem('reference');
@@ -203,12 +214,12 @@ function Details({
       amount: takaInput(amountText) ?? '0.00',
       externalRef: method === 'cash' ? null : reference.trim(),
     };
-    const text = JSON.stringify([invoice.number, payment]);
+    const text = JSON.stringify([invoice.id, payment]);
     if (attempt.current?.payment !== text) attempt.current = { payment: text, key: crypto.randomUUID() };
     setProblem(null);
     save.mutate({ payment, key: attempt.current.key });
   };
-  const canCollect = invoice.status !== 'paid';
+  const collectable = canCollect(invoice);
 
   return (
     <div className="flex flex-col gap-3">
@@ -233,7 +244,7 @@ function Details({
           <span className="flex flex-col">
             <span>{line.description}</span>
             <span className="text-xs text-muted">
-              {t('inv.quantity', { quantity: Number(line.quantity) })}
+              {t('inv.quantity', { quantity: formatQuantityBD(line.quantity, loc) })}
             </span>
           </span>
           <span className="num">{taka(line.amount)}</span>
@@ -255,9 +266,7 @@ function Details({
       </div>
       <div className={kv}>
         <span>{t('inv.balance')}</span>
-        <span className={`num font-semibold ${canCollect ? 'text-neg-text' : ''}`}>
-          {taka(invoice.balance)}
-        </span>
+        <span className={`num font-semibold ${collectable ? 'text-neg-text' : ''}`}>{taka(invoice.due)}</span>
       </div>
       <h3 className="text-xs font-semibold text-muted">{t('inv.payments')}</h3>
       {invoice.payments.length === 0 ? (
@@ -276,7 +285,7 @@ function Details({
           </div>
         ))
       )}
-      {canCollect && (
+      {collectable && (
         <div className="flex flex-col gap-2 border-t border-row-border pt-3">
           <h3 className="text-xs font-semibold text-muted">{t('inv.collect')}</h3>
           <label className="flex flex-col gap-1 text-[13px]">
@@ -315,7 +324,7 @@ function Details({
           {problem && (
             <p role="alert" className="text-[13px] text-neg-text">
               {t(problem === 'reference' ? 'pay.error.reference' : (`inv.error.${problem}` as MessageKey), {
-                balance: taka(invoice.balance),
+                balance: taka(invoice.due),
               })}
             </p>
           )}
